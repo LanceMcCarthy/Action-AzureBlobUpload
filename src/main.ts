@@ -7,18 +7,18 @@ import { basename, relative } from 'path';
 import * as glob from 'glob';
 
 async function run(): Promise<void> {
-  var connectionString = getInput('connection_string');
-  var containerName = getInput('container_name');
-  var sourcePath = getInput('source_path');
-  var destinationPath = getInput('destination_path');
-  var cleanDestinationPath = getInput('clean_destination_path');
+  const connectionString = getInput('connection_string');
+  const containerName = getInput('container_name');
+  const sourcePath = getInput('source_path');
+  const destinationPath = getInput('destination_path');
+  const cleanDestinationPath = getInput('clean_destination_path');
 
   //core.debug(`vars: ${containerName}, ${sourcePath}, ${sourcePath}, ${destinationPath}, ${cleanDestinationPath}`);
 
   const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
   const blobContainerClient = blobServiceClient.getContainerClient(containerName);
 
-  var containerPresent = await blobContainerClient.exists();
+  const containerPresent = await blobContainerClient.exists();
 
   if(containerPresent == false){
     core.info(`"${containerName}" did not exist, creating a new one now...`);
