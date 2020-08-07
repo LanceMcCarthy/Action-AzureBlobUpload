@@ -1,11 +1,25 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Azure Blob Upload'
+description: 'A simple helper that will upload all the files in a source path to a destination path in a Blob container.'
+author: 'Lance McCarthy'
 inputs:
-  milliseconds: # change this
+  connection_string:
+    description: 'Azure Storage ConnectionString for the container (Azure Portal > select Storage Account > Access Keys blade).'
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+  container_name:
+    description: 'Blob container name'
+    required: true
+  source_path:
+    description: 'The folder containing all the files you want to upload.'
+    required: true
+  destination_path:
+    description: 'Any desintation path (i.e. subfolder) in the blob container.'
+    required: false
+    default: 'my-container-subfolder'
+  clean_destination_path:
+    description: 'This option will delete all the blobs in destination_path (default is false).'
+    required: false
+    default: false
+
 runs:
   using: 'node12'
   main: 'dist/index.js'
