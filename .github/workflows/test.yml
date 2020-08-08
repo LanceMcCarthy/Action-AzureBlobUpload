@@ -20,31 +20,24 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: checkout
-        uses: actions/checkout@v2
-
-      - name: Generating File Name and Data
-        uses: Amadevus/pwsh-script@v1
+      - uses: actions/checkout@v2
+        
+      # Create unique test file so that we can verify the upload was successful for this specific run.
+      - uses: Amadevus/pwsh-script@v1
+        name: Generating File Name and Data
         id: PwrShell
         with:
           script: |
             $date = Get-Date -Format "yyyy.Mdd"
-            $result = $buildDay + "_" + $env:GITHUB_RUN_NUMBER + ".md"
-            $cont = "#Test Result for \nThis is an example"
-            Set-ActionVariable F_NAME $result
-            Set-ActionVariable F_CONTENT $cont
-
-      - name: Create File
-        uses: finnp/create-file-action@1.0.0
-        env: 
-          FILE_NAME = $env:F_NAME
-          FILE_DATA = $env:F_CONTENT
-
+            $fleName = $buildDay + "_" + $env:GITHUB_RUN_NUMBER + ".txt"
+            $flePath = "src\TestContent\" + $fleName
+            New-Item -Path $flePath -ItemType File
+        
       - name: Azure Blob Upload
         uses: ./
         with:
-          connection_string: ${{ secret.AzureBlobConnectionString }}
+          connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_path: src/TestContent/
-          destination_path: AzureBlobUploadAction/
+          source_path: src\TestContent\
+          destination_path: AzureBlobUploadAction\
           clean_destination_path: true
