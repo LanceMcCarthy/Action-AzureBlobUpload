@@ -32,16 +32,19 @@ jobs:
         id: PwrShell
         with:
           script: |
-            $date = Get-Date -Format "yyyy.Mdd"
-            $fleName = $buildDay + "_" + $env:GITHUB_RUN_NUMBER + ".txt"
-            $flePath = "src\TestContent\" + $fleName
-            New-Item -Path $flePath -ItemType File
+            $date = Get-Date -Format "yyyy.Mdd.hh.mm"
+            $parentFileName = "D:\a\Action-AzureBlobUpload\src\TestContent\ParentHelloWorld.txt"
+            $parentUpdatedFileName = "Parent_" + $buildDay + ".txt"
+            Rename-Item $parentFileName $parentUpdatedFileName
+            $childFileName = "D:\a\Action-AzureBlobUpload\src\TestContent\MySubFolder\ChildHelloWorld.txt"
+            $childUpdatedFileName = "Child_" + $buildDay + ".txt"
+            Rename-Item $childFileName $childName
         
       - name: Azure Blob Upload
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_path: src\TestContent\
-          destination_path: AzureBlobUploadAction\
+          source_path: D:\a\Action-AzureBlobUpload\src\TestContent\
+          destination_path: AzureBlobUploadAction
           clean_destination_path: true
