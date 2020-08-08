@@ -72,26 +72,25 @@ export async function uploadToAzure(
         const src = relative(path, source).replace(/^.*[\\\/]/, '');
         const dst = [destinationFolder, src].join('/');
 
-        core.info(`IsDirectory=True - path: ${path}, source ${source}, relativeSource: ${src}, cmbdDestPath: ${dst}`);
+        core.info(`Uploading (IsDirectory=True) - TopSourcePath: ${path}, SourcePath ${source}, UpdatedSourcePath: ${src}, DestinationPath: ${dst}`);
   
-        await helpers.uploadFileFromPath(blobContainerClient, dst, source);
+        // https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
+        await blobContainerClient.getBlockBlobClient(dst).uploadFile(src);
 
         core.info(`Uploaded ${source} to ${dst}...`);
       });
 
     } 
-    // else {
-    //   // A file in toplevel folder
+    else {
+      // A file in toplevel folder
       
-    //   const basenameSource = basename(path);
-    //   const dst = [destinationFolder, ].join('/');
+      const basenameSource = basename(path);
+      const dst = [destinationFolder, ].join('/');
 
-    //   core.info(`IsDirectory=False - path: ${path}, basenameSource: ${basenameSource}, cmbdDestPath: ${dst}`);
+      core.info(`Uploading (IsDirectory=True) - OriginalPath: ${path}, UpdatedSourcePath: ${basenameSource}, DestinationPath: ${dst}`);
 
-    //   core.info(`Top Level file Uploading ${path} to ${dst} ...`);
-    //   await helpers.uploadFileFromPath(blobContainerClient, path, dst);
-    // }
-
+      await blobContainerClient.getBlockBlobClient(dst).uploadFile(basenameSource);
+    }
   });
 }
 
