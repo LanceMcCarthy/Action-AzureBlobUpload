@@ -26110,7 +26110,6 @@ const core = __importStar(__webpack_require__(470));
 const storage_blob_1 = __webpack_require__(9);
 const fs_1 = __webpack_require__(747);
 const path_1 = __webpack_require__(622);
-const path_2 = __webpack_require__(622);
 function uploadToAzure(connectionString, containerName, sourcePath, destinationFolder, cleanDestinationPath) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
@@ -26163,26 +26162,29 @@ function uploadToAzure(connectionString, containerName, sourcePath, destinationF
         //const sourcePaths = glob.sync(sourcePath);
         const sourcePaths = yield walk(sourcePath);
         sourcePaths.forEach((path) => __awaiter(this, void 0, void 0, function* () {
-            const stat = yield fs_1.promises.lstat(path);
-            if (stat.isDirectory()) {
-                //is a file in a subfolder
-                const paths = yield walk(path);
-                paths.forEach((source) => __awaiter(this, void 0, void 0, function* () {
-                    const src = path_1.relative(path, source).replace(/^.*[\\\/]/, '');
-                    const dst = [destinationFolder, src].join('/');
-                    core.info(`Uploading (IsDirectory=True) - TopSourcePath: ${path}, SourcePath ${source}, UpdatedSourcePath: ${src}, DestinationPath: ${dst}`);
-                    // https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
-                    yield blobContainerClient.getBlockBlobClient(dst).uploadFile(src);
-                    core.info(`Uploaded ${source} to ${dst}...`);
-                }));
-            }
-            else {
-                // A file in toplevel folder
-                const basenameSource = path_1.basename(path);
-                const dst = [destinationFolder,].join('/');
-                core.info(`Uploading (IsDirectory=True) - OriginalPath: ${path}, UpdatedSourcePath: ${basenameSource}, DestinationPath: ${dst}`);
-                yield blobContainerClient.getBlockBlobClient(dst).uploadFile(basenameSource);
-            }
+            const dst = [destinationFolder, path].join('/');
+            core.info(`Uploading ${path} to ${dst}...`);
+            yield blobContainerClient.getBlockBlobClient(dst).uploadFile(path);
+            // const stat = await fs.lstat(path);
+            // if (stat.isDirectory()) {
+            //   //is a file in a subfolder
+            //   const paths = await walk(path);
+            //   paths.forEach(async (source: any) => {
+            //     const src = relative(path, source).replace(/^.*[\\\/]/, '');
+            //     const dst = [destinationFolder, src].join('/');
+            //     core.info(`Uploading (IsDirectory=True) - TopSourcePath: ${path}, SourcePath ${source}, UpdatedSourcePath: ${src}, DestinationPath: ${dst}`);
+            //     // https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
+            //     await blobContainerClient.getBlockBlobClient(dst).uploadFile(src);
+            //     core.info(`Uploaded ${source} to ${dst}...`);
+            //   });
+            // }
+            // else {
+            //   // A file in toplevel folder
+            //   const basenameSource = basename(path);
+            //   const dst = [destinationFolder,].join('/');
+            //   core.info(`Uploading (IsDirectory=True) - OriginalPath: ${path}, UpdatedSourcePath: ${basenameSource}, DestinationPath: ${dst}`);
+            //   await blobContainerClient.getBlockBlobClient(dst).uploadFile(basenameSource);
+            // }
         }));
     });
 }
@@ -26192,7 +26194,7 @@ function walk(directory) {
         let fileList = [];
         const files = yield fs_1.promises.readdir(directory);
         for (const file of files) {
-            const p = path_2.join(directory, file);
+            const p = path_1.join(directory, file);
             if ((yield fs_1.promises.stat(p)).isDirectory()) {
                 fileList = [...fileList, ...(yield walk(p))];
             }
@@ -26211,7 +26213,11 @@ function run() {
         const srcPath = core.getInput('source_path');
         const dstPath = core.getInput('destination_folder');
         const cleanDst = core.getInput('clean_destination_folder');
-        yield uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst.toLowerCase() == 'true');
+        yield uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst.toLowerCase() == 'true').catch(e => {
+            core.debug(e.stack);
+            core.error(e.message);
+            core.setFailed(e.message);
+        });
     });
 }
 // Showtime!

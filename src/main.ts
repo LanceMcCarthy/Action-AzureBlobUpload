@@ -60,35 +60,40 @@ export async function uploadToAzure(
   const sourcePaths = await walk(sourcePath);
 
   sourcePaths.forEach(async (path: any) => {
-    const stat = await fs.lstat(path);
+    const dst = [destinationFolder, path].join('/');
 
-    if (stat.isDirectory()) {
-      //is a file in a subfolder
-      const paths = await walk(path);
+    core.info(`Uploading ${path} to ${dst}...`);
+    await blobContainerClient.getBlockBlobClient(dst).uploadFile(path);
 
-      paths.forEach(async (source: any) => {
-        const src = relative(path, source).replace(/^.*[\\\/]/, '');
-        const dst = [destinationFolder, src].join('/');
+    // const stat = await fs.lstat(path);
 
-        core.info(`Uploading (IsDirectory=True) - TopSourcePath: ${path}, SourcePath ${source}, UpdatedSourcePath: ${src}, DestinationPath: ${dst}`);
-  
-        // https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
-        await blobContainerClient.getBlockBlobClient(dst).uploadFile(src);
+    // if (stat.isDirectory()) {
+    //   //is a file in a subfolder
+    //   const paths = await walk(path);
 
-        core.info(`Uploaded ${source} to ${dst}...`);
-      });
+    //   paths.forEach(async (source: any) => {
+    //     const src = relative(path, source).replace(/^.*[\\\/]/, '');
+    //     const dst = [destinationFolder, src].join('/');
 
-    } 
-    else {
-      // A file in toplevel folder
-      
-      const basenameSource = basename(path);
-      const dst = [destinationFolder, ].join('/');
+    //     core.info(`Uploading (IsDirectory=True) - TopSourcePath: ${path}, SourcePath ${source}, UpdatedSourcePath: ${src}, DestinationPath: ${dst}`);
 
-      core.info(`Uploading (IsDirectory=True) - OriginalPath: ${path}, UpdatedSourcePath: ${basenameSource}, DestinationPath: ${dst}`);
+    //     // https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
+    //     await blobContainerClient.getBlockBlobClient(dst).uploadFile(src);
 
-      await blobContainerClient.getBlockBlobClient(dst).uploadFile(basenameSource);
-    }
+    //     core.info(`Uploaded ${source} to ${dst}...`);
+    //   });
+
+    // }
+    // else {
+    //   // A file in toplevel folder
+
+    //   const basenameSource = basename(path);
+    //   const dst = [destinationFolder,].join('/');
+
+    //   core.info(`Uploading (IsDirectory=True) - OriginalPath: ${path}, UpdatedSourcePath: ${basenameSource}, DestinationPath: ${dst}`);
+
+    //   await blobContainerClient.getBlockBlobClient(dst).uploadFile(basenameSource);
+    // }
   });
 }
 
@@ -116,7 +121,11 @@ async function run(): Promise<void> {
   const dstPath = core.getInput('destination_folder');
   const cleanDst = core.getInput('clean_destination_folder');
 
-  await uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst.toLowerCase() == 'true');
+  await uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst.toLowerCase() == 'true').catch(e => {
+    core.debug(e.stack);
+    core.error(e.message);
+    core.setFailed(e.message);
+  });
 }
 
 // Showtime!
