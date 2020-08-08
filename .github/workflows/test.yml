@@ -33,9 +33,9 @@ jobs:
         with:
           script: |
             $date = Get-Date -Format "yyyy.Mdd.hh.mm"
-            $parentUpdatedFileName = "Parent_" + $GITHUB_RUN_NUMBER + ".txt"
+            $parentUpdatedFileName = "Parent_" + $env:GITHUB_RUN_NUMBER + ".txt"
             Rename-Item src\TestContent\ParentHelloWorld.txt $parentUpdatedFileName
-            $childUpdatedFileName = "Child_" + $GITHUB_RUN_NUMBER + ".txt"
+            $childUpdatedFileName = "Child_" + $env:GITHUB_RUN_NUMBER + ".txt"
             Rename-Item src\TestContent\MySubFolder\ChildHelloWorld.txt $childUpdatedFileName
         
       - name: Azure Blob Upload
@@ -44,5 +44,5 @@ jobs:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
           source_path: src\TestContent\
-          destination_path: AzureBlobUploadAction\
-          clean_destination_path: true
+          destination_folder: AzureBlobUploadAction
+          clean_destination_folder: true

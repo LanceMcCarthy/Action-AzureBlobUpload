@@ -15,12 +15,12 @@ inputs:
     description: 'The folder containing all the files you want to upload.'
     required: true
     default: './'
-  destination_path:
+  destination_folder:
     description: 'Any desintation path (i.e. subfolder) in the blob container.'
     required: false
-    default: 'mycontainer/subfolder'
-  clean_destination_path:
-    description: 'This option will delete all the blobs in destination_path (default is false).'
+    default: 'MySubFolder'
+  clean_destination_folder:
+    description: 'This option will delete all the blobs in destination_folder (default is false).'
     required: false
     default: false
 

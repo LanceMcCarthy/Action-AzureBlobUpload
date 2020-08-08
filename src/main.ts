@@ -1,16 +1,16 @@
 import * as core from '@actions/core'
 import * as glob from 'glob';
-import * as mime from 'mime-types';
+import * as helpers from './helpers';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { promises as fs } from 'fs';
-import { join } from 'path';
 import { basename, relative } from 'path';
+import { join } from 'path';
 
 export async function uploadToAzure(
   connectionString: string,
   containerName: string,
   sourcePath: string,
-  destinationPath: string,
+  destinationFolder: string,
   cleanDestinationPath: boolean,
 ) {
   if (connectionString == "") {
@@ -21,7 +21,7 @@ export async function uploadToAzure(
     throw new Error("The source_path was not a valid value.");
   }
 
-  core.info(`Parameters - ContainerName: ${containerName}, sourcePath:  ${sourcePath}, destinationPath:  ${destinationPath}, cleanDestinationPath:  ${cleanDestinationPath}`);
+  core.info(`Parameters - ContainerName: ${containerName}, sourcePath:  ${sourcePath}, destinationPath:  ${destinationFolder}, cleanDestinationPath:  ${cleanDestinationPath}`);
 
   // Azure Blob examples for guidance
   //https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
@@ -36,18 +36,18 @@ export async function uploadToAzure(
     core.info(`"${containerName}" container created!`);
   }
 
-  // If clean_destination_path = True, we need to delete all the blobs before uploading
+  // If clean_destination_folder = True, we need to delete all the blobs before uploading
   if (cleanDestinationPath) {
     core.info(`"Clean DestinationPath=True is enabled, deleting blobs in the destination...`);
 
-    let i = 1;
+    let i = 0;
+
     for await (const blob of blobContainerClient.listBlobsFlat()) {
-
       const fileName = blob.name;
-
-      if (fileName.startsWith(destinationPath)) {
+      if (fileName.startsWith(destinationFolder)) {
         const block = blobContainerClient.getBlockBlobClient(fileName);
         block.delete();
+        i++;
       }
     }
 
@@ -56,77 +56,68 @@ export async function uploadToAzure(
     core.info("Clean DestinationPath=False, skipping...");
   }
 
-  const uploadFileWithContentType = async (src: string, dst: string) => {
-    const mt = mime.lookup(src);
-    const blobHTTPHeaders = mt
-      ? {
-          blobContentType: mt,
-        }
-      : {};
-    const blockClient = blobContainerClient.getBlockBlobClient(dst);
-    await blockClient.uploadFile(src, {
-      blobHTTPHeaders,
-    });
-  };
-
   // Get all file paths for the local content (includes subfolders and files)
-  const sourcePaths = glob.sync(sourcePath);
+  //const sourcePaths = glob.sync(sourcePath);
 
-  for (const path of sourcePaths) {
+  const sourcePaths = await walk(sourcePath);
+
+  sourcePaths.forEach(async (path: any) => {
     const stat = await fs.lstat(path);
+
     if (stat.isDirectory()) {
-      for (const src of await findAllFiles(path)) {
-        const dst = [destinationPath, relative(path, src).replace(/\\/g, '/')].join('/');
-        core.info(`Uploading ${src} to ${dst} ...`);
-        await uploadFileWithContentType(src, dst);
-      }
-    } else {
-      const dst = [destinationPath, basename(path)].join('/');
-      core.info(`Uploading ${path} to ${dst} ...`);
-      await uploadFileWithContentType(path, dst);
-    }
-  }
+      //is a file in a subfolder
+      const paths = await walk(path);
 
-  // sourcePaths.forEach(async (path: any) => {
-  //   for (const source of await findAllFiles(path)) {
-  //     const relativeFilePath = relative(path, source).replace(/^.*[\\\/]/, '');
+      paths.forEach(async (source: any) => {
+        const src = relative(path, source).replace(/^.*[\\\/]/, '');
+        const dst = [destinationFolder, src].join('/');
 
-  //     const finalDestinationPath = [destinationPath, relativeFilePath].join('/');
+        core.info(`IsDirectory=True - path: ${path}, source ${source}, relativeSource: ${src}, cmbdDestPath: ${dst}`);
+  
+        await helpers.uploadFileFromPath(blobContainerClient, dst, source);
 
-  //     core.info(`Uploading ${source} to ${finalDestinationPath} ...`);
+        core.info(`Uploaded ${source} to ${dst}...`);
+      });
 
-  //     // Use final desintation relative path to get client and upload
-  //     await blobContainerClient.getBlockBlobClient(finalDestinationPath).uploadFile(source);
-  //   }
-  // });
+    } 
+    // else {
+    //   // A file in toplevel folder
+      
+    //   const basenameSource = basename(path);
+    //   const dst = [destinationFolder, ].join('/');
+
+    //   core.info(`IsDirectory=False - path: ${path}, basenameSource: ${basenameSource}, cmbdDestPath: ${dst}`);
+
+    //   core.info(`Top Level file Uploading ${path} to ${dst} ...`);
+    //   await helpers.uploadFileFromPath(blobContainerClient, path, dst);
+    // }
+
+  });
 }
 
+export default async function walk(directory: string) {
+  let fileList: string[] = [];
 
-// Options to consider in future version https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
-export async function findAllFiles(dir: string) {
-  async function _traverse(dir: string, fileList: string[]) {
-    const files = await fs.readdir(dir);
-    for (const file of files) {
-      const path = join(dir, file);
-      const stat = await fs.lstat(path);
-      if (stat.isDirectory()) {
-        fileList = await _traverse(path, fileList);
-      } else {
-        fileList.push(path);
-      }
+  const files = await fs.readdir(directory);
+
+  for (const file of files) {
+    const p = join(directory, file);
+    if ((await fs.stat(p)).isDirectory()) {
+      fileList = [...fileList, ...(await walk(p))];
+    } else {
+      fileList.push(p);
     }
-    return fileList;
   }
 
-  return await _traverse(dir, []);
+  return fileList;
 }
 
 async function run(): Promise<void> {
   const cnnStr = core.getInput('connection_string');
   const contName = core.getInput('container_name');
   const srcPath = core.getInput('source_path');
-  const dstPath = core.getInput('destination_path');
-  const cleanDst = core.getInput('clean_destination_path');
+  const dstPath = core.getInput('destination_folder');
+  const cleanDst = core.getInput('clean_destination_folder');
 
   await uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst.toLowerCase() == 'true');
 }
