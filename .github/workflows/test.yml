@@ -43,6 +43,6 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_path: src\TestContent\
+          source_folder: src\TestContent\
           destination_folder: MyTargetFolder
           clean_destination_folder: true

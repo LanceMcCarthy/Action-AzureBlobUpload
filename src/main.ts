@@ -1,13 +1,12 @@
 import * as core from '@actions/core'
 import { BlobServiceClient } from '@azure/storage-blob';
 import { promises as fs } from 'fs';
-import { basename, relative } from 'path';
 import { join } from 'path';
 
 export async function uploadToAzure(
   connectionString: string,
   containerName: string,
-  sourcePath: string,
+  sourceFolder: string,
   destinationFolder: string,
   cleanDestinationPath: boolean,
 ) {
@@ -15,11 +14,11 @@ export async function uploadToAzure(
     throw new Error("The connection_string cannot be empty.");
   }
 
-  if (sourcePath == "") {
-    throw new Error("The source_path was not a valid value.");
+  if (sourceFolder == "") {
+    throw new Error("The source_folder was not a valid value.");
   }
 
-  core.info(`Parameters - ContainerName: ${containerName}, sourcePath:  ${sourcePath}, destinationPath:  ${destinationFolder}, cleanDestinationPath:  ${cleanDestinationPath}`);
+  core.info(`Parameters - ContainerName: ${containerName}, sourcePath:  ${sourceFolder}, destinationPath:  ${destinationFolder}, cleanDestinationPath:  ${cleanDestinationPath}`);
 
   // Azure Blob examples for guidance
   //https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
@@ -54,29 +53,28 @@ export async function uploadToAzure(
     core.info("Clean DestinationPath=False, skipping...");
   }
 
-  const sourcePaths = await walk(sourcePath);
+  const sourcePaths = await walk(sourceFolder);
 
-  sourcePaths.forEach(async (path: any) => {
-    const cleanedSourceFolderPath = sourcePath.replace(/\\/g, '/');
-    const cleanedFilePath = path.replace(/\\/g, '/');
+  sourcePaths.forEach(async (localFilePath: any) => {
+    const cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
+    const cleanedFilePath = localFilePath.replace(/\\/g, '/');
     const cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-
-    core.info(`Path: ${path}`);
-    core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}`);
-    core.info(`cleanedFilePath: ${cleanedFilePath}`);
-    core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}`);
 
     const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length, cleanedFilePath.length - cleanedSourceFolderPath.length)
 
-    core.info(`trimmedPath: ${trimmedPath}`);
+    const completeDestinationPath = [cleanedDestinationFolder, trimmedPath].join('/');
 
-    const dst = [cleanedDestinationFolder, trimmedPath].join('/');
+    await blobContainerClient.getBlockBlobClient(completeDestinationPath).uploadFile(localFilePath);
 
-    core.info(`Destination: ${cleanedDestinationFolder}`);
+    core.info(`Uploaded ${localFilePath} to ${completeDestinationPath}...`);
 
-    await blobContainerClient.getBlockBlobClient(dst).uploadFile(path);
-
-    core.info(`Uploaded ${path} to ${dst}...`);
+    // For debugging purposes:
+    // core.info(`Path: ${path}`);
+    // core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}`);
+    // core.info(`cleanedFilePath: ${cleanedFilePath}`);
+    // core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}`);
+    // core.info(`trimmedPath: ${trimmedPath}`);
+    // core.info(`Destination: ${cleanedDestinationFolder}`);
   });
 }
 
@@ -100,7 +98,7 @@ export default async function walk(directory: string) {
 async function run(): Promise<void> {
   const cnnStr = core.getInput('connection_string');
   const contName = core.getInput('container_name');
-  const srcPath = core.getInput('source_path');
+  const srcPath = core.getInput('source_folder');
   const dstPath = core.getInput('destination_folder');
   const cleanDst = core.getInput('clean_destination_folder');
 
