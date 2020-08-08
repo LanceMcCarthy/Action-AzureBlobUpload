@@ -27551,41 +27551,45 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.traverseFolders = void 0;
+exports.traverse = exports.uploadToAzure = void 0;
 const core = __importStar(__webpack_require__(470));
 const glob = __importStar(__webpack_require__(402));
-const core_1 = __webpack_require__(470);
 const storage_blob_1 = __webpack_require__(9);
 const fs_1 = __webpack_require__(747);
 const path_1 = __webpack_require__(622);
 const path_2 = __webpack_require__(622);
-function run() {
+function uploadToAzure(connectionString, containerName, sourcePath, destinationPath, cleanDestinationPath) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
-        const connectionString = core_1.getInput('connection_string');
-        const containerName = core_1.getInput('container_name');
-        const sourcePath = core_1.getInput('source_path');
-        const destinationPath = core_1.getInput('destination_path');
-        const cleanDestinationPath = core_1.getInput('clean_destination_path');
-        //core.debug(`vars: ${containerName}, ${sourcePath}, ${sourcePath}, ${destinationPath}, ${cleanDestinationPath}`);
+        if (connectionString == "") {
+            throw new Error("The connection_string cannot be empty.");
+        }
+        if (sourcePath == "") {
+            throw new Error("The source_path was not a valid value.");
+        }
+        core.debug(`params: ${containerName}, ${sourcePath}, ${sourcePath}, ${destinationPath}, ${cleanDestinationPath}`);
+        // Azure Blob examples for guidance
+        //https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
         const blobServiceClient = storage_blob_1.BlobServiceClient.fromConnectionString(connectionString);
         const blobContainerClient = blobServiceClient.getContainerClient(containerName);
-        const containerPresent = yield blobContainerClient.exists();
-        if (containerPresent == false) {
-            core.info(`"${containerName}" did not exist, creating a new one now...`);
+        // Create container if it is not in the Azure Storgae Account.
+        const containerExists = yield blobContainerClient.exists();
+        if (containerExists === false) {
+            core.info(`"${containerName}" does not exists. Creating a new container...`);
             yield blobContainerClient.create();
+            core.info(`"${containerName}" container created!`);
         }
-        if (!(yield blobContainerClient.exists())) {
-            core.info(`"${containerName}" did not exist, creating a new one now...`);
-            yield blobContainerClient.create();
-        }
+        // If clean_destination_path = True, we need to delete all the blobs before uploading
         if (cleanDestinationPath) {
+            core.info(`"Clean DestinationPath=True is enabled, deleting blobs in the destination...`);
+            let i = 1;
             try {
-                // clean out desintation before uploading
                 for (var _b = __asyncValues(blobContainerClient.listBlobsFlat()), _c; _c = yield _b.next(), !_c.done;) {
                     const blob = _c.value;
-                    if (blob.name.startsWith(destinationPath)) {
-                        blobContainerClient.getBlockBlobClient(blob.name).delete();
+                    const fileName = blob.name;
+                    if (fileName.startsWith(destinationPath)) {
+                        const block = blobContainerClient.getBlockBlobClient(fileName);
+                        block.delete();
                     }
                 }
             }
@@ -27596,35 +27600,43 @@ function run() {
                 }
                 finally { if (e_1) throw e_1.error; }
             }
+            core.info(`"Clean complete, ${i} blobs deleted."`);
+        }
+        else {
+            core.info("Clean DestinationPath=False, skipping...");
         }
         const sourcePaths = glob.sync(sourcePath);
-        for (const path of sourcePaths) {
-            const stat = yield fs_1.promises.lstat(path);
-            if (stat.isDirectory()) {
-                for (const source of yield traverseFolders(path)) {
-                    const destination = [name, path_2.relative(path, source).replace(/\\/g, '/')].join('/');
-                    core.info(`Uploading ${source} to ${destination} ...`);
+        sourcePaths.forEach((path) => __awaiter(this, void 0, void 0, function* () {
+            const pathStat = yield fs_1.promises.lstat(path);
+            if (pathStat.isDirectory()) {
+                for (const source of yield traverse(path)) {
+                    const filename = path.replace(/^.*[\\\/]/, '');
+                    const destination = [filename, path_2.relative(path, source).replace(/\\/g, '/')].join('/');
+                    core.info(`IsDirectory = True: Uploading ${source} to ${destination} ...`);
                     yield blobContainerClient.getBlockBlobClient(destination).uploadFile(source);
                 }
             }
             else {
-                const destination = [name, path_2.basename(path)].join('/');
-                core.info(`Uploading ${path} to ${destination} ...`);
+                const filename = path.replace(/^.*[\\\/]/, '');
+                const destination = [filename, path_2.basename(path)].join('/');
+                core.info(`IsDirectory = False: Uploading ${path} to ${destination} ...`);
                 yield blobContainerClient.getBlockBlobClient(path).uploadFile(destination);
             }
-        }
+        }));
     });
 }
-function traverseFolders(dir) {
+exports.uploadToAzure = uploadToAzure;
+// Options to consider in future version https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
+function traverse(dir) {
     return __awaiter(this, void 0, void 0, function* () {
-        function nestedTraverse(dir, fileList) {
+        function _traverse(dir, fileList) {
             return __awaiter(this, void 0, void 0, function* () {
                 const files = yield fs_1.promises.readdir(dir);
                 for (const file of files) {
                     const path = path_1.join(dir, file);
                     const stat = yield fs_1.promises.lstat(path);
                     if (stat.isDirectory()) {
-                        fileList = yield nestedTraverse(path, fileList);
+                        fileList = yield _traverse(path, fileList);
                     }
                     else {
                         fileList.push(path);
@@ -27633,10 +27645,20 @@ function traverseFolders(dir) {
                 return fileList;
             });
         }
-        return yield nestedTraverse(dir, []);
+        return yield _traverse(dir, []);
     });
 }
-exports.traverseFolders = traverseFolders;
+exports.traverse = traverse;
+function run() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const cnnStr = core.getInput('connection_string');
+        const contName = core.getInput('container_name');
+        const srcPath = core.getInput('source_path');
+        const dstPath = core.getInput('destination_path');
+        const cleanDst = core.getInput('clean_destination_path');
+        yield uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst.toLowerCase() == 'true');
+    });
+}
 // Showtime!
 run().catch(e => {
     core.debug(e.stack);

@@ -1,6 +1,9 @@
 name: 'Azure Blob Upload'
 description: 'A simple helper that will upload all the files in a source path to a destination path in a Blob container.'
 author: 'Lance McCarthy'
+branding:
+  icon: 'upload-cloud'  # https://feathericons.com/
+  color: 'purple'
 inputs:
   connection_string:
     description: 'Azure Storage ConnectionString for the container (Azure Portal > select Storage Account > Access Keys blade).'
@@ -11,10 +14,11 @@ inputs:
   source_path:
     description: 'The folder containing all the files you want to upload.'
     required: true
+    default: './'
   destination_path:
     description: 'Any desintation path (i.e. subfolder) in the blob container.'
     required: false
-    default: 'my-container-subfolder'
+    default: 'mycontainer/subfolder'
   clean_destination_path:
     description: 'This option will delete all the blobs in destination_path (default is false).'
     required: false
@@ -23,3 +27,5 @@ inputs:
 runs:
   using: 'node12'
   main: 'dist/index.js'
+
+# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions

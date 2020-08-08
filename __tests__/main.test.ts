@@ -1,27 +1,33 @@
-import {wait} from '../src/wait'
-import * as process from 'process'
-import * as cp from 'child_process'
-import * as path from 'path'
+import { uploadToAzure } from '../src/main'
 
-test('throws invalid number', async () => {
-  const input = parseInt('foo', 10)
-  await expect(wait(input)).rejects.toThrow('milliseconds not a number')
+test('validate connection_string', async () => {
+  const connection_string = "";
+  const container_name = "";
+  const source_path = "src/abcd/";
+  const destination_path = "";
+  const cleanDestination_path = true;
+
+  await expect(
+    uploadToAzure(
+      connection_string,
+      container_name,
+      source_path,
+      destination_path,
+      cleanDestination_path)).rejects.toThrow('The connection_string cannot be empty.')
 })
 
-test('wait 500 ms', async () => {
-  const start = new Date()
-  await wait(500)
-  const end = new Date()
-  var delta = Math.abs(end.getTime() - start.getTime())
-  expect(delta).toBeGreaterThan(450)
-})
+test('validate source_path', async () => {
+  const connection_string = "qwerty-asdfgh-zxcvbn";
+  const container_name = "";
+  const source_path = "";
+  const destination_path = "";
+  const cleanDestination_path = true;
 
-// shows how the runner will run a javascript action with env / stdout protocol
-test('test runs', () => {
-  process.env['INPUT_MILLISECONDS'] = '500'
-  const ip = path.join(__dirname, '..', 'lib', 'main.js')
-  const options: cp.ExecSyncOptions = {
-    env: process.env
-  }
-  console.log(cp.execSync(`node ${ip}`, options).toString())
+  await expect(
+    uploadToAzure(
+      connection_string,
+      container_name,
+      source_path,
+      destination_path,
+      cleanDestination_path)).rejects.toThrow('The source_path was not a valid value.')
 })

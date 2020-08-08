@@ -5,12 +5,20 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { basename, relative } from 'path';
 
-async function run(): Promise<void> {
-  const connectionString = core.getInput('connection_string');
-  const containerName = core.getInput('container_name');
-  const sourcePath = core.getInput('source_path');
-  const destinationPath = core.getInput('destination_path');
-  const cleanDestinationPath = core.getInput('clean_destination_path');
+export async function uploadToAzure(
+  connectionString: string,
+  containerName: string,
+  sourcePath: string,
+  destinationPath: string,
+  cleanDestinationPath: boolean,
+) {
+  if (connectionString == "") {
+    throw new Error("The connection_string cannot be empty.");
+  }
+
+  if (sourcePath == "") {
+    throw new Error("The source_path was not a valid value.");
+  }
 
   core.debug(`params: ${containerName}, ${sourcePath}, ${sourcePath}, ${destinationPath}, ${cleanDestinationPath}`);
 
@@ -21,7 +29,7 @@ async function run(): Promise<void> {
 
   // Create container if it is not in the Azure Storgae Account.
   const containerExists = await blobContainerClient.exists();
-  if(containerExists === false){
+  if (containerExists === false) {
     core.info(`"${containerName}" does not exists. Creating a new container...`);
     await blobContainerClient.create();
     core.info(`"${containerName}" container created!`);
@@ -34,9 +42,9 @@ async function run(): Promise<void> {
     let i = 1;
     for await (const blob of blobContainerClient.listBlobsFlat()) {
 
-       const fileName = blob.name;
+      const fileName = blob.name;
 
-       if (fileName.startsWith(destinationPath)) {
+      if (fileName.startsWith(destinationPath)) {
         const block = blobContainerClient.getBlockBlobClient(fileName);
         block.delete();
       }
@@ -46,7 +54,7 @@ async function run(): Promise<void> {
   } else {
     core.info("Clean DestinationPath=False, skipping...");
   }
-  
+
   const sourcePaths = glob.sync(sourcePath);
 
   sourcePaths.forEach(async (path: any) => {
@@ -95,6 +103,16 @@ export async function traverse(dir: string) {
   }
 
   return await _traverse(dir, []);
+}
+
+async function run(): Promise<void> {
+  const cnnStr = core.getInput('connection_string');
+  const contName = core.getInput('container_name');
+  const srcPath = core.getInput('source_path');
+  const dstPath = core.getInput('destination_path');
+  const cleanDst = core.getInput('clean_destination_path');
+
+  await uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst.toLowerCase() == 'true');
 }
 
 // Showtime!
