@@ -1,78 +1,92 @@
 import * as core from '@actions/core'
-import { getInput } from '@actions/core';
+import * as glob from 'glob';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { basename, relative } from 'path';
-import * as glob from 'glob';
 
 async function run(): Promise<void> {
-  const connectionString = getInput('connection_string');
-  const containerName = getInput('container_name');
-  const sourcePath = getInput('source_path');
-  const destinationPath = getInput('destination_path');
-  const cleanDestinationPath = getInput('clean_destination_path');
+  const connectionString = core.getInput('connection_string');
+  const containerName = core.getInput('container_name');
+  const sourcePath = core.getInput('source_path');
+  const destinationPath = core.getInput('destination_path');
+  const cleanDestinationPath = core.getInput('clean_destination_path');
 
-  //core.debug(`vars: ${containerName}, ${sourcePath}, ${sourcePath}, ${destinationPath}, ${cleanDestinationPath}`);
+  core.debug(`params: ${containerName}, ${sourcePath}, ${sourcePath}, ${destinationPath}, ${cleanDestinationPath}`);
 
+  // Azure Blob examples for guidance
+  //https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
   const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
   const blobContainerClient = blobServiceClient.getContainerClient(containerName);
 
-  const containerPresent = await blobContainerClient.exists();
-
-  if(containerPresent == false){
-    core.info(`"${containerName}" did not exist, creating a new one now...`);
+  // Create container if it is not in the Azure Storgae Account.
+  const containerExists = await blobContainerClient.exists();
+  if(containerExists === false){
+    core.info(`"${containerName}" does not exists. Creating a new container...`);
     await blobContainerClient.create();
+    core.info(`"${containerName}" container created!`);
   }
 
-  if (!(await blobContainerClient.exists())) {
-    core.info(`"${containerName}" did not exist, creating a new one now...`);
-    await blobContainerClient.create();
-  }
-
+  // If clean_destination_path = True, we need to delete all the blobs before uploading
   if (cleanDestinationPath) {
-    // clean out desintation before uploading
+    core.info(`"Clean DestinationPath=True is enabled, deleting blobs in the destination...`);
+
+    let i = 1;
     for await (const blob of blobContainerClient.listBlobsFlat()) {
-      if (blob.name.startsWith(destinationPath)) {
-        blobContainerClient.getBlockBlobClient(blob.name).delete();
+
+       const fileName = blob.name;
+
+       if (fileName.startsWith(destinationPath)) {
+        const block = blobContainerClient.getBlockBlobClient(fileName);
+        block.delete();
       }
     }
-  }
 
+    core.info(`"Clean complete, ${i} blobs deleted."`);
+  } else {
+    core.info("Clean DestinationPath=False, skipping...");
+  }
+  
   const sourcePaths = glob.sync(sourcePath);
 
-  for (const path of sourcePaths) {
-    const stat = await fs.lstat(path);
+  sourcePaths.forEach(async (path: any) => {
+    const pathStat = await fs.lstat(path);
 
-    if (stat.isDirectory()) {
+    if (pathStat.isDirectory()) {
 
-      for (const source of await traverseFolders(path)) {
+      for (const source of await traverse(path)) {
 
-        const destination = [name, relative(path, source).replace(/\\/g, '/')].join('/');
-        core.info(`Uploading ${source} to ${destination} ...`);
+        const filename = path.replace(/^.*[\\\/]/, '')
+
+        const destination = [filename, relative(path, source).replace(/\\/g, '/')].join('/');
+
+        core.info(`IsDirectory = True: Uploading ${source} to ${destination} ...`);
 
         await blobContainerClient.getBlockBlobClient(destination).uploadFile(source);
       }
-
     } else {
 
-      const destination = [name, basename(path)].join('/');
-      core.info(`Uploading ${path} to ${destination} ...`);
+      const filename = path.replace(/^.*[\\\/]/, '')
+
+      const destination = [filename, basename(path)].join('/');
+
+      core.info(`IsDirectory = False: Uploading ${path} to ${destination} ...`);
 
       await blobContainerClient.getBlockBlobClient(path).uploadFile(destination);
 
     }
-  }
+  });
 }
 
-export async function traverseFolders(dir: string) {
-  async function nestedTraverse(dir: string, fileList: string[]) {
+// Options to consider in future version https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
+export async function traverse(dir: string) {
+  async function _traverse(dir: string, fileList: string[]) {
     const files = await fs.readdir(dir);
     for (const file of files) {
       const path = join(dir, file);
       const stat = await fs.lstat(path);
       if (stat.isDirectory()) {
-        fileList = await nestedTraverse(path, fileList);
+        fileList = await _traverse(path, fileList);
       } else {
         fileList.push(path);
       }
@@ -80,7 +94,7 @@ export async function traverseFolders(dir: string) {
     return fileList;
   }
 
-  return await nestedTraverse(dir, []);
+  return await _traverse(dir, []);
 }
 
 // Showtime!

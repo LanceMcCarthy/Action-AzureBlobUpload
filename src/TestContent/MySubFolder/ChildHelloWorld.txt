@@ -1,0 +1,1 @@
+This file (aka 'blob') is to be uploaded to an Azure blob container.
