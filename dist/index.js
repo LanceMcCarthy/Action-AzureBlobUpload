@@ -26110,16 +26110,16 @@ const core = __importStar(__webpack_require__(470));
 const storage_blob_1 = __webpack_require__(9);
 const fs_1 = __webpack_require__(747);
 const path_1 = __webpack_require__(622);
-function uploadToAzure(connectionString, containerName, sourcePath, destinationFolder, cleanDestinationPath) {
+function uploadToAzure(connectionString, containerName, sourceFolder, destinationFolder, cleanDestinationPath) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
         if (connectionString == "") {
             throw new Error("The connection_string cannot be empty.");
         }
-        if (sourcePath == "") {
-            throw new Error("The source_path was not a valid value.");
+        if (sourceFolder == "") {
+            throw new Error("The source_folder was not a valid value.");
         }
-        core.info(`Parameters - ContainerName: ${containerName}, sourcePath:  ${sourcePath}, destinationPath:  ${destinationFolder}, cleanDestinationPath:  ${cleanDestinationPath}`);
+        core.info(`Parameters - ContainerName: ${containerName}, sourcePath:  ${sourceFolder}, destinationPath:  ${destinationFolder}, cleanDestinationPath:  ${cleanDestinationPath}`);
         // Azure Blob examples for guidance
         //https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
         const blobServiceClient = storage_blob_1.BlobServiceClient.fromConnectionString(connectionString);
@@ -26158,21 +26158,22 @@ function uploadToAzure(connectionString, containerName, sourcePath, destinationF
         else {
             core.info("Clean DestinationPath=False, skipping...");
         }
-        const sourcePaths = yield walk(sourcePath);
-        sourcePaths.forEach((path) => __awaiter(this, void 0, void 0, function* () {
-            const cleanedSourceFolderPath = sourcePath.replace(/\\/g, '/');
-            const cleanedFilePath = path.replace(/\\/g, '/');
+        const sourcePaths = yield walk(sourceFolder);
+        sourcePaths.forEach((localFilePath) => __awaiter(this, void 0, void 0, function* () {
+            const cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
+            const cleanedFilePath = localFilePath.replace(/\\/g, '/');
             const cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-            core.info(`Path: ${path}`);
-            core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}`);
-            core.info(`cleanedFilePath: ${cleanedFilePath}`);
-            core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}`);
             const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length, cleanedFilePath.length - cleanedSourceFolderPath.length);
-            core.info(`trimmedPath: ${trimmedPath}`);
-            const dst = [cleanedDestinationFolder, trimmedPath].join('/');
-            core.info(`Destination: ${cleanedDestinationFolder}`);
-            yield blobContainerClient.getBlockBlobClient(dst).uploadFile(path);
-            core.info(`Uploaded ${path} to ${dst}...`);
+            const completeDestinationPath = [cleanedDestinationFolder, trimmedPath].join('/');
+            yield blobContainerClient.getBlockBlobClient(completeDestinationPath).uploadFile(localFilePath);
+            core.info(`Uploaded ${localFilePath} to ${completeDestinationPath}...`);
+            // For debugging purposes:
+            // core.info(`Path: ${path}`);
+            // core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}`);
+            // core.info(`cleanedFilePath: ${cleanedFilePath}`);
+            // core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}`);
+            // core.info(`trimmedPath: ${trimmedPath}`);
+            // core.info(`Destination: ${cleanedDestinationFolder}`);
         }));
     });
 }
@@ -26198,7 +26199,7 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const cnnStr = core.getInput('connection_string');
         const contName = core.getInput('container_name');
-        const srcPath = core.getInput('source_path');
+        const srcPath = core.getInput('source_folder');
         const dstPath = core.getInput('destination_folder');
         const cleanDst = core.getInput('clean_destination_folder');
         yield uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst.toLowerCase() == 'true').catch(e => {
