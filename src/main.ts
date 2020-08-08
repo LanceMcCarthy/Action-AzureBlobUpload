@@ -58,30 +58,19 @@ export async function uploadToAzure(
   const sourcePaths = glob.sync(sourcePath);
 
   sourcePaths.forEach(async (path: any) => {
-    const pathStat = await fs.lstat(path);
 
-    if (pathStat.isDirectory()) {
+    for (const source of await traverse(path)) {
 
-      for (const source of await traverse(path)) {
+      // atmpt 1 .replace(/^.*[\\\/]/, '')
+      // atmpt 2 .replace(/\\/g, '/')
 
-        const filename = path.replace(/^.*[\\\/]/, '')
+      const filePath = relative(path, source).replace(/^.*[\\\/]/, '');
 
-        const destination = [filename, relative(path, source).replace(/\\/g, '/')].join('/');
+      const destination = [destinationPath, filePath].join('/');
 
-        core.info(`IsDirectory = True: Uploading ${source} to ${destination} ...`);
+      core.info(`Uploading ${source} to ${destination} ...`);
 
-        await blobContainerClient.getBlockBlobClient(destination).uploadFile(source);
-      }
-    } else {
-
-      const filename = path.replace(/^.*[\\\/]/, '')
-
-      const destination = [filename, basename(path)].join('/');
-
-      core.info(`IsDirectory = False: Uploading ${path} to ${destination} ...`);
-
-      await blobContainerClient.getBlockBlobClient(path).uploadFile(destination);
-
+      await blobContainerClient.getBlockBlobClient(destination).uploadFile(source);
     }
   });
 }

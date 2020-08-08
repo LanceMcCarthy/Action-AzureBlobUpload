@@ -33,9 +33,9 @@ jobs:
         with:
           script: |
             $date = Get-Date -Format "yyyy.Mdd.hh.mm"
-            $parentUpdatedFileName = "Parent_" + $buildDay + ".txt"
+            $parentUpdatedFileName = "Parent_" + $GITHUB_RUN_NUMBER + ".txt"
             Rename-Item src\TestContent\ParentHelloWorld.txt $parentUpdatedFileName
-            $childUpdatedFileName = "Child_" + $buildDay + ".txt"
+            $childUpdatedFileName = "Child_" + $GITHUB_RUN_NUMBER + ".txt"
             Rename-Item src\TestContent\MySubFolder\ChildHelloWorld.txt $childUpdatedFileName
         
       - name: Azure Blob Upload
