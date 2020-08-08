@@ -33,18 +33,16 @@ jobs:
         with:
           script: |
             $date = Get-Date -Format "yyyy.Mdd.hh.mm"
-            $parentFileName = "D:\a\Action-AzureBlobUpload\src\TestContent\ParentHelloWorld.txt"
             $parentUpdatedFileName = "Parent_" + $buildDay + ".txt"
-            Rename-Item $parentFileName $parentUpdatedFileName
-            $childFileName = "D:\a\Action-AzureBlobUpload\src\TestContent\MySubFolder\ChildHelloWorld.txt"
+            Rename-Item src\TestContent\ParentHelloWorld.txt $parentUpdatedFileName
             $childUpdatedFileName = "Child_" + $buildDay + ".txt"
-            Rename-Item $childFileName $childName
+            Rename-Item src\TestContent\MySubFolder\ChildHelloWorld.txt $childName
         
       - name: Azure Blob Upload
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_path: D:\a\Action-AzureBlobUpload\src\TestContent\
+          source_path: src\TestContent\
           destination_path: AzureBlobUploadAction
           clean_destination_path: true
