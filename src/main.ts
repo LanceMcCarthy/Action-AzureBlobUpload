@@ -57,19 +57,27 @@ export async function uploadToAzure(
   const sourcePaths = await walk(sourcePath);
 
   sourcePaths.forEach(async (path: any) => {
-    //path is src\TestContent\someting.txt
-    // desintation folder is MyTargetFolder
-    // combines as MyTargetFolder/src\TestContent\
+    const fileName = basename(path);
 
-    //remove the SourcePath folder
-    const srcPath = path.slice(sourcePath.length).replace(/^.*[\\\/]/, '');
+    core.info(`Uploading: ${fileName} (basename)....`);
 
-    //const src = relative(path, source).replace(/^.*[\\\/]/, '');
+    core.info(`Path: ${path}`);
+
+    const trimmedPath = path.trim(sourcePath)
+
+    core.info(`Path after trim: ${trimmedPath}`);
+
+    const srcPath = trimmedPath.replace(/^.*[\\\/]/, '');
+
+    core.info(`Updated Src Path: ${srcPath}`);
+
     const dst = [destinationFolder, srcPath].join('/');
 
-    core.info(`Uploading ${path} to ${dst}...`);
+    core.info(`Destination: ${dst}`);
 
     await blobContainerClient.getBlockBlobClient(dst).uploadFile(path);
+
+    core.info(`Uploaded ${path} to ${dst}...`);
 
     // const stat = await fs.lstat(path);
 

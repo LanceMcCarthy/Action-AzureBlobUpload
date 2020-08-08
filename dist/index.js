@@ -26110,6 +26110,7 @@ const core = __importStar(__webpack_require__(470));
 const storage_blob_1 = __webpack_require__(9);
 const fs_1 = __webpack_require__(747);
 const path_1 = __webpack_require__(622);
+const path_2 = __webpack_require__(622);
 function uploadToAzure(connectionString, containerName, sourcePath, destinationFolder, cleanDestinationPath) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
@@ -26160,15 +26161,17 @@ function uploadToAzure(connectionString, containerName, sourcePath, destinationF
         }
         const sourcePaths = yield walk(sourcePath);
         sourcePaths.forEach((path) => __awaiter(this, void 0, void 0, function* () {
-            //path is src\TestContent\someting.txt
-            // desintation folder is MyTargetFolder
-            // combines as MyTargetFolder/src\TestContent\
-            //remove the SourcePath folder
-            const srcPath = path.slice(sourcePath.length).replace(/^.*[\\\/]/, '');
-            //const src = relative(path, source).replace(/^.*[\\\/]/, '');
+            const fileName = path_1.basename(path);
+            core.info(`Uploading: ${fileName} (basename)....`);
+            core.info(`Path: ${path}`);
+            const trimmedPath = path.trim(sourcePath);
+            core.info(`Path after trim: ${trimmedPath}`);
+            const srcPath = trimmedPath.replace(/^.*[\\\/]/, '');
+            core.info(`Updated Src Path: ${srcPath}`);
             const dst = [destinationFolder, srcPath].join('/');
-            core.info(`Uploading ${path} to ${dst}...`);
+            core.info(`Destination: ${dst}`);
             yield blobContainerClient.getBlockBlobClient(dst).uploadFile(path);
+            core.info(`Uploaded ${path} to ${dst}...`);
             // const stat = await fs.lstat(path);
             // if (stat.isDirectory()) {
             //   //is a file in a subfolder
@@ -26198,7 +26201,7 @@ function walk(directory) {
         let fileList = [];
         const files = yield fs_1.promises.readdir(directory);
         for (const file of files) {
-            const p = path_1.join(directory, file);
+            const p = path_2.join(directory, file);
             if ((yield fs_1.promises.stat(p)).isDirectory()) {
                 fileList = [...fileList, ...(yield walk(p))];
             }
