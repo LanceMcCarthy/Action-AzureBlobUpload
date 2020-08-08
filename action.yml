@@ -1,9 +1,7 @@
 name: 'Azure Blob Upload'
 description: 'A simple helper that will upload all the files in a source path to a destination path in a Blob container.'
 author: 'Lance McCarthy'
-branding:
-  icon: 'upload-cloud'  # https://feathericons.com/
-  color: 'purple'
+
 inputs:
   connection_string:
     description: 'Azure Storage ConnectionString for the container (Azure Portal > select Storage Account > Access Keys blade).'
@@ -14,7 +12,6 @@ inputs:
   source_folder:
     description: 'The local folder containing all the files and subfolders to upload to the blob container (to upload everything, use ./)'
     required: true
-    default: "./"
   destination_folder:
     description: 'The target folder to use in the blob container with no leading or trailing slash (e.g. 'MyTopFolder/MySubFolder').'
     required: false
@@ -27,4 +24,6 @@ runs:
   using: 'node12'
   main: 'dist/index.js'
 
-# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions
+branding:
+  icon: 'upload-cloud'
+  color: 'purple'
