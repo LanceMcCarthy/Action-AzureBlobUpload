@@ -36,7 +36,7 @@ jobs:
             $parentUpdatedFileName = "Parent_" + $buildDay + ".txt"
             Rename-Item src\TestContent\ParentHelloWorld.txt $parentUpdatedFileName
             $childUpdatedFileName = "Child_" + $buildDay + ".txt"
-            Rename-Item src\TestContent\MySubFolder\ChildHelloWorld.txt $childName
+            Rename-Item src\TestContent\MySubFolder\ChildHelloWorld.txt $childUpdatedFileName
         
       - name: Azure Blob Upload
         uses: ./
