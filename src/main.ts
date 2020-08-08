@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import * as glob from 'glob';
+import * as mime from 'mime-types';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { promises as fs } from 'fs';
 import { join } from 'path';
@@ -20,7 +21,7 @@ export async function uploadToAzure(
     throw new Error("The source_path was not a valid value.");
   }
 
-  core.debug(`params: ${containerName}, ${sourcePath}, ${sourcePath}, ${destinationPath}, ${cleanDestinationPath}`);
+  core.info(`Parameters - ContainerName: ${containerName}, sourcePath:  ${sourcePath}, destinationPath:  ${destinationPath}, cleanDestinationPath:  ${cleanDestinationPath}`);
 
   // Azure Blob examples for guidance
   //https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
@@ -55,28 +56,54 @@ export async function uploadToAzure(
     core.info("Clean DestinationPath=False, skipping...");
   }
 
+  const uploadFileWithContentType = async (src: string, dst: string) => {
+    const mt = mime.lookup(src);
+    const blobHTTPHeaders = mt
+      ? {
+          blobContentType: mt,
+        }
+      : {};
+    const blockClient = blobContainerClient.getBlockBlobClient(dst);
+    await blockClient.uploadFile(src, {
+      blobHTTPHeaders,
+    });
+  };
+
+  // Get all file paths for the local content (includes subfolders and files)
   const sourcePaths = glob.sync(sourcePath);
 
-  sourcePaths.forEach(async (path: any) => {
-
-    for (const source of await traverse(path)) {
-
-      // atmpt 1 .replace(/^.*[\\\/]/, '')
-      // atmpt 2 .replace(/\\/g, '/')
-
-      const filePath = relative(path, source).replace(/^.*[\\\/]/, '');
-
-      const destination = [destinationPath, filePath].join('/');
-
-      core.info(`Uploading ${source} to ${destination} ...`);
-
-      await blobContainerClient.getBlockBlobClient(destination).uploadFile(source);
+  for (const path of sourcePaths) {
+    const stat = await fs.lstat(path);
+    if (stat.isDirectory()) {
+      for (const src of await findAllFiles(path)) {
+        const dst = [destinationPath, relative(path, src).replace(/\\/g, '/')].join('/');
+        core.info(`Uploading ${src} to ${dst} ...`);
+        await uploadFileWithContentType(src, dst);
+      }
+    } else {
+      const dst = [destinationPath, basename(path)].join('/');
+      core.info(`Uploading ${path} to ${dst} ...`);
+      await uploadFileWithContentType(path, dst);
     }
-  });
+  }
+
+  // sourcePaths.forEach(async (path: any) => {
+  //   for (const source of await findAllFiles(path)) {
+  //     const relativeFilePath = relative(path, source).replace(/^.*[\\\/]/, '');
+
+  //     const finalDestinationPath = [destinationPath, relativeFilePath].join('/');
+
+  //     core.info(`Uploading ${source} to ${finalDestinationPath} ...`);
+
+  //     // Use final desintation relative path to get client and upload
+  //     await blobContainerClient.getBlockBlobClient(finalDestinationPath).uploadFile(source);
+  //   }
+  // });
 }
 
+
 // Options to consider in future version https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
-export async function traverse(dir: string) {
+export async function findAllFiles(dir: string) {
   async function _traverse(dir: string, fileList: string[]) {
     const files = await fs.readdir(dir);
     for (const file of files) {

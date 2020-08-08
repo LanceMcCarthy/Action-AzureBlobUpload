@@ -44,5 +44,5 @@ jobs:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
           source_path: src\TestContent\
-          destination_path: AzureBlobUploadAction
+          destination_path: AzureBlobUploadAction\
           clean_destination_path: true
