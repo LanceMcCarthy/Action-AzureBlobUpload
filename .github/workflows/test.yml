@@ -8,16 +8,7 @@ on: # rebuild any PRs and main branch changes
 
 jobs:
   build:
-  strategy:
-      matrix:
-        os:
-          - windows-latest
-          - ubuntu-latest
-          - macos-latest
-
-    # test on every runner
-    runs-on: ${{ matrix.os }}
-
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
       - run: |

@@ -17,7 +17,7 @@ test('validate connection_string', async () => {
 })
 
 test('validate source_path', async () => {
-  const connection_string = "qwerty-asdfgh-zxcvbn";
+  const connection_string = "XXXXXXXXXXXXXXXXXXXXXXXXXXX";
   const container_name = "";
   const source_path = "";
   const destination_path = "";
