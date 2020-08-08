@@ -26107,6 +26107,7 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.uploadToAzure = void 0;
 const core = __importStar(__webpack_require__(470));
+const mime = __importStar(__webpack_require__(779));
 const storage_blob_1 = __webpack_require__(9);
 const fs_1 = __webpack_require__(747);
 const path_1 = __webpack_require__(622);
@@ -26119,7 +26120,6 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
         if (sourceFolder == "") {
             throw new Error("The source_folder was not a valid value.");
         }
-        core.info(`Parameters - ContainerName: ${containerName}, sourcePath:  ${sourceFolder}, destinationPath:  ${destinationFolder}, cleanDestinationPath:  ${cleanDestinationPath}`);
         // Azure Blob examples for guidance
         //https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
         const blobServiceClient = storage_blob_1.BlobServiceClient.fromConnectionString(connectionString);
@@ -26160,12 +26160,19 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
         }
         const sourcePaths = yield walk(sourceFolder);
         sourcePaths.forEach((localFilePath) => __awaiter(this, void 0, void 0, function* () {
+            // Setup
             const cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
             const cleanedFilePath = localFilePath.replace(/\\/g, '/');
             const cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
+            // Combine
             const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length, cleanedFilePath.length - cleanedSourceFolderPath.length);
             const completeDestinationPath = [cleanedDestinationFolder, trimmedPath].join('/');
-            yield blobContainerClient.getBlockBlobClient(completeDestinationPath).uploadFile(localFilePath);
+            // Upload
+            // Prevent every file's ContentType from being marked as application/octet-stream.
+            const mt = mime.lookup(localFilePath);
+            const contentTypeHeaders = mt ? { blobContentType: mt } : {};
+            const client = blobContainerClient.getBlockBlobClient(completeDestinationPath);
+            yield client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
             core.info(`Uploaded ${localFilePath} to ${completeDestinationPath}...`);
             // For debugging purposes:
             // core.info(`Path: ${path}`);
