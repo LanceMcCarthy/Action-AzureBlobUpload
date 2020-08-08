@@ -57,57 +57,26 @@ export async function uploadToAzure(
   const sourcePaths = await walk(sourcePath);
 
   sourcePaths.forEach(async (path: any) => {
-    const fileName = basename(path);
-
-    core.info(`Uploading: ${fileName} (basename)....`);
+    const cleanedSourceFolderPath = sourcePath.replace(/\\/g, '/');
+    const cleanedFilePath = path.replace(/\\/g, '/');
+    const cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
 
     core.info(`Path: ${path}`);
+    core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}`);
+    core.info(`cleanedFilePath: ${cleanedFilePath}`);
+    core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}`);
 
-    const trimmedPath = path.trim(sourcePath)
+    const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length, cleanedFilePath.length - cleanedSourceFolderPath.length)
 
-    core.info(`Path after trim: ${trimmedPath}`);
+    core.info(`trimmedPath: ${trimmedPath}`);
 
-    const srcPath = trimmedPath.replace(/^.*[\\\/]/, '');
+    const dst = [cleanedDestinationFolder, trimmedPath].join('/');
 
-    core.info(`Updated Src Path: ${srcPath}`);
-
-    const dst = [destinationFolder, srcPath].join('/');
-
-    core.info(`Destination: ${dst}`);
+    core.info(`Destination: ${cleanedDestinationFolder}`);
 
     await blobContainerClient.getBlockBlobClient(dst).uploadFile(path);
 
     core.info(`Uploaded ${path} to ${dst}...`);
-
-    // const stat = await fs.lstat(path);
-
-    // if (stat.isDirectory()) {
-    //   //is a file in a subfolder
-    //   const paths = await walk(path);
-
-    //   paths.forEach(async (source: any) => {
-    //     const src = relative(path, source).replace(/^.*[\\\/]/, '');
-    //     const dst = [destinationFolder, src].join('/');
-
-    //     core.info(`Uploading (IsDirectory=True) - TopSourcePath: ${path}, SourcePath ${source}, UpdatedSourcePath: ${src}, DestinationPath: ${dst}`);
-
-    //     // https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
-    //     await blobContainerClient.getBlockBlobClient(dst).uploadFile(src);
-
-    //     core.info(`Uploaded ${source} to ${dst}...`);
-    //   });
-
-    // }
-    // else {
-    //   // A file in toplevel folder
-
-    //   const basenameSource = basename(path);
-    //   const dst = [destinationFolder,].join('/');
-
-    //   core.info(`Uploading (IsDirectory=True) - OriginalPath: ${path}, UpdatedSourcePath: ${basenameSource}, DestinationPath: ${dst}`);
-
-    //   await blobContainerClient.getBlockBlobClient(dst).uploadFile(basenameSource);
-    // }
   });
 }
 

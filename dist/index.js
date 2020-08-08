@@ -26110,7 +26110,6 @@ const core = __importStar(__webpack_require__(470));
 const storage_blob_1 = __webpack_require__(9);
 const fs_1 = __webpack_require__(747);
 const path_1 = __webpack_require__(622);
-const path_2 = __webpack_require__(622);
 function uploadToAzure(connectionString, containerName, sourcePath, destinationFolder, cleanDestinationPath) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
@@ -26161,37 +26160,19 @@ function uploadToAzure(connectionString, containerName, sourcePath, destinationF
         }
         const sourcePaths = yield walk(sourcePath);
         sourcePaths.forEach((path) => __awaiter(this, void 0, void 0, function* () {
-            const fileName = path_1.basename(path);
-            core.info(`Uploading: ${fileName} (basename)....`);
+            const cleanedSourceFolderPath = sourcePath.replace(/\\/g, '/');
+            const cleanedFilePath = path.replace(/\\/g, '/');
+            const cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
             core.info(`Path: ${path}`);
-            const trimmedPath = path.trim(sourcePath);
-            core.info(`Path after trim: ${trimmedPath}`);
-            const srcPath = trimmedPath.replace(/^.*[\\\/]/, '');
-            core.info(`Updated Src Path: ${srcPath}`);
-            const dst = [destinationFolder, srcPath].join('/');
-            core.info(`Destination: ${dst}`);
+            core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}`);
+            core.info(`cleanedFilePath: ${cleanedFilePath}`);
+            core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}`);
+            const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length, cleanedFilePath.length - cleanedSourceFolderPath.length);
+            core.info(`trimmedPath: ${trimmedPath}`);
+            const dst = [cleanedDestinationFolder, trimmedPath].join('/');
+            core.info(`Destination: ${cleanedDestinationFolder}`);
             yield blobContainerClient.getBlockBlobClient(dst).uploadFile(path);
             core.info(`Uploaded ${path} to ${dst}...`);
-            // const stat = await fs.lstat(path);
-            // if (stat.isDirectory()) {
-            //   //is a file in a subfolder
-            //   const paths = await walk(path);
-            //   paths.forEach(async (source: any) => {
-            //     const src = relative(path, source).replace(/^.*[\\\/]/, '');
-            //     const dst = [destinationFolder, src].join('/');
-            //     core.info(`Uploading (IsDirectory=True) - TopSourcePath: ${path}, SourcePath ${source}, UpdatedSourcePath: ${src}, DestinationPath: ${dst}`);
-            //     // https://github.com/Azure/azure-sdk-for-js/blob/master/sdk/storage/storage-blob/samples/typescript/src/iterators-blobs-hierarchy.ts
-            //     await blobContainerClient.getBlockBlobClient(dst).uploadFile(src);
-            //     core.info(`Uploaded ${source} to ${dst}...`);
-            //   });
-            // }
-            // else {
-            //   // A file in toplevel folder
-            //   const basenameSource = basename(path);
-            //   const dst = [destinationFolder,].join('/');
-            //   core.info(`Uploading (IsDirectory=True) - OriginalPath: ${path}, UpdatedSourcePath: ${basenameSource}, DestinationPath: ${dst}`);
-            //   await blobContainerClient.getBlockBlobClient(dst).uploadFile(basenameSource);
-            // }
         }));
     });
 }
@@ -26201,7 +26182,7 @@ function walk(directory) {
         let fileList = [];
         const files = yield fs_1.promises.readdir(directory);
         for (const file of files) {
-            const p = path_2.join(directory, file);
+            const p = path_1.join(directory, file);
             if ((yield fs_1.promises.stat(p)).isDirectory()) {
                 fileList = [...fileList, ...(yield walk(p))];
             }
