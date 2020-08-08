@@ -1,6 +1,4 @@
 import * as core from '@actions/core'
-import * as glob from 'glob';
-import * as helpers from './helpers';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { promises as fs } from 'fs';
 import { basename, relative } from 'path';
