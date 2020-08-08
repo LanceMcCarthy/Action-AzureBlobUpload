@@ -26158,11 +26158,15 @@ function uploadToAzure(connectionString, containerName, sourcePath, destinationF
         else {
             core.info("Clean DestinationPath=False, skipping...");
         }
-        // Get all file paths for the local content (includes subfolders and files)
-        //const sourcePaths = glob.sync(sourcePath);
         const sourcePaths = yield walk(sourcePath);
         sourcePaths.forEach((path) => __awaiter(this, void 0, void 0, function* () {
-            const dst = [destinationFolder, path].join('/');
+            //path is src\TestContent\someting.txt
+            // desintation folder is MyTargetFolder
+            // combines as MyTargetFolder/src\TestContent\
+            //remove the SourcePath folder
+            const srcPath = path.slice(sourcePath.length).replace(/^.*[\\\/]/, '');
+            //const src = relative(path, source).replace(/^.*[\\\/]/, '');
+            const dst = [destinationFolder, srcPath].join('/');
             core.info(`Uploading ${path} to ${dst}...`);
             yield blobContainerClient.getBlockBlobClient(dst).uploadFile(path);
             // const stat = await fs.lstat(path);
