@@ -23,16 +23,16 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
 
-    - name: Generating File Name and Data
-      uses: Amadevus/pwsh-script@v1
-      id: PwrShell
-      with:
-        script: |
-          $date = Get-Date -Format "yyyy.Mdd"
-          $result = $buildDay + "_" + $env:GITHUB_RUN_NUMBER + ".md"
-          $cont = "#Test Result for \nThis is an example"
-          Set-ActionVariable F_NAME $result
-          Set-ActionVariable F_CONTENT $cont
+      - name: Generating File Name and Data
+        uses: Amadevus/pwsh-script@v1
+        id: PwrShell
+        with:
+          script: |
+            $date = Get-Date -Format "yyyy.Mdd"
+            $result = $buildDay + "_" + $env:GITHUB_RUN_NUMBER + ".md"
+            $cont = "#Test Result for \nThis is an example"
+            Set-ActionVariable F_NAME $result
+            Set-ActionVariable F_CONTENT $cont
 
       - name: Create File
         uses: finnp/create-file-action@1.0.0
