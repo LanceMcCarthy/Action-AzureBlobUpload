@@ -2,7 +2,7 @@
 
 This GitHub Action a simple and easy way to upload any files to any blob container.
 
-* There are a few [examples](./#examples) below to help you get started.
+* There are a few samples below to help you get started (under the Examples section).
 * To see a real-world production application using this Action, visit [Media File Manager](https://github.com/LanceMcCarthy/MediaFileManager) repository and review [workflow folder's](https://github.com/LanceMcCarthy/MediaFileManager/tree/main/.github/workflows) cd.yml (on [lines 113-120](https://github.com/LanceMcCarthy/MediaFileManager/blob/227d9383cc5761707c8736bd5cbfd3c6bd402ea4/.github/workflows/cd.yml#L113-L120)).
 
 ## Inputs
