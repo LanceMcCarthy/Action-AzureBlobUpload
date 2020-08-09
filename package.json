@@ -1,9 +1,12 @@
 {
-  "name": "typescript-action",
-  "version": "0.0.0",
-  "private": true,
-  "description": "TypeScript template action",
+  "name": "action-azure-upload-blob",
+  "version": "1.3.0",
+  "private": false,
+  "description": "GitHub Acton that uploads file to Azure Storage blob container.",
   "main": "lib/main.js",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
   "scripts": {
     "build": "tsc",
     "format": "prettier --write **/*.ts",
@@ -15,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/LanceMcCarthy/Action-AzureBlobUpload.git"
   },
   "keywords": [
     "actions",
