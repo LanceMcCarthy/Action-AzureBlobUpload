@@ -26109,9 +26109,8 @@ exports.uploadToAzure = void 0;
 const core = __importStar(__webpack_require__(470));
 const mime = __importStar(__webpack_require__(779));
 const storage_blob_1 = __webpack_require__(9);
-const fs_1 = __webpack_require__(747);
-const path_1 = __webpack_require__(622);
-function uploadToAzure(connectionString, containerName, sourceFolder, destinationFolder, cleanDestinationPath) {
+const helpers_1 = __webpack_require__(441);
+function uploadToAzure(connectionString, containerName, sourceFolder, destinationFolder, cleanDestinationPath, failIfSourceEmpty) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
         if (connectionString == "") {
@@ -26120,29 +26119,23 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
         if (sourceFolder == "") {
             throw new Error("The source_folder was not a valid value.");
         }
-        // Azure Blob examples for guidance
-        //https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
+        // Azure Blob examples for guidance https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
         const blobServiceClient = storage_blob_1.BlobServiceClient.fromConnectionString(connectionString);
         const blobContainerClient = blobServiceClient.getContainerClient(containerName);
         // Create container if it is not in the Azure Storgae Account.
-        const containerExists = yield blobContainerClient.exists();
-        if (containerExists === false) {
-            core.info(`"${containerName}" does not exists. Creating a new container...`);
+        if ((yield blobContainerClient.exists()) == false) {
+            core.info(`"Blob container '${containerName}"' does not exist, creating it now...`);
             yield blobContainerClient.create();
-            core.info(`"${containerName}" container created!`);
         }
         // If clean_destination_folder = True, we need to delete all the blobs before uploading
         if (cleanDestinationPath) {
-            core.info(`"Clean DestinationPath=True is enabled, deleting blobs in the destination...`);
-            let i = 0;
+            let blobCount = 0;
             try {
                 for (var _b = __asyncValues(blobContainerClient.listBlobsFlat()), _c; _c = yield _b.next(), !_c.done;) {
                     const blob = _c.value;
-                    const fileName = blob.name;
-                    if (fileName.startsWith(destinationFolder)) {
-                        const block = blobContainerClient.getBlockBlobClient(fileName);
-                        block.delete();
-                        i++;
+                    if (blob.name.startsWith(destinationFolder)) {
+                        blobContainerClient.getBlockBlobClient(blob.name).delete();
+                        blobCount++;
                     }
                 }
             }
@@ -26153,63 +26146,59 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
                 }
                 finally { if (e_1) throw e_1.error; }
             }
-            core.info(`"Clean complete, ${i} blobs deleted."`);
+            core.info(`"Clean complete, ${blobCount} blobs deleted."`);
         }
-        else {
-            core.info("Clean DestinationPath=False, skipping...");
+        // Get an array of all the file paths in the source folder
+        const sourcePaths = yield helpers_1.walk(sourceFolder);
+        if (sourcePaths.length < 1) {
+            if (failIfSourceEmpty) {
+                core.error("There are no files in the source_folder.");
+                core.setFailed("Source_Folder is empty or does not exist.");
+            }
+            else {
+                core.error("Nothing to Upload. There are no files in the source_folder.");
+            }
+            return;
         }
-        const sourcePaths = yield walk(sourceFolder);
         sourcePaths.forEach((localFilePath) => __awaiter(this, void 0, void 0, function* () {
-            // Setup
-            const cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
-            const cleanedFilePath = localFilePath.replace(/\\/g, '/');
-            const cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-            // Combine
+            // Replacing forward slashes with backward slashes
+            let cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
+            let cleanedFilePath = localFilePath.replace(/\\/g, '/');
+            let cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
+            let completeDestinationPath = "";
+            // Remove leading and leading slashes
+            cleanedDestinationFolder = cleanedDestinationFolder.split('/').filter(x => x).join('/');
+            // Determining the relative path by trimming the source path from the front of the string.
             const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length, cleanedFilePath.length - cleanedSourceFolderPath.length);
-            const completeDestinationPath = [cleanedDestinationFolder, trimmedPath].join('/');
-            // Upload
+            if (completeDestinationPath == "") {
+                // If there is a DestinationFolder set, prefix it to the relative path.
+                completeDestinationPath = [cleanedDestinationFolder, trimmedPath].join('/');
+            }
+            else {
+                // Otherwise, use the file's relative path (this will maintain all subfolders!).
+                completeDestinationPath = trimmedPath;
+            }
             // Prevent every file's ContentType from being marked as application/octet-stream.
-            const mt = mime.lookup(localFilePath);
-            const contentTypeHeaders = mt ? { blobContentType: mt } : {};
+            const mimeType = mime.lookup(localFilePath);
+            const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
+            // Upload
             const client = blobContainerClient.getBlockBlobClient(completeDestinationPath);
             yield client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
             core.info(`Uploaded ${localFilePath} to ${completeDestinationPath}...`);
-            // For debugging purposes:
-            // core.info(`Path: ${path}`);
-            // core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}`);
-            // core.info(`cleanedFilePath: ${cleanedFilePath}`);
-            // core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}`);
-            // core.info(`trimmedPath: ${trimmedPath}`);
-            // core.info(`Destination: ${cleanedDestinationFolder}`);
         }));
     });
 }
 exports.uploadToAzure = uploadToAzure;
-function walk(directory) {
-    return __awaiter(this, void 0, void 0, function* () {
-        let fileList = [];
-        const files = yield fs_1.promises.readdir(directory);
-        for (const file of files) {
-            const p = path_1.join(directory, file);
-            if ((yield fs_1.promises.stat(p)).isDirectory()) {
-                fileList = [...fileList, ...(yield walk(p))];
-            }
-            else {
-                fileList.push(p);
-            }
-        }
-        return fileList;
-    });
-}
-exports.default = walk;
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const cnnStr = core.getInput('connection_string');
         const contName = core.getInput('container_name');
         const srcPath = core.getInput('source_folder');
         const dstPath = core.getInput('destination_folder');
-        const cleanDst = core.getInput('clean_destination_folder');
-        yield uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst.toLowerCase() == 'true').catch(e => {
+        const cleanDst = core.getInput('clean_destination_folder').toLowerCase() == 'true';
+        const fail = core.getInput('fail_if_source_empty').toLowerCase() == 'true';
+        yield uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst, fail)
+            .catch(e => {
             core.debug(e.stack);
             core.error(e.message);
             core.setFailed(e.message);
@@ -26217,11 +26206,7 @@ function run() {
     });
 }
 // Showtime!
-run().catch(e => {
-    core.debug(e.stack);
-    core.error(e.message);
-    core.setFailed(e.message);
-});
+run();
 
 
 /***/ }),
@@ -31655,6 +31640,45 @@ exports.default = {
     propagation: exports.propagation,
 };
 //# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 441:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.walk = void 0;
+const fs_1 = __webpack_require__(747);
+const path_1 = __webpack_require__(622);
+function walk(directory) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let fileList = [];
+        const files = yield fs_1.promises.readdir(directory);
+        for (const file of files) {
+            const p = path_1.join(directory, file);
+            if ((yield fs_1.promises.stat(p)).isDirectory()) {
+                fileList = [...fileList, ...(yield walk(p))];
+            }
+            else {
+                fileList.push(p);
+            }
+        }
+        return fileList;
+    });
+}
+exports.walk = walk;
+
 
 /***/ }),
 

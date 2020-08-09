@@ -21,6 +21,10 @@ inputs:
     description: 'This option will delete all the blobs in destination_folder before uploading the new files'
     required: false
     default: false
+  fail_if_source_empty:
+    description: 'If you want the Action to fail and report an error if the source_folder is empty.'
+    required: false
+    default: false
 
 runs:
   using: 'node12'
