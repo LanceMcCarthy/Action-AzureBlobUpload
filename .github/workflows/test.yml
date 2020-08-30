@@ -1,27 +1,26 @@
 name: 'build-test'
 on: # rebuild any PRs and main branch changes
   pull_request:
-  push:
     branches:
       - main
       - 'releases/*'
+  push:
+    branches:
+      - main
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
       - run: |
           npm install
-      - run: |
           npm run build
-      - run: |
           npm run package
-      - run: |
           npm test
 
   test: # make sure the action works on a clean machine without building
-    runs-on: windows-latest
+    runs-on: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v2
@@ -43,6 +42,6 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: src\TestContent\
+          source_folder: src\TestData\
           destination_folder: MyTargetFolder
           clean_destination_folder: true
