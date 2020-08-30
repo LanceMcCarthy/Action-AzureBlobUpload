@@ -8,6 +8,6 @@ test('validate connection_string', async () => {
 
 test('validate source_folder', async () => {
   await expect(
-    main.uploadToAzure('XXXXXXXXXXXXXXXXXXXXXXXXXXX', '', '', '', false, false)
+    main.uploadToAzure('XXXXXXXX', '', '', '', false, false)
   ).rejects.toThrow('The source_folder was not a valid value.')
 })
