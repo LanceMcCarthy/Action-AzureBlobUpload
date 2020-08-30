@@ -81,7 +81,7 @@ export async function uploadToAzure(
       cleanedFilePath.length - cleanedSourceFolderPath.length
     )
 
-    if (completeDestinationPath === '') {
+    if (cleanedDestinationFolder === '') {
       // If there is a DestinationFolder set, prefix it to the relative path.
       completeDestinationPath = [cleanedDestinationFolder, trimmedPath].join(
         '/'
