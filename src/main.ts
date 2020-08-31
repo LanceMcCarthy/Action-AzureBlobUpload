@@ -63,29 +63,33 @@ export async function uploadToAzure(
   }
 
   sourcePaths.forEach(async (localFilePath: any) => {
-    // Replacing forward slashes with backward slashes
+    // Replace forward slashes with backward slashes
     const cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/')
     const cleanedFilePath = localFilePath.replace(/\\/g, '/')
-    let cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/')
-    let completeDestinationPath = ''
+    let cleanedDestinationFolder = ''
+    
+    if(destinationFolder !== ''){
+      // Replace forward slashes with backward slashes
+      cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/')
 
-    // Remove leading and leading slashes
-    cleanedDestinationFolder = cleanedDestinationFolder
+      // Remove leading and leading slashes
+      cleanedDestinationFolder = cleanedDestinationFolder
       .split('/')
       .filter(x => x)
       .join('/')
+    }
 
     // Determining the relative path by trimming the source path from the front of the string.
     const trimmedPath = cleanedFilePath.substr(
-      cleanedSourceFolderPath.length,
+      cleanedSourceFolderPath.length -1,
       cleanedFilePath.length - cleanedSourceFolderPath.length
     )
 
-    if (completeDestinationPath === '') {
+    let completeDestinationPath = ''
+
+    if (cleanedDestinationFolder === '') {
       // If there is a DestinationFolder set, prefix it to the relative path.
-      completeDestinationPath = [cleanedDestinationFolder, trimmedPath].join(
-        '/'
-      )
+      completeDestinationPath = [cleanedDestinationFolder, trimmedPath].join('/')
     } else {
       // Otherwise, use the file's relative path (this will maintain all subfolders!).
       completeDestinationPath = trimmedPath
