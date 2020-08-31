@@ -104,8 +104,8 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
             const cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
             const cleanedFilePath = localFilePath.replace(/\\/g, '/');
             let cleanedDestinationFolder = '';
-            core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}...`);
-            core.info(`cleanedFilePath: ${cleanedSourceFolderPath}...`);
+            core.debug(`SourceFolderPath: ${cleanedSourceFolderPath}`);
+            core.debug(`SourceFilePath: ${cleanedFilePath}`);
             if (destinationFolder !== '') {
                 // Replace forward slashes with backward slashes
                 cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
@@ -114,7 +114,7 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
                     .split('/')
                     .filter(x => x)
                     .join('/');
-                core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}...`);
+                core.debug(`DestinationFolder: ${cleanedDestinationFolder}`);
             }
             // Determining the relative path by trimming the source path from the front of the string.
             const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length - 1, cleanedFilePath.length - cleanedSourceFolderPath.length);
@@ -124,21 +124,23 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
                 finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
             }
             else {
-                // Otherwise, use the file's relative path (this will maintain all subfolders!).
+                // Otherwise, use the file's relative path (this will maintain all subfolders).
                 finalPath = trimmedPath;
             }
-            core.info(`finalPath: ${finalPath}...`);
+            // Trim leading slashes, the container is always the root
             if (finalPath.startsWith('/')) {
                 finalPath = finalPath.substr(1);
-                core.info(`finalPath (post-trim): ${finalPath}...`);
             }
+            // If there are any double slashes in the path, replace them now
+            finalPath = finalPath.replace('//', '/');
+            core.debug(`finalPath: ${finalPath}...`);
             // Prevent every file's ContentType from being marked as application/octet-stream.
             const mimeType = mime.lookup(localFilePath);
             const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
             // Upload
             const client = blobContainerClient.getBlockBlobClient(finalPath);
             yield client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
-            core.info(`Uploaded ${localFilePath} to ${finalPath}...`);
+            core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
         }));
     });
 }

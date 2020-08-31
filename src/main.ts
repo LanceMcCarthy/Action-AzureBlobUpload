@@ -62,8 +62,8 @@ export async function uploadToAzure(
     const cleanedFilePath = localFilePath.replace(/\\/g, '/');
     let cleanedDestinationFolder = '';
 
-    core.info(`SourceFolderPath: ${cleanedSourceFolderPath}...`);
-    core.info(`SourceFilePath: ${cleanedFilePath}...`);
+    core.debug(`SourceFolderPath: ${cleanedSourceFolderPath}`);
+    core.debug(`SourceFilePath: ${cleanedFilePath}`);
 
     if (destinationFolder !== '') {
       // Replace forward slashes with backward slashes
@@ -75,7 +75,7 @@ export async function uploadToAzure(
         .filter(x => x)
         .join('/');
 
-      core.info(`DestinationFolder: ${cleanedDestinationFolder}...`);
+      core.debug(`DestinationFolder: ${cleanedDestinationFolder}`);
     }
 
     // Determining the relative path by trimming the source path from the front of the string.
@@ -91,13 +91,15 @@ export async function uploadToAzure(
       finalPath = trimmedPath;
     }
 
-    core.info(`finalPath: ${finalPath}...`);
-
+    // Trim leading slashes, the container is always the root
     if (finalPath.startsWith('/')) {
       finalPath = finalPath.substr(1);
-
-      core.info(`finalPath (post-trim): ${finalPath}...`);
     }
+
+    // If there are any double slashes in the path, replace them now
+    finalPath = finalPath.replace('//', '/');
+
+    core.debug(`finalPath: ${finalPath}...`);
 
     // Prevent every file's ContentType from being marked as application/octet-stream.
     const mimeType = mime.lookup(localFilePath);
