@@ -62,8 +62,8 @@ export async function uploadToAzure(
     const cleanedFilePath = localFilePath.replace(/\\/g, '/');
     let cleanedDestinationFolder = '';
 
-    core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}...`);
-    core.info(`cleanedFilePath: ${cleanedSourceFolderPath}...`);
+    core.info(`SourceFolderPath: ${cleanedSourceFolderPath}...`);
+    core.info(`SourceFilePath: ${cleanedFilePath}...`);
 
     if (destinationFolder !== '') {
       // Replace forward slashes with backward slashes
@@ -75,7 +75,7 @@ export async function uploadToAzure(
         .filter(x => x)
         .join('/');
 
-      core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}...`);
+      core.info(`DestinationFolder: ${cleanedDestinationFolder}...`);
     }
 
     // Determining the relative path by trimming the source path from the front of the string.
@@ -87,7 +87,7 @@ export async function uploadToAzure(
       // If there is a DestinationFolder set, prefix it to the relative path.
       finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
     } else {
-      // Otherwise, use the file's relative path (this will maintain all subfolders!).
+      // Otherwise, use the file's relative path (this will maintain all subfolders).
       finalPath = trimmedPath;
     }
 
@@ -108,7 +108,7 @@ export async function uploadToAzure(
 
     await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
 
-    core.info(`Uploaded ${localFilePath} to ${finalPath}...`);
+    core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
   });
 }
 
