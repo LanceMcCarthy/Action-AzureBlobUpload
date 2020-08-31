@@ -6,7 +6,8 @@ on:
       - main
 
 jobs:
-  build:
+  # Build, package and run Jest tests
+  Package_RunTests:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
@@ -15,26 +16,3 @@ jobs:
           npm run build
           npm run package
           npm test
-
-  test: # make sure the action works on a clean machine without building
-    runs-on: windows-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      # Create unique test file so that we can verify the upload was successful for this specific run.
-      - name: Generating File Name and Data
-        run: |
-          $date = Get-Date -Format "yyyy.Mdd.hh.mm"
-          
-          $parentFilePath = 'src\TestData\TextFileTestRoot\Parent.txt'
-          $updatedParentFileName = "Parent_" + $date + ".txt"
-          Rename-Item $parentFilePath $updatedParentFileName
-          
-          $childFilePath = 'src\TestData\TextFileTestRoot\Subfolder\Child.txt'
-          $updatedChildFileName = "Child_" + $date + ".txt"
-          Rename-Item $childFilePath $updatedChildFileName
-
-          $excelFilePath = 'src\TestData\ExcelFileTestRoot\Test.xlsx'
-          $updatedExcelFileName = "Test_" + $date + ".xlsx"
-          Rename-Item $excelFilePath $updatedExcelFileName

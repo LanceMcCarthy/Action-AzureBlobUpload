@@ -6,7 +6,8 @@ on:
       - 'issue-investigation/*'
 
 jobs:
-  build:
+  # Build, package and run Jest tests
+  Package_RunTests:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
@@ -16,13 +17,13 @@ jobs:
           npm run package
           npm test
   
-  test: # make sure the action works on a clean machine without building
+  # Confirm the Action works on a clean machine without building
+  Upload_Test: 
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v2
-      # Create unique test file so that we can verify the upload was successful for this specific run.
-      - name: Generating File Name and Data
+
+      - name: Generating Unique File Names for This Run
         run: |
           $date = Get-Date -Format "yyyy.Mdd.hh.mm"
           
@@ -37,7 +38,15 @@ jobs:
           $excelFilePath = 'src\TestData\ExcelFileTestRoot\Test.xlsx'
           $updatedExcelFileName = "Test_" + $date + ".xlsx"
           Rename-Item $excelFilePath $updatedExcelFileName
-        
+
+      - name: Upload Excel file without Destination Folder
+        uses: ./
+        with:
+          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          container_name: ci-cd
+          source_folder: src\TestData\ExcelFileTestRoot\
+          clean_destination_folder: true
+
       - name: Upload Text Files with Destination Folder
         uses: ./
         with:
@@ -46,11 +55,3 @@ jobs:
           source_folder: src\TestData\TextFileTestRoot\
           destination_folder: MyTargetFolder
           clean_destination_folder: true
-
-      - name: Upload Excel file without Destination Folder
-        uses: ./
-        with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
-          container_name: ci-cd
-          source_folder: src\TestData\ExcelFileTestRoot\
-          clean_destination_folder: false
