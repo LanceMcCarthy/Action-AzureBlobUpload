@@ -62,7 +62,7 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
         const blobServiceClient = storage_blob_1.BlobServiceClient.fromConnectionString(connectionString);
         const blobContainerClient = blobServiceClient.getContainerClient(containerName);
         // Create container if it is not in the Azure Storgae Account.
-        if ((yield blobContainerClient.exists()) == false) {
+        if ((yield blobContainerClient.exists()) === false) {
             core.info(`"Blob container '${containerName}"' does not exist, creating it now...`);
             yield blobContainerClient.create();
         }
@@ -100,35 +100,45 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
             return;
         }
         sourcePaths.forEach((localFilePath) => __awaiter(this, void 0, void 0, function* () {
-            // Replacing forward slashes with backward slashes
+            // Replace forward slashes with backward slashes
             const cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
             const cleanedFilePath = localFilePath.replace(/\\/g, '/');
-            let cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-            let completeDestinationPath = '';
-            // Remove leading and leading slashes
-            cleanedDestinationFolder = cleanedDestinationFolder
-                .split('/')
-                .filter(x => x)
-                .join('/');
+            let cleanedDestinationFolder = '';
+            core.info(`cleanedSourceFolderPath: ${cleanedSourceFolderPath}...`);
+            core.info(`cleanedFilePath: ${cleanedSourceFolderPath}...`);
+            if (destinationFolder !== '') {
+                // Replace forward slashes with backward slashes
+                cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
+                // Remove leading and leading slashes
+                cleanedDestinationFolder = cleanedDestinationFolder
+                    .split('/')
+                    .filter(x => x)
+                    .join('/');
+                core.info(`cleanedDestinationFolder: ${cleanedDestinationFolder}...`);
+            }
             // Determining the relative path by trimming the source path from the front of the string.
-            const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length, cleanedFilePath.length - cleanedSourceFolderPath.length);
-            if (completeDestinationPath === '') {
+            const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length - 1, cleanedFilePath.length - cleanedSourceFolderPath.length);
+            let finalPath = '';
+            if (cleanedDestinationFolder !== '') {
                 // If there is a DestinationFolder set, prefix it to the relative path.
-                completeDestinationPath = [cleanedDestinationFolder, trimmedPath].join('/');
+                finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
             }
             else {
                 // Otherwise, use the file's relative path (this will maintain all subfolders!).
-                completeDestinationPath = trimmedPath;
+                finalPath = trimmedPath;
+            }
+            core.info(`finalPath: ${finalPath}...`);
+            if (finalPath.startsWith('/')) {
+                finalPath = finalPath.substr(1);
+                core.info(`finalPath (post-trim): ${finalPath}...`);
             }
             // Prevent every file's ContentType from being marked as application/octet-stream.
             const mimeType = mime.lookup(localFilePath);
             const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
             // Upload
-            const client = blobContainerClient.getBlockBlobClient(completeDestinationPath);
-            yield client.uploadFile(localFilePath, {
-                blobHTTPHeaders: contentTypeHeaders
-            });
-            core.info(`Uploaded ${localFilePath} to ${completeDestinationPath}...`);
+            const client = blobContainerClient.getBlockBlobClient(finalPath);
+            yield client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
+            core.info(`Uploaded ${localFilePath} to ${finalPath}...`);
         }));
     });
 }
@@ -156,8 +166,8 @@ function run() {
         const contName = core.getInput('container_name');
         const srcPath = core.getInput('source_folder');
         const dstPath = core.getInput('destination_folder');
-        const cleanDst = core.getInput('clean_destination_folder').toLowerCase() == 'true';
-        const fail = core.getInput('fail_if_source_empty').toLowerCase() == 'true';
+        const cleanDst = core.getInput('clean_destination_folder').toLowerCase() === 'true';
+        const fail = core.getInput('fail_if_source_empty').toLowerCase() === 'true';
         yield uploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst, fail).catch(e => {
             core.debug(e.stack);
             core.error(e.message);
@@ -166,7 +176,11 @@ function run() {
     });
 }
 // Showtime!
-run();
+run().catch(e => {
+    core.debug(e.stack);
+    core.error(e.message);
+    core.setFailed(e.message);
+});
 
 
 /***/ }),
