@@ -28,15 +28,15 @@ jobs:
         run: |
           $date = Get-Date -Format "yyyy.Mdd.hh.mm"
           
-          $parentFilePath = src\TestData\Parent.txt
+          $parentFilePath = 'src\TestData\TextFileTestRoot\Parent.txt'
           $updatedParentFileName = "Parent_" + $date + ".txt"
           Rename-Item $parentFilePath $updatedParentFileName
           
-          $childFilePath = src\TestData\MySubFolder\Child.txt
+          $childFilePath = 'src\TestData\TextFileTestRoot\Subfolder\Child.txt'
           $updatedChildFileName = "Child_" + $date + ".txt"
           Rename-Item $childFilePath $updatedChildFileName
 
-          $excelFilePath = src\TestData\Test.xlsx
+          $excelFilePath = 'src\TestData\ExcelFileTestRoot\Test.xlsx'
           $updatedExcelFileName = "Test_" + $date + ".xlsx"
           Rename-Item $excelFilePath $updatedExcelFileName
         
