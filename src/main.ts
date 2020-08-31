@@ -132,4 +132,4 @@ async function run(): Promise<void> {
 }
 
 // Showtime!
-await run();
+run();
