@@ -104,8 +104,10 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
             const cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
             const cleanedFilePath = localFilePath.replace(/\\/g, '/');
             let cleanedDestinationFolder = '';
-            core.debug(`SourceFolderPath: ${cleanedSourceFolderPath}`);
-            core.debug(`SourceFilePath: ${cleanedFilePath}`);
+            core.debug(`sourceFolder: ${sourceFolder}`);
+            core.debug(`--- cleaned: ${cleanedSourceFolderPath}`);
+            core.debug(`localFilePath: ${localFilePath}`);
+            core.debug(`--- cleaned: ${cleanedFilePath}`);
             if (destinationFolder !== '') {
                 // Replace forward slashes with backward slashes
                 cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
@@ -114,10 +116,13 @@ function uploadToAzure(connectionString, containerName, sourceFolder, destinatio
                     .split('/')
                     .filter(x => x)
                     .join('/');
-                core.debug(`DestinationFolder: ${cleanedDestinationFolder}`);
+                core.debug(`destinationFolder: ${destinationFolder}`);
+                core.debug(`-- cleaned: ${cleanedDestinationFolder}`);
             }
             // Determining the relative path by trimming the source path from the front of the string.
-            const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length - 1, cleanedFilePath.length - cleanedSourceFolderPath.length);
+            const trimStartPosition = cleanedSourceFolderPath.length - 1;
+            const trimLength = cleanedFilePath.length - cleanedSourceFolderPath.length + 1;
+            const trimmedPath = cleanedFilePath.substr(trimStartPosition, trimLength);
             let finalPath = '';
             if (cleanedDestinationFolder !== '') {
                 // If there is a DestinationFolder set, prefix it to the relative path.
