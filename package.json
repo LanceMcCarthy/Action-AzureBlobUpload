@@ -13,7 +13,7 @@
     "rebuild": "rimraf lib && tsc",
     "format": "prettier --write **/*.ts",
     "lint": "eslint src/**/*.ts",
-    "package": "ncc build --source-map",
+    "package": "ncc build --source-map --license licenses.txt",
     "test": "jest",
     "pre-commit": "npm run rebuild && npm run format && npm run lint && npm run package",
     "all": "npm run rebuild && npm run format && npm run lint && npm run package && npm test"
