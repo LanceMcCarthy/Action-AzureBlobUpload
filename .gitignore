@@ -1,3 +1,5 @@
+dist/** -diff linguist-generated=true
+
 # Dependency directory
 node_modules
 
