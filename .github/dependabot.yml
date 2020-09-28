@@ -5,7 +5,4 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
-    automerged_updates:
-      - match:
-          dependency_type: 'all'
-          update_type: 'semver:minor'
+      
