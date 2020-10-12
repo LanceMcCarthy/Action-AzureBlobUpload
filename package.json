@@ -1,6 +1,6 @@
 {
   "name": "action-azure-upload-blob",
-  "version": "1.3.0",
+  "version": "1.7.1",
   "private": false,
   "description": "GitHub Acton that uploads file to Azure Storage blob container.",
   "main": "lib/main.js",
@@ -34,27 +34,27 @@
   },
   "homepage": "https://github.com/LanceMcCarthy/Action-AzureBlobUpload#readme",
   "dependencies": {
-    "@actions/core": "^1.2.4",
-    "@azure/storage-blob": "^12.2.0-preview.1",
+    "@actions/core": "^1.2.6",
+    "@azure/storage-blob": "^12.2.1",
     "@types/glob": "^7.1.3",
     "@types/mime-types": "^2.1.0",
     "glob": "^7.1.6",
     "mime-types": "^2.1.27"
   },
   "devDependencies": {
-    "@types/jest": "^26.0.10",
-    "@types/node": "^14.6.0",
+    "@types/jest": "^26.0.14",
+    "@types/node": "^14.11.8",
     "@typescript-eslint/parser": "^3.9.1",
-    "@vercel/ncc": "^0.24.0",
-    "eslint": "^7.7.0",
+    "@vercel/ncc": "^0.24.1",
+    "eslint": "^7.11.0",
     "eslint-plugin-github": "^4.1.1",
     "eslint-plugin-jest": "^23.20.0",
     "jest": "^24.9.0",
-    "jest-circus": "^26.4.2",
+    "jest-circus": "^26.5.3",
     "js-yaml": "^3.14.0",
     "prettier": "2.1.1",
     "rimraf": "^3.0.2",
     "ts-jest": "^24.3.0",
-    "typescript": "^4.0.2"
+    "typescript": "^4.0.3"
   }
 }

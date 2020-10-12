@@ -206,6 +206,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const os = __importStar(__webpack_require__(2087));
+const utils_1 = __webpack_require__(5278);
 /**
  * Commands
  *
@@ -259,28 +260,14 @@ class Command {
         return cmdStr;
     }
 }
-/**
- * Sanitizes an input into a string so it can be passed into issueCommand safely
- * @param input input to sanitize into a string
- */
-function toCommandValue(input) {
-    if (input === null || input === undefined) {
-        return '';
-    }
-    else if (typeof input === 'string' || input instanceof String) {
-        return input;
-    }
-    return JSON.stringify(input);
-}
-exports.toCommandValue = toCommandValue;
 function escapeData(s) {
-    return toCommandValue(s)
+    return utils_1.toCommandValue(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A');
 }
 function escapeProperty(s) {
-    return toCommandValue(s)
+    return utils_1.toCommandValue(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A')
@@ -314,6 +301,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const command_1 = __webpack_require__(7351);
+const file_command_1 = __webpack_require__(717);
+const utils_1 = __webpack_require__(5278);
 const os = __importStar(__webpack_require__(2087));
 const path = __importStar(__webpack_require__(5622));
 /**
@@ -340,9 +329,17 @@ var ExitCode;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function exportVariable(name, val) {
-    const convertedVal = command_1.toCommandValue(val);
+    const convertedVal = utils_1.toCommandValue(val);
     process.env[name] = convertedVal;
-    command_1.issueCommand('set-env', { name }, convertedVal);
+    const filePath = process.env['GITHUB_ENV'] || '';
+    if (filePath) {
+        const delimiter = '_GitHubActionsFileCommandDelimeter_';
+        const commandValue = `${name}<<${delimiter}${os.EOL}${convertedVal}${os.EOL}${delimiter}`;
+        file_command_1.issueCommand('ENV', commandValue);
+    }
+    else {
+        command_1.issueCommand('set-env', { name }, convertedVal);
+    }
 }
 exports.exportVariable = exportVariable;
 /**
@@ -358,7 +355,13 @@ exports.setSecret = setSecret;
  * @param inputPath
  */
 function addPath(inputPath) {
-    command_1.issueCommand('add-path', {}, inputPath);
+    const filePath = process.env['GITHUB_PATH'] || '';
+    if (filePath) {
+        file_command_1.issueCommand('PATH', inputPath);
+    }
+    else {
+        command_1.issueCommand('add-path', {}, inputPath);
+    }
     process.env['PATH'] = `${inputPath}${path.delimiter}${process.env['PATH']}`;
 }
 exports.addPath = addPath;
@@ -520,6 +523,68 @@ exports.getState = getState;
 
 /***/ }),
 
+/***/ 717:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+// For internal use, subject to change.
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+// We use any as a valid input type
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const fs = __importStar(__webpack_require__(5747));
+const os = __importStar(__webpack_require__(2087));
+const utils_1 = __webpack_require__(5278);
+function issueCommand(command, message) {
+    const filePath = process.env[`GITHUB_${command}`];
+    if (!filePath) {
+        throw new Error(`Unable to find environment variable for file command ${command}`);
+    }
+    if (!fs.existsSync(filePath)) {
+        throw new Error(`Missing file at path: ${filePath}`);
+    }
+    fs.appendFileSync(filePath, `${utils_1.toCommandValue(message)}${os.EOL}`, {
+        encoding: 'utf8'
+    });
+}
+exports.issueCommand = issueCommand;
+//# sourceMappingURL=file-command.js.map
+
+/***/ }),
+
+/***/ 5278:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+// We use any as a valid input type
+/* eslint-disable @typescript-eslint/no-explicit-any */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+/**
+ * Sanitizes an input into a string so it can be passed into issueCommand safely
+ * @param input input to sanitize into a string
+ */
+function toCommandValue(input) {
+    if (input === null || input === undefined) {
+        return '';
+    }
+    else if (typeof input === 'string' || input instanceof String) {
+        return input;
+    }
+    return JSON.stringify(input);
+}
+exports.toCommandValue = toCommandValue;
+//# sourceMappingURL=utils.js.map
+
+/***/ }),
+
 /***/ 2557:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
@@ -528,7 +593,7 @@ exports.getState = getState;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 
-var tslib = __webpack_require__(9268);
+var tslib = __webpack_require__(9071);
 
 var listenersMap = new WeakMap();
 var abortedMap = new WeakMap();
@@ -793,9 +858,36 @@ exports.AbortSignal = AbortSignal;
 
 /***/ }),
 
-/***/ 9268:
-/***/ ((module) => {
+/***/ 9071:
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "__extends": () => /* binding */ __extends,
+/* harmony export */   "__assign": () => /* binding */ __assign,
+/* harmony export */   "__rest": () => /* binding */ __rest,
+/* harmony export */   "__decorate": () => /* binding */ __decorate,
+/* harmony export */   "__param": () => /* binding */ __param,
+/* harmony export */   "__metadata": () => /* binding */ __metadata,
+/* harmony export */   "__awaiter": () => /* binding */ __awaiter,
+/* harmony export */   "__generator": () => /* binding */ __generator,
+/* harmony export */   "__createBinding": () => /* binding */ __createBinding,
+/* harmony export */   "__exportStar": () => /* binding */ __exportStar,
+/* harmony export */   "__values": () => /* binding */ __values,
+/* harmony export */   "__read": () => /* binding */ __read,
+/* harmony export */   "__spread": () => /* binding */ __spread,
+/* harmony export */   "__spreadArrays": () => /* binding */ __spreadArrays,
+/* harmony export */   "__await": () => /* binding */ __await,
+/* harmony export */   "__asyncGenerator": () => /* binding */ __asyncGenerator,
+/* harmony export */   "__asyncDelegator": () => /* binding */ __asyncDelegator,
+/* harmony export */   "__asyncValues": () => /* binding */ __asyncValues,
+/* harmony export */   "__makeTemplateObject": () => /* binding */ __makeTemplateObject,
+/* harmony export */   "__importStar": () => /* binding */ __importStar,
+/* harmony export */   "__importDefault": () => /* binding */ __importDefault,
+/* harmony export */   "__classPrivateFieldGet": () => /* binding */ __classPrivateFieldGet,
+/* harmony export */   "__classPrivateFieldSet": () => /* binding */ __classPrivateFieldSet
+/* harmony export */ });
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
 
@@ -810,276 +902,210 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
+/* global Reflect, Promise */
 
-/* global global, define, System, Reflect, Promise */
-var __extends;
-var __assign;
-var __rest;
-var __decorate;
-var __param;
-var __metadata;
-var __awaiter;
-var __generator;
-var __exportStar;
-var __values;
-var __read;
-var __spread;
-var __spreadArrays;
-var __await;
-var __asyncGenerator;
-var __asyncDelegator;
-var __asyncValues;
-var __makeTemplateObject;
-var __importStar;
-var __importDefault;
-var __classPrivateFieldGet;
-var __classPrivateFieldSet;
-var __createBinding;
-(function (factory) {
-    var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
-    if (typeof define === "function" && define.amd) {
-        define("tslib", ["exports"], function (exports) { factory(createExporter(root, createExporter(exports))); });
-    }
-    else if ( true && typeof module.exports === "object") {
-        factory(createExporter(root, createExporter(module.exports)));
-    }
-    else {
-        factory(createExporter(root));
-    }
-    function createExporter(exports, previous) {
-        if (exports !== root) {
-            if (typeof Object.create === "function") {
-                Object.defineProperty(exports, "__esModule", { value: true });
-            }
-            else {
-                exports.__esModule = true;
-            }
-        }
-        return function (id, v) { return exports[id] = previous ? previous(id, v) : v; };
-    }
-})
-(function (exporter) {
-    var extendStatics = Object.setPrototypeOf ||
+var extendStatics = function(d, b) {
+    extendStatics = Object.setPrototypeOf ||
         ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
         function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return extendStatics(d, b);
+};
 
-    __extends = function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
+function __extends(d, b) {
+    extendStatics(d, b);
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+}
 
-    __assign = Object.assign || function (t) {
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
             s = arguments[i];
             for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
         }
         return t;
-    };
+    }
+    return __assign.apply(this, arguments);
+}
 
-    __rest = function (s, e) {
-        var t = {};
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-            t[p] = s[p];
-        if (s != null && typeof Object.getOwnPropertySymbols === "function")
-            for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-                if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                    t[p[i]] = s[p[i]];
+function __rest(s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+}
+
+function __decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+
+function __param(paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+}
+
+function __metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
+}
+
+function __awaiter(thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+}
+
+function __generator(thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
             }
-        return t;
-    };
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+}
 
-    __decorate = function (decorators, target, key, desc) {
-        var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-        if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-        else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-        return c > 3 && r && Object.defineProperty(target, key, r), r;
-    };
+function __createBinding(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}
 
-    __param = function (paramIndex, decorator) {
-        return function (target, key) { decorator(target, key, paramIndex); }
-    };
+function __exportStar(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) exports[p] = m[p];
+}
 
-    __metadata = function (metadataKey, metadataValue) {
-        if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
-    };
-
-    __awaiter = function (thisArg, _arguments, P, generator) {
-        function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-        return new (P || (P = Promise))(function (resolve, reject) {
-            function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-            function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-            function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-            step((generator = generator.apply(thisArg, _arguments || [])).next());
-        });
-    };
-
-    __generator = function (thisArg, body) {
-        var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-        return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-        function verb(n) { return function (v) { return step([n, v]); }; }
-        function step(op) {
-            if (f) throw new TypeError("Generator is already executing.");
-            while (_) try {
-                if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-                if (y = 0, t) op = [op[0] & 2, t.value];
-                switch (op[0]) {
-                    case 0: case 1: t = op; break;
-                    case 4: _.label++; return { value: op[1], done: false };
-                    case 5: _.label++; y = op[1]; op = [0]; continue;
-                    case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                    default:
-                        if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                        if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                        if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                        if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                        if (t[2]) _.ops.pop();
-                        _.trys.pop(); continue;
-                }
-                op = body.call(thisArg, _);
-            } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-            if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+function __values(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
         }
     };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+}
 
-    __createBinding = function(o, m, k, k2) {
-        if (k2 === undefined) k2 = k;
-        o[k2] = m[k];
-    };
-
-    __exportStar = function (m, exports) {
-        for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) exports[p] = m[p];
-    };
-
-    __values = function (o) {
-        var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-        if (m) return m.call(o);
-        if (o && typeof o.length === "number") return {
-            next: function () {
-                if (o && i >= o.length) o = void 0;
-                return { value: o && o[i++], done: !o };
-            }
-        };
-        throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-    };
-
-    __read = function (o, n) {
-        var m = typeof Symbol === "function" && o[Symbol.iterator];
-        if (!m) return o;
-        var i = m.call(o), r, ar = [], e;
+function __read(o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    }
+    catch (error) { e = { error: error }; }
+    finally {
         try {
-            while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+            if (r && !r.done && (m = i["return"])) m.call(i);
         }
-        catch (error) { e = { error: error }; }
-        finally {
-            try {
-                if (r && !r.done && (m = i["return"])) m.call(i);
-            }
-            finally { if (e) throw e.error; }
-        }
-        return ar;
-    };
+        finally { if (e) throw e.error; }
+    }
+    return ar;
+}
 
-    __spread = function () {
-        for (var ar = [], i = 0; i < arguments.length; i++)
-            ar = ar.concat(__read(arguments[i]));
-        return ar;
-    };
+function __spread() {
+    for (var ar = [], i = 0; i < arguments.length; i++)
+        ar = ar.concat(__read(arguments[i]));
+    return ar;
+}
 
-    __spreadArrays = function () {
-        for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-        for (var r = Array(s), k = 0, i = 0; i < il; i++)
-            for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-                r[k] = a[j];
-        return r;
-    };
+function __spreadArrays() {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 
-    __await = function (v) {
-        return this instanceof __await ? (this.v = v, this) : new __await(v);
-    };
+function __await(v) {
+    return this instanceof __await ? (this.v = v, this) : new __await(v);
+}
 
-    __asyncGenerator = function (thisArg, _arguments, generator) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var g = generator.apply(thisArg, _arguments || []), i, q = [];
-        return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-        function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
-        function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
-        function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);  }
-        function fulfill(value) { resume("next", value); }
-        function reject(value) { resume("throw", value); }
-        function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
-    };
+function __asyncGenerator(thisArg, _arguments, generator) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var g = generator.apply(thisArg, _arguments || []), i, q = [];
+    return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
+    function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
+    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
+    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
+    function fulfill(value) { resume("next", value); }
+    function reject(value) { resume("throw", value); }
+    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
+}
 
-    __asyncDelegator = function (o) {
-        var i, p;
-        return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
-        function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
-    };
+function __asyncDelegator(o) {
+    var i, p;
+    return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
+    function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
+}
 
-    __asyncValues = function (o) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var m = o[Symbol.asyncIterator], i;
-        return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
-        function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
-        function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
-    };
+function __asyncValues(o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+}
 
-    __makeTemplateObject = function (cooked, raw) {
-        if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
-        return cooked;
-    };
+function __makeTemplateObject(cooked, raw) {
+    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
+    return cooked;
+};
 
-    __importStar = function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-        result["default"] = mod;
-        return result;
-    };
+function __importStar(mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result.default = mod;
+    return result;
+}
 
-    __importDefault = function (mod) {
-        return (mod && mod.__esModule) ? mod : { "default": mod };
-    };
+function __importDefault(mod) {
+    return (mod && mod.__esModule) ? mod : { default: mod };
+}
 
-    __classPrivateFieldGet = function (receiver, privateMap) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to get private field on non-instance");
-        }
-        return privateMap.get(receiver);
-    };
+function __classPrivateFieldGet(receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+}
 
-    __classPrivateFieldSet = function (receiver, privateMap, value) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to set private field on non-instance");
-        }
-        privateMap.set(receiver, value);
-        return value;
-    };
-
-    exporter("__extends", __extends);
-    exporter("__assign", __assign);
-    exporter("__rest", __rest);
-    exporter("__decorate", __decorate);
-    exporter("__param", __param);
-    exporter("__metadata", __metadata);
-    exporter("__awaiter", __awaiter);
-    exporter("__generator", __generator);
-    exporter("__exportStar", __exportStar);
-    exporter("__createBinding", __createBinding);
-    exporter("__values", __values);
-    exporter("__read", __read);
-    exporter("__spread", __spread);
-    exporter("__spreadArrays", __spreadArrays);
-    exporter("__await", __await);
-    exporter("__asyncGenerator", __asyncGenerator);
-    exporter("__asyncDelegator", __asyncDelegator);
-    exporter("__asyncValues", __asyncValues);
-    exporter("__makeTemplateObject", __makeTemplateObject);
-    exporter("__importStar", __importStar);
-    exporter("__importDefault", __importDefault);
-    exporter("__classPrivateFieldGet", __classPrivateFieldGet);
-    exporter("__classPrivateFieldSet", __classPrivateFieldSet);
-});
+function __classPrivateFieldSet(receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+}
 
 
 /***/ }),
@@ -1182,8 +1208,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
+var tslib = __webpack_require__(5636);
 var uuid = __webpack_require__(4552);
-var tslib = __webpack_require__(4351);
 var tough = __webpack_require__(7372);
 var http = __webpack_require__(8605);
 var https = __webpack_require__(7211);
@@ -1197,8 +1223,8 @@ var coreAuth = __webpack_require__(9645);
 var logger$1 = __webpack_require__(3233);
 var xml2js = __webpack_require__(6189);
 var os = __webpack_require__(2087);
-var coreTracing = __webpack_require__(1754);
-var api = __webpack_require__(6865);
+var coreTracing = __webpack_require__(4175);
+var api = __webpack_require__(5163);
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
@@ -1374,7 +1400,7 @@ var Constants = {
      * @const
      * @type {string}
      */
-    coreHttpVersion: "1.1.6",
+    coreHttpVersion: "1.1.9",
     /**
      * Specifies HTTP.
      *
@@ -1403,6 +1429,20 @@ var Constants = {
      * @type {string}
      */
     HTTPS_PROXY: "HTTPS_PROXY",
+    /**
+     * Specifies NO Proxy.
+     *
+     * @const
+     * @type {string}
+     */
+    NO_PROXY: "NO_PROXY",
+    /**
+     * Specifies ALL Proxy.
+     *
+     * @const
+     * @type {string}
+     */
+    ALL_PROXY: "ALL_PROXY",
     HttpConstants: {
         /**
          * Http Verbs
@@ -1593,12 +1633,15 @@ function promiseToServiceCallback(promise) {
         });
     };
 }
-function prepareXMLRootList(obj, elementName) {
-    var _a;
+function prepareXMLRootList(obj, elementName, xmlNamespaceKey, xmlNamespace) {
+    var _a, _b, _c;
     if (!Array.isArray(obj)) {
         obj = [obj];
     }
-    return _a = {}, _a[elementName] = obj, _a;
+    if (!xmlNamespaceKey || !xmlNamespace) {
+        return _a = {}, _a[elementName] = obj, _a;
+    }
+    return _b = {}, _b[elementName] = obj, _b.$ = (_c = {}, _c[xmlNamespaceKey] = xmlNamespace, _c), _b;
 }
 /**
  * Applies the properties on the prototype of sourceCtors to the prototype of targetCtor
@@ -1639,6 +1682,15 @@ function replaceAll(value, searchValue, replaceValue) {
  */
 function isPrimitiveType(value) {
     return (typeof value !== "object" && typeof value !== "function") || value === null;
+}
+function getEnvironmentValue(name) {
+    if (process.env[name]) {
+        return process.env[name];
+    }
+    else if (process.env[name.toLowerCase()]) {
+        return process.env[name.toLowerCase()];
+    }
+    return undefined;
 }
 
 // Copyright (c) Microsoft Corporation.
@@ -1761,13 +1813,13 @@ var Serializer = /** @class */ (function () {
                 payload = serializeBase64UrlType(objectName, object);
             }
             else if (mapperType.match(/^Sequence$/i) !== null) {
-                payload = serializeSequenceType(this, mapper, object, objectName);
+                payload = serializeSequenceType(this, mapper, object, objectName, Boolean(this.isXML));
             }
             else if (mapperType.match(/^Dictionary$/i) !== null) {
-                payload = serializeDictionaryType(this, mapper, object, objectName);
+                payload = serializeDictionaryType(this, mapper, object, objectName, Boolean(this.isXML));
             }
             else if (mapperType.match(/^Composite$/i) !== null) {
-                payload = serializeCompositeType(this, mapper, object, objectName);
+                payload = serializeCompositeType(this, mapper, object, objectName, Boolean(this.isXML));
             }
         }
         return payload;
@@ -2041,7 +2093,8 @@ function serializeDateTypes(typeName, value, objectName) {
     }
     return value;
 }
-function serializeSequenceType(serializer, mapper, object, objectName) {
+function serializeSequenceType(serializer, mapper, object, objectName, isXml) {
+    var _a, _b;
     if (!Array.isArray(object)) {
         throw new Error(objectName + " must be of type Array.");
     }
@@ -2052,11 +2105,26 @@ function serializeSequenceType(serializer, mapper, object, objectName) {
     }
     var tempArray = [];
     for (var i = 0; i < object.length; i++) {
-        tempArray[i] = serializer.serialize(elementType, object[i], objectName);
+        var serializedValue = serializer.serialize(elementType, object[i], objectName);
+        if (isXml && elementType.xmlNamespace) {
+            var xmlnsKey = elementType.xmlNamespacePrefix
+                ? "xmlns:" + elementType.xmlNamespacePrefix
+                : "xmlns";
+            if (elementType.type.name === "Composite") {
+                tempArray[i] = tslib.__assign(tslib.__assign({}, serializedValue), { $: (_a = {}, _a[xmlnsKey] = elementType.xmlNamespace, _a) });
+            }
+            else {
+                tempArray[i] = { _: serializedValue, $: (_b = {}, _b[xmlnsKey] = elementType.xmlNamespace, _b) };
+            }
+        }
+        else {
+            tempArray[i] = serializedValue;
+        }
     }
     return tempArray;
 }
-function serializeDictionaryType(serializer, mapper, object, objectName) {
+function serializeDictionaryType(serializer, mapper, object, objectName, isXml) {
+    var _a;
     if (typeof object !== "object") {
         throw new Error(objectName + " must be of type object.");
     }
@@ -2066,11 +2134,45 @@ function serializeDictionaryType(serializer, mapper, object, objectName) {
             ("mapper and it must of type \"object\" in " + objectName + "."));
     }
     var tempDictionary = {};
-    for (var _i = 0, _a = Object.keys(object); _i < _a.length; _i++) {
-        var key = _a[_i];
-        tempDictionary[key] = serializer.serialize(valueType, object[key], objectName + "." + key);
+    for (var _i = 0, _b = Object.keys(object); _i < _b.length; _i++) {
+        var key = _b[_i];
+        var serializedValue = serializer.serialize(valueType, object[key], objectName);
+        // If the element needs an XML namespace we need to add it within the $ property
+        tempDictionary[key] = getXmlObjectValue(valueType, serializedValue, isXml);
+    }
+    // Add the namespace to the root element if needed
+    if (isXml && mapper.xmlNamespace) {
+        var xmlnsKey = mapper.xmlNamespacePrefix ? "xmlns:" + mapper.xmlNamespacePrefix : "xmlns";
+        return tslib.__assign(tslib.__assign({}, tempDictionary), { $: (_a = {}, _a[xmlnsKey] = mapper.xmlNamespace, _a) });
     }
     return tempDictionary;
+}
+/**
+ * Resolves the additionalProperties property from a referenced mapper
+ * @param serializer the serializer containing the entire set of mappers
+ * @param mapper the composite mapper to resolve
+ * @param objectName name of the object being serialized
+ */
+function resolveAdditionalProperties(serializer, mapper, objectName) {
+    var additionalProperties = mapper.type.additionalProperties;
+    if (!additionalProperties && mapper.type.className) {
+        var modelMapper = resolveReferencedMapper(serializer, mapper, objectName);
+        return modelMapper === null || modelMapper === void 0 ? void 0 : modelMapper.type.additionalProperties;
+    }
+    return additionalProperties;
+}
+/**
+ * Finds the mapper referenced by className
+ * @param serializer the serializer containing the entire set of mappers
+ * @param mapper the composite mapper to resolve
+ * @param objectName name of the object being serialized
+ */
+function resolveReferencedMapper(serializer, mapper, objectName) {
+    var className = mapper.type.className;
+    if (!className) {
+        throw new Error("Class name for model \"" + objectName + "\" is not provided in the mapper \"" + JSON.stringify(mapper, undefined, 2) + "\".");
+    }
+    return serializer.modelMappers[className];
 }
 /**
  * Resolves a composite mapper's modelProperties.
@@ -2080,32 +2182,28 @@ function serializeDictionaryType(serializer, mapper, object, objectName) {
 function resolveModelProperties(serializer, mapper, objectName) {
     var modelProps = mapper.type.modelProperties;
     if (!modelProps) {
-        var className = mapper.type.className;
-        if (!className) {
-            throw new Error("Class name for model \"" + objectName + "\" is not provided in the mapper \"" + JSON.stringify(mapper, undefined, 2) + "\".");
-        }
-        var modelMapper = serializer.modelMappers[className];
+        var modelMapper = resolveReferencedMapper(serializer, mapper, objectName);
         if (!modelMapper) {
-            throw new Error("mapper() cannot be null or undefined for model \"" + className + "\".");
+            throw new Error("mapper() cannot be null or undefined for model \"" + mapper.type.className + "\".");
         }
-        modelProps = modelMapper.type.modelProperties;
+        modelProps = modelMapper === null || modelMapper === void 0 ? void 0 : modelMapper.type.modelProperties;
         if (!modelProps) {
             throw new Error("modelProperties cannot be null or undefined in the " +
-                ("mapper \"" + JSON.stringify(modelMapper) + "\" of type \"" + className + "\" for object \"" + objectName + "\"."));
+                ("mapper \"" + JSON.stringify(modelMapper) + "\" of type \"" + mapper.type.className + "\" for object \"" + objectName + "\"."));
         }
     }
     return modelProps;
 }
-function serializeCompositeType(serializer, mapper, object, objectName) {
-    var _a;
+function serializeCompositeType(serializer, mapper, object, objectName, isXml) {
+    var _a, _b;
     if (getPolymorphicDiscriminatorRecursively(serializer, mapper)) {
         mapper = getPolymorphicMapper(serializer, mapper, object, "clientName");
     }
     if (object != undefined) {
         var payload = {};
         var modelProps = resolveModelProperties(serializer, mapper, objectName);
-        for (var _i = 0, _b = Object.keys(modelProps); _i < _b.length; _i++) {
-            var key = _b[_i];
+        for (var _i = 0, _c = Object.keys(modelProps); _i < _c.length; _i++) {
+            var key = _c[_i];
             var propertyMapper = modelProps[key];
             if (propertyMapper.readOnly) {
                 continue;
@@ -2123,8 +2221,8 @@ function serializeCompositeType(serializer, mapper, object, objectName) {
             else {
                 var paths = splitSerializeName(propertyMapper.serializedName);
                 propName = paths.pop();
-                for (var _c = 0, paths_1 = paths; _c < paths_1.length; _c++) {
-                    var pathName = paths_1[_c];
+                for (var _d = 0, paths_1 = paths; _d < paths_1.length; _d++) {
+                    var pathName = paths_1[_d];
                     var childObject = parentObject[pathName];
                     if (childObject == undefined &&
                         (object[key] != undefined || propertyMapper.defaultValue !== undefined)) {
@@ -2134,6 +2232,12 @@ function serializeCompositeType(serializer, mapper, object, objectName) {
                 }
             }
             if (parentObject != undefined) {
+                if (isXml && mapper.xmlNamespace) {
+                    var xmlnsKey = mapper.xmlNamespacePrefix
+                        ? "xmlns:" + mapper.xmlNamespacePrefix
+                        : "xmlns";
+                    parentObject.$ = tslib.__assign(tslib.__assign({}, parentObject.$), (_a = {}, _a[xmlnsKey] = mapper.xmlNamespace, _a));
+                }
                 var propertyObjectName = propertyMapper.serializedName !== ""
                     ? objectName + "." + propertyMapper.serializedName
                     : objectName;
@@ -2146,23 +2250,24 @@ function serializeCompositeType(serializer, mapper, object, objectName) {
                 }
                 var serializedValue = serializer.serialize(propertyMapper, toSerialize, propertyObjectName);
                 if (serializedValue !== undefined && propName != undefined) {
-                    if (propertyMapper.xmlIsAttribute) {
+                    var value = getXmlObjectValue(propertyMapper, serializedValue, isXml);
+                    if (isXml && propertyMapper.xmlIsAttribute) {
                         // $ is the key attributes are kept under in xml2js.
                         // This keeps things simple while preventing name collision
                         // with names in user documents.
                         parentObject.$ = parentObject.$ || {};
                         parentObject.$[propName] = serializedValue;
                     }
-                    else if (propertyMapper.xmlIsWrapped) {
-                        parentObject[propName] = (_a = {}, _a[propertyMapper.xmlElementName] = serializedValue, _a);
+                    else if (isXml && propertyMapper.xmlIsWrapped) {
+                        parentObject[propName] = (_b = {}, _b[propertyMapper.xmlElementName] = value, _b);
                     }
                     else {
-                        parentObject[propName] = serializedValue;
+                        parentObject[propName] = value;
                     }
                 }
             }
         }
-        var additionalPropertiesMapper = mapper.type.additionalProperties;
+        var additionalPropertiesMapper = resolveAdditionalProperties(serializer, mapper, objectName);
         if (additionalPropertiesMapper) {
             var propNames = Object.keys(modelProps);
             var _loop_1 = function (clientPropName) {
@@ -2179,18 +2284,33 @@ function serializeCompositeType(serializer, mapper, object, objectName) {
     }
     return object;
 }
+function getXmlObjectValue(propertyMapper, serializedValue, isXml) {
+    var _a;
+    if (!isXml || !propertyMapper.xmlNamespace) {
+        return serializedValue;
+    }
+    var xmlnsKey = propertyMapper.xmlNamespacePrefix
+        ? "xmlns:" + propertyMapper.xmlNamespacePrefix
+        : "xmlns";
+    var xmlNamespace = (_a = {}, _a[xmlnsKey] = propertyMapper.xmlNamespace, _a);
+    if (["Composite"].includes(propertyMapper.type.name)) {
+        return tslib.__assign({ $: xmlNamespace }, serializedValue);
+    }
+    return { _: serializedValue, $: xmlNamespace };
+}
 function isSpecialXmlProperty(propertyName) {
     return ["$", "_"].includes(propertyName);
 }
 function deserializeCompositeType(serializer, mapper, responseBody, objectName) {
+    var _a;
     if (getPolymorphicDiscriminatorRecursively(serializer, mapper)) {
         mapper = getPolymorphicMapper(serializer, mapper, responseBody, "serializedName");
     }
     var modelProps = resolveModelProperties(serializer, mapper, objectName);
     var instance = {};
     var handledPropertyNames = [];
-    for (var _i = 0, _a = Object.keys(modelProps); _i < _a.length; _i++) {
-        var key = _a[_i];
+    for (var _i = 0, _b = Object.keys(modelProps); _i < _b.length; _i++) {
+        var key = _b[_i];
         var propertyMapper = modelProps[key];
         var paths = splitSerializeName(modelProps[key].serializedName);
         handledPropertyNames.push(paths[0]);
@@ -2202,8 +2322,8 @@ function deserializeCompositeType(serializer, mapper, responseBody, objectName) 
         var headerCollectionPrefix = propertyMapper.headerCollectionPrefix;
         if (headerCollectionPrefix) {
             var dictionary = {};
-            for (var _b = 0, _c = Object.keys(responseBody); _b < _c.length; _b++) {
-                var headerKey = _c[_b];
+            for (var _c = 0, _d = Object.keys(responseBody); _c < _d.length; _c++) {
+                var headerKey = _d[_c];
                 if (headerKey.startsWith(headerCollectionPrefix)) {
                     dictionary[headerKey.substring(headerCollectionPrefix.length)] = serializer.deserialize(propertyMapper.type.value, responseBody[headerKey], propertyObjectName);
                 }
@@ -2217,16 +2337,29 @@ function deserializeCompositeType(serializer, mapper, responseBody, objectName) 
             }
             else {
                 var propertyName = xmlElementName || xmlName || serializedName;
-                var unwrappedProperty = responseBody[propertyName];
                 if (propertyMapper.xmlIsWrapped) {
-                    unwrappedProperty = responseBody[xmlName];
-                    unwrappedProperty = unwrappedProperty && unwrappedProperty[xmlElementName];
-                    var isEmptyWrappedList = unwrappedProperty === undefined;
-                    if (isEmptyWrappedList) {
-                        unwrappedProperty = [];
-                    }
+                    /* a list of <xmlElementName> wrapped by <xmlName>
+                      For the xml example below
+                        <Cors>
+                          <CorsRule>...</CorsRule>
+                          <CorsRule>...</CorsRule>
+                        </Cors>
+                      the responseBody has
+                        {
+                          Cors: {
+                            CorsRule: [{...}, {...}]
+                          }
+                        }
+                      xmlName is "Cors" and xmlElementName is"CorsRule".
+                    */
+                    var wrapped = responseBody[xmlName];
+                    var elementList = (_a = wrapped === null || wrapped === void 0 ? void 0 : wrapped[xmlElementName]) !== null && _a !== void 0 ? _a : [];
+                    instance[key] = serializer.deserialize(propertyMapper, elementList, propertyObjectName);
                 }
-                instance[key] = serializer.deserialize(propertyMapper, unwrappedProperty, propertyObjectName);
+                else {
+                    var property = responseBody[propertyName];
+                    instance[key] = serializer.deserialize(propertyMapper, property, propertyObjectName);
+                }
             }
         }
         else {
@@ -2234,8 +2367,8 @@ function deserializeCompositeType(serializer, mapper, responseBody, objectName) 
             var propertyInstance = void 0;
             var res = responseBody;
             // traversing the object step by step.
-            for (var _d = 0, paths_2 = paths; _d < paths_2.length; _d++) {
-                var item = paths_2[_d];
+            for (var _e = 0, paths_2 = paths; _e < paths_2.length; _e++) {
+                var item = paths_2[_e];
                 if (!res)
                     break;
                 res = res[item];
@@ -2286,8 +2419,8 @@ function deserializeCompositeType(serializer, mapper, responseBody, objectName) 
         }
     }
     else if (responseBody) {
-        for (var _e = 0, _f = Object.keys(responseBody); _e < _f.length; _e++) {
-            var key = _f[_e];
+        for (var _f = 0, _g = Object.keys(responseBody); _f < _g.length; _f++) {
+            var key = _g[_f];
             if (instance[key] === undefined &&
                 !handledPropertyNames.includes(key) &&
                 !isSpecialXmlProperty(key)) {
@@ -2780,11 +2913,6 @@ var URLQuery = /** @class */ (function () {
                         break;
                     case "ParameterValue":
                         switch (currentCharacter) {
-                            case "=":
-                                parameterName = "";
-                                parameterValue = "";
-                                currentState = "Invalid";
-                                break;
                             case "&":
                                 result.set(parameterName, parameterValue);
                                 parameterName = "";
@@ -2794,11 +2922,6 @@ var URLQuery = /** @class */ (function () {
                             default:
                                 parameterValue += currentCharacter;
                                 break;
-                        }
-                        break;
-                    case "Invalid":
-                        if (currentCharacter === "&") {
-                            currentState = "ParameterName";
                         }
                         break;
                     default:
@@ -4810,6 +4933,65 @@ var ExpiringAccessTokenCache = /** @class */ (function () {
 
 // Copyright (c) Microsoft Corporation.
 /**
+ * Helps the core-http token authentication policies with requesting a new token if we're not currently waiting for a new token.
+ */
+var AccessTokenRefresher = /** @class */ (function () {
+    function AccessTokenRefresher(credential, scopes, requiredMillisecondsBeforeNewRefresh) {
+        if (requiredMillisecondsBeforeNewRefresh === void 0) { requiredMillisecondsBeforeNewRefresh = 30000; }
+        this.credential = credential;
+        this.scopes = scopes;
+        this.requiredMillisecondsBeforeNewRefresh = requiredMillisecondsBeforeNewRefresh;
+        this.lastCalled = 0;
+    }
+    /**
+     * Returns true if the required milliseconds(defaulted to 30000) have been passed signifying
+     * that we are ready for a new refresh.
+     *
+     * @returns {boolean}
+     */
+    AccessTokenRefresher.prototype.isReady = function () {
+        // We're only ready for a new refresh if the required milliseconds have passed.
+        return (!this.lastCalled || Date.now() - this.lastCalled > this.requiredMillisecondsBeforeNewRefresh);
+    };
+    /**
+     * Stores the time in which it is called,
+     * then requests a new token,
+     * then sets this.promise to undefined,
+     * then returns the token.
+     * @param options getToken options
+     */
+    AccessTokenRefresher.prototype.getToken = function (options) {
+        return tslib.__awaiter(this, void 0, void 0, function () {
+            var token;
+            return tslib.__generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        this.lastCalled = Date.now();
+                        return [4 /*yield*/, this.credential.getToken(this.scopes, options)];
+                    case 1:
+                        token = _a.sent();
+                        this.promise = undefined;
+                        return [2 /*return*/, token || undefined];
+                }
+            });
+        });
+    };
+    /**
+     * Requests a new token if we're not currently waiting for a new token.
+     * Returns null if the required time between each call hasn't been reached.
+     * @param options getToken options
+     */
+    AccessTokenRefresher.prototype.refresh = function (options) {
+        if (!this.promise) {
+            this.promise = this.getToken(options);
+        }
+        return this.promise;
+    };
+    return AccessTokenRefresher;
+}());
+
+// Copyright (c) Microsoft Corporation.
+/**
  * Creates a new BearerTokenAuthenticationPolicy factory.
  *
  * @param credential The TokenCredential implementation that can supply the bearer token.
@@ -4817,12 +4999,19 @@ var ExpiringAccessTokenCache = /** @class */ (function () {
  */
 function bearerTokenAuthenticationPolicy(credential, scopes) {
     var tokenCache = new ExpiringAccessTokenCache();
+    var tokenRefresher = new AccessTokenRefresher(credential, scopes, timeBetweenRefreshAttemptsInMs);
     return {
         create: function (nextPolicy, options) {
-            return new BearerTokenAuthenticationPolicy(nextPolicy, options, credential, scopes, tokenCache);
+            return new BearerTokenAuthenticationPolicy(nextPolicy, options, tokenCache, tokenRefresher);
         }
     };
 }
+/**
+ * The automated token refresh will only start to happen at the
+ * expiration date minus the value of timeBetweenRefreshAttemptsInMs,
+ * which is by default 30 seconds.
+ */
+var timeBetweenRefreshAttemptsInMs = 30000;
 /**
  *
  * Provides a RequestPolicy that can request a token from a TokenCredential
@@ -4841,11 +5030,10 @@ var BearerTokenAuthenticationPolicy = /** @class */ (function (_super) {
      * @param scopes The scopes for which the bearer token applies.
      * @param tokenCache The cache for the most recent AccessToken returned from the TokenCredential.
      */
-    function BearerTokenAuthenticationPolicy(nextPolicy, options, credential, scopes, tokenCache) {
+    function BearerTokenAuthenticationPolicy(nextPolicy, options, tokenCache, tokenRefresher) {
         var _this = _super.call(this, nextPolicy, options) || this;
-        _this.credential = credential;
-        _this.scopes = scopes;
         _this.tokenCache = tokenCache;
+        _this.tokenRefresher = tokenRefresher;
         return _this;
     }
     /**
@@ -4874,6 +5062,26 @@ var BearerTokenAuthenticationPolicy = /** @class */ (function (_super) {
             });
         });
     };
+    /**
+     * Attempts a token update if any other time related conditionals have been reached based on the tokenRefresher class.
+     */
+    BearerTokenAuthenticationPolicy.prototype.updateTokenIfNeeded = function (options) {
+        return tslib.__awaiter(this, void 0, void 0, function () {
+            var accessToken;
+            return tslib.__generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!this.tokenRefresher.isReady()) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.tokenRefresher.refresh(options)];
+                    case 1:
+                        accessToken = _a.sent();
+                        this.tokenCache.setCachedToken(accessToken);
+                        _a.label = 2;
+                    case 2: return [2 /*return*/];
+                }
+            });
+        });
+    };
     BearerTokenAuthenticationPolicy.prototype.getToken = function (options) {
         return tslib.__awaiter(this, void 0, void 0, function () {
             var accessToken;
@@ -4882,12 +5090,20 @@ var BearerTokenAuthenticationPolicy = /** @class */ (function (_super) {
                     case 0:
                         accessToken = this.tokenCache.getCachedToken();
                         if (!(accessToken === undefined)) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this.credential.getToken(this.scopes, options)];
+                        return [4 /*yield*/, this.tokenRefresher.refresh(options)];
                     case 1:
-                        accessToken = (_a.sent()) || undefined;
+                        // Waiting for the next refresh only if the cache is unable to retrieve the access token,
+                        // which means that it has expired, or it has never been set.
+                        accessToken = _a.sent();
                         this.tokenCache.setCachedToken(accessToken);
-                        _a.label = 2;
-                    case 2: return [2 /*return*/, accessToken ? accessToken.token : undefined];
+                        return [3 /*break*/, 3];
+                    case 2:
+                        // If we still have a cached access token,
+                        // And any other time related conditionals have been reached based on the tokenRefresher class,
+                        // then attempt to refresh without waiting.
+                        this.updateTokenIfNeeded(options);
+                        _a.label = 3;
+                    case 3: return [2 /*return*/, accessToken ? accessToken.token : undefined];
                 }
             });
         });
@@ -4988,23 +5204,57 @@ function retry$1(policy, request, operationResponse, err, retryData) {
 })(exports.QueryCollectionFormat || (exports.QueryCollectionFormat = {}));
 
 // Copyright (c) Microsoft Corporation.
+var noProxyList = [];
+var isNoProxyInitalized = false;
+var byPassedList = new Map();
 function loadEnvironmentProxyValue() {
     if (!process) {
         return undefined;
     }
-    if (process.env[Constants.HTTPS_PROXY]) {
-        return process.env[Constants.HTTPS_PROXY];
+    var httpsProxy = getEnvironmentValue(Constants.HTTPS_PROXY);
+    var allProxy = getEnvironmentValue(Constants.ALL_PROXY);
+    var httpProxy = getEnvironmentValue(Constants.HTTP_PROXY);
+    return httpsProxy || allProxy || httpProxy;
+}
+// Check whether the given `uri` matches the noProxyList. If it matches, any request sent to that same `uri` won't set the proxy settings.
+function isBypassed(uri) {
+    if (byPassedList.has(uri)) {
+        return byPassedList.get(uri);
     }
-    else if (process.env[Constants.HTTPS_PROXY.toLowerCase()]) {
-        return process.env[Constants.HTTPS_PROXY.toLowerCase()];
+    loadNoProxy();
+    var isBypassed = false;
+    var host = URLBuilder.parse(uri).getHost();
+    for (var _i = 0, noProxyList_1 = noProxyList; _i < noProxyList_1.length; _i++) {
+        var proxyString = noProxyList_1[_i];
+        if (proxyString[0] === ".") {
+            if (uri.endsWith(proxyString)) {
+                isBypassed = true;
+            }
+            else {
+                if (host === proxyString.slice(1) && host.length === proxyString.length - 1) {
+                    isBypassed = true;
+                }
+            }
+        }
+        else {
+            if (host === proxyString) {
+                isBypassed = true;
+            }
+        }
     }
-    else if (process.env[Constants.HTTP_PROXY]) {
-        return process.env[Constants.HTTP_PROXY];
+    byPassedList.set(uri, isBypassed);
+    return isBypassed;
+}
+function loadNoProxy() {
+    if (isNoProxyInitalized) {
+        return;
     }
-    else if (process.env[Constants.HTTP_PROXY.toLowerCase()]) {
-        return process.env[Constants.HTTP_PROXY.toLowerCase()];
+    var noProxy = getEnvironmentValue(Constants.NO_PROXY);
+    if (noProxy) {
+        var list = noProxy.split(",");
+        noProxyList = list.map(function (item) { return item.trim(); }).filter(function (item) { return item.length; });
     }
-    return undefined;
+    isNoProxyInitalized = true;
 }
 function getDefaultProxySettings(proxyUrl) {
     if (!proxyUrl) {
@@ -5060,7 +5310,7 @@ var ProxyPolicy = /** @class */ (function (_super) {
         return _this;
     }
     ProxyPolicy.prototype.sendRequest = function (request) {
-        if (!request.proxySettings) {
+        if (!request.proxySettings && !isBypassed(request.url)) {
             request.proxySettings = this.proxySettings;
         }
         return this._nextPolicy.sendRequest(request);
@@ -5333,6 +5583,51 @@ var DisableResponseDecompressionPolicy = /** @class */ (function (_super) {
         });
     };
     return DisableResponseDecompressionPolicy;
+}(BaseRequestPolicy));
+
+// Copyright (c) Microsoft Corporation.
+function ndJsonPolicy() {
+    return {
+        create: function (nextPolicy, options) {
+            return new NdJsonPolicy(nextPolicy, options);
+        }
+    };
+}
+/**
+ * NdJsonPolicy that formats a JSON array as newline-delimited JSON
+ */
+var NdJsonPolicy = /** @class */ (function (_super) {
+    tslib.__extends(NdJsonPolicy, _super);
+    /**
+     * Creates an instance of KeepAlivePolicy.
+     *
+     * @param nextPolicy
+     * @param options
+     */
+    function NdJsonPolicy(nextPolicy, options) {
+        return _super.call(this, nextPolicy, options) || this;
+    }
+    /**
+     * Sends a request.
+     *
+     * @param request
+     */
+    NdJsonPolicy.prototype.sendRequest = function (request) {
+        return tslib.__awaiter(this, void 0, void 0, function () {
+            var body;
+            return tslib.__generator(this, function (_a) {
+                // There currently isn't a good way to bypass the serializer
+                if (typeof request.body === "string" && request.body.startsWith("[")) {
+                    body = JSON.parse(request.body);
+                    if (Array.isArray(body)) {
+                        request.body = body.map(function (item) { return JSON.stringify(item) + "\n"; }).join("");
+                    }
+                }
+                return [2 /*return*/, this._nextPolicy.sendRequest(request)];
+            });
+        });
+    };
+    return NdJsonPolicy;
 }(BaseRequestPolicy));
 
 // Copyright (c) Microsoft Corporation.
@@ -5632,7 +5927,7 @@ function serializeRequestBody(serviceClient, httpRequest, operationArguments, op
     if (operationSpec.requestBody && operationSpec.requestBody.mapper) {
         httpRequest.body = getOperationArgumentValueFromParameter(serviceClient, operationArguments, operationSpec.requestBody, operationSpec.serializer);
         var bodyMapper = operationSpec.requestBody.mapper;
-        var required = bodyMapper.required, xmlName = bodyMapper.xmlName, xmlElementName = bodyMapper.xmlElementName, serializedName = bodyMapper.serializedName;
+        var required = bodyMapper.required, xmlName = bodyMapper.xmlName, xmlElementName = bodyMapper.xmlElementName, serializedName = bodyMapper.serializedName, xmlNamespace = bodyMapper.xmlNamespace, xmlNamespacePrefix = bodyMapper.xmlNamespacePrefix;
         var typeName = bodyMapper.type.name;
         try {
             if ((httpRequest.body !== undefined && httpRequest.body !== null) || required) {
@@ -5640,11 +5935,13 @@ function serializeRequestBody(serviceClient, httpRequest, operationArguments, op
                 httpRequest.body = operationSpec.serializer.serialize(bodyMapper, httpRequest.body, requestBodyParameterPathString);
                 var isStream = typeName === MapperType.Stream;
                 if (operationSpec.isXML) {
+                    var xmlnsKey = xmlNamespacePrefix ? "xmlns:" + xmlNamespacePrefix : "xmlns";
+                    var value = getXmlValueWithNamespace(xmlNamespace, xmlnsKey, typeName, httpRequest.body);
                     if (typeName === MapperType.Sequence) {
-                        httpRequest.body = stringifyXML(prepareXMLRootList(httpRequest.body, xmlElementName || xmlName || serializedName), { rootName: xmlName || serializedName });
+                        httpRequest.body = stringifyXML(prepareXMLRootList(value, xmlElementName || xmlName || serializedName, xmlnsKey, xmlNamespace), { rootName: xmlName || serializedName });
                     }
                     else if (!isStream) {
-                        httpRequest.body = stringifyXML(httpRequest.body, {
+                        httpRequest.body = stringifyXML(value, {
                             rootName: xmlName || serializedName
                         });
                     }
@@ -5675,6 +5972,18 @@ function serializeRequestBody(serviceClient, httpRequest, operationArguments, op
             }
         }
     }
+}
+/**
+ * Adds an xml namespace to the xml serialized object if needed, otherwise it just returns the value itself
+ */
+function getXmlValueWithNamespace(xmlNamespace, xmlnsKey, typeName, serializedValue) {
+    var _a;
+    // Composite and Sequence schemas already got their root namespace set during serialization
+    // We just need to add xmlns to the other schema types
+    if (xmlNamespace && !["Composite", "Sequence", "Dictionary"].includes(typeName)) {
+        return { _: serializedValue, $: (_a = {}, _a[xmlnsKey] = xmlNamespace, _a) };
+    }
+    return serializedValue;
 }
 function getValueOrFunctionResult(value, defaultValueCreator) {
     var result;
@@ -5718,6 +6027,9 @@ function createDefaultRequestPolicyFactories(authPolicyFactory, options) {
 }
 function createPipelineFromOptions(pipelineOptions, authPolicyFactory) {
     var requestPolicyFactories = [];
+    if (pipelineOptions.sendStreamingJson) {
+        requestPolicyFactories.push(ndJsonPolicy());
+    }
     var userAgentValue = undefined;
     if (pipelineOptions.userAgentOptions && pipelineOptions.userAgentOptions.userAgentPrefix) {
         var userAgentInfo = [];
@@ -5996,16 +6308,14 @@ Object.defineProperty(exports, "isTokenCredential", ({
         return coreAuth.isTokenCredential;
     }
 }));
+exports.AccessTokenRefresher = AccessTokenRefresher;
 exports.ApiKeyCredentials = ApiKeyCredentials;
 exports.BaseRequestPolicy = BaseRequestPolicy;
 exports.BasicAuthenticationCredentials = BasicAuthenticationCredentials;
-exports.BearerTokenAuthenticationPolicy = BearerTokenAuthenticationPolicy;
 exports.Constants = Constants;
 exports.DefaultHttpClient = NodeFetchHttpClient;
-exports.DisableResponseDecompressionPolicy = DisableResponseDecompressionPolicy;
 exports.ExpiringAccessTokenCache = ExpiringAccessTokenCache;
 exports.HttpHeaders = HttpHeaders;
-exports.KeepAlivePolicy = KeepAlivePolicy;
 exports.MapperType = MapperType;
 exports.RequestPolicyOptions = RequestPolicyOptions;
 exports.RestError = RestError;
@@ -6055,2836 +6365,6 @@ exports.userAgentPolicy = userAgentPolicy;
 
 /***/ }),
 
-/***/ 1754:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-
-var api = __webpack_require__(6865);
-var tslib = __webpack_require__(4351);
-
-// Copyright (c) Microsoft Corporation.
-/**
- * A no-op implementation of Span that can safely be used without side-effects.
- */
-var NoOpSpan = /** @class */ (function () {
-    function NoOpSpan() {
-    }
-    /**
-     * Returns the SpanContext associated with this Span.
-     */
-    NoOpSpan.prototype.context = function () {
-        return {
-            spanId: "",
-            traceId: "",
-            traceFlags: api.TraceFlags.NONE
-        };
-    };
-    /**
-     * Marks the end of Span execution.
-     * @param _endTime The time to use as the Span's end time. Defaults to
-     * the current time.
-     */
-    NoOpSpan.prototype.end = function (_endTime) {
-        /* Noop */
-    };
-    /**
-     * Sets an attribute on the Span
-     * @param _key the attribute key
-     * @param _value the attribute value
-     */
-    NoOpSpan.prototype.setAttribute = function (_key, _value) {
-        return this;
-    };
-    /**
-     * Sets attributes on the Span
-     * @param _attributes the attributes to add
-     */
-    NoOpSpan.prototype.setAttributes = function (_attributes) {
-        return this;
-    };
-    /**
-     * Adds an event to the Span
-     * @param _name The name of the event
-     * @param _attributes The associated attributes to add for this event
-     */
-    NoOpSpan.prototype.addEvent = function (_name, _attributes) {
-        return this;
-    };
-    /**
-     * Sets a status on the span. Overrides the default of CanonicalCode.OK.
-     * @param _status The status to set.
-     */
-    NoOpSpan.prototype.setStatus = function (_status) {
-        return this;
-    };
-    /**
-     * Updates the name of the Span
-     * @param _name the new Span name
-     */
-    NoOpSpan.prototype.updateName = function (_name) {
-        return this;
-    };
-    /**
-     * Returns whether this span will be recorded
-     */
-    NoOpSpan.prototype.isRecording = function () {
-        return false;
-    };
-    return NoOpSpan;
-}());
-
-// Copyright (c) Microsoft Corporation.
-/**
- * A no-op implementation of Tracer that can be used when tracing
- * is disabled.
- */
-var NoOpTracer = /** @class */ (function () {
-    function NoOpTracer() {
-    }
-    /**
-     * Starts a new Span.
-     * @param _name The name of the span.
-     * @param _options The SpanOptions used during Span creation.
-     */
-    NoOpTracer.prototype.startSpan = function (_name, _options) {
-        return new NoOpSpan();
-    };
-    /**
-     * Returns the current Span from the current context, if available.
-     */
-    NoOpTracer.prototype.getCurrentSpan = function () {
-        return new NoOpSpan();
-    };
-    /**
-     * Executes the given function within the context provided by a Span.
-     * @param _span The span that provides the context.
-     * @param fn The function to be executed.
-     */
-    NoOpTracer.prototype.withSpan = function (_span, fn) {
-        return fn();
-    };
-    /**
-     * Bind a Span as the target's scope
-     * @param target An object to bind the scope.
-     * @param _span A specific Span to use. Otherwise, use the current one.
-     */
-    NoOpTracer.prototype.bind = function (target, _span) {
-        return target;
-    };
-    return NoOpTracer;
-}());
-
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-function getGlobalObject() {
-    return global;
-}
-
-// Copyright (c) Microsoft Corporation.
-// V1 = OpenTelemetry 0.1
-// V2 = OpenTelemetry 0.2
-// V3 = OpenTelemetry 0.6.1
-var GLOBAL_TRACER_VERSION = 3;
-// preview5 shipped with @azure/core-tracing.tracerCache
-// and didn't have smart detection for collisions
-var GLOBAL_TRACER_SYMBOL = Symbol.for("@azure/core-tracing.tracerCache2");
-var cache;
-function loadTracerCache() {
-    var globalObj = getGlobalObject();
-    var existingCache = globalObj[GLOBAL_TRACER_SYMBOL];
-    var setGlobalCache = true;
-    if (existingCache) {
-        if (existingCache.version === GLOBAL_TRACER_VERSION) {
-            cache = existingCache;
-        }
-        else {
-            setGlobalCache = false;
-            if (existingCache.tracer) {
-                throw new Error("Two incompatible versions of @azure/core-tracing have been loaded.\n          This library is " + GLOBAL_TRACER_VERSION + ", existing is " + existingCache.version + ".");
-            }
-        }
-    }
-    if (!cache) {
-        cache = {
-            tracer: undefined,
-            version: GLOBAL_TRACER_VERSION
-        };
-    }
-    if (setGlobalCache) {
-        globalObj[GLOBAL_TRACER_SYMBOL] = cache;
-    }
-}
-function getCache() {
-    if (!cache) {
-        loadTracerCache();
-    }
-    return cache;
-}
-
-// Copyright (c) Microsoft Corporation.
-var defaultTracer;
-function getDefaultTracer() {
-    if (!defaultTracer) {
-        defaultTracer = new NoOpTracer();
-    }
-    return defaultTracer;
-}
-/**
- * Sets the global tracer, enabling tracing for the Azure SDK.
- * @param tracer An OpenTelemetry Tracer instance.
- */
-function setTracer(tracer) {
-    var cache = getCache();
-    cache.tracer = tracer;
-}
-/**
- * Retrieves the active tracer, or returns a
- * no-op implementation if one is not set.
- */
-function getTracer() {
-    var cache = getCache();
-    if (!cache.tracer) {
-        return getDefaultTracer();
-    }
-    return cache.tracer;
-}
-
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-/**
- * @ignore
- * @internal
- */
-var OpenCensusTraceStateWrapper = /** @class */ (function () {
-    function OpenCensusTraceStateWrapper(state) {
-        this._state = state;
-    }
-    OpenCensusTraceStateWrapper.prototype.get = function (_key) {
-        throw new Error("Method not implemented.");
-    };
-    OpenCensusTraceStateWrapper.prototype.set = function (_key, _value) {
-        throw new Error("Method not implemented.");
-    };
-    OpenCensusTraceStateWrapper.prototype.unset = function (_key) {
-        throw new Error("Method not implemented");
-    };
-    OpenCensusTraceStateWrapper.prototype.serialize = function () {
-        return this._state || "";
-    };
-    return OpenCensusTraceStateWrapper;
-}());
-
-// Copyright (c) Microsoft Corporation.
-function isWrappedSpan(span) {
-    return !!span && span.getWrappedSpan !== undefined;
-}
-function isTracer(tracerOrSpan) {
-    return tracerOrSpan.getWrappedTracer !== undefined;
-}
-/**
- * An implementation of OpenTelemetry Span that wraps an OpenCensus Span.
- */
-var OpenCensusSpanWrapper = /** @class */ (function () {
-    function OpenCensusSpanWrapper(tracerOrSpan, name, options) {
-        if (name === void 0) { name = ""; }
-        if (options === void 0) { options = {}; }
-        if (isTracer(tracerOrSpan)) {
-            var parent = isWrappedSpan(options.parent) ? options.parent.getWrappedSpan() : undefined;
-            this._span = tracerOrSpan.getWrappedTracer().startChildSpan({
-                name: name,
-                childOf: parent
-            });
-            this._span.start();
-            if (options.links) {
-                for (var _i = 0, _a = options.links; _i < _a.length; _i++) {
-                    var link = _a[_i];
-                    // Since there is no way to set the link relationship, leave it as Unspecified.
-                    this._span.addLink(link.context.traceId, link.context.spanId, 0 /* LinkType.UNSPECIFIED */, link.attributes);
-                }
-            }
-        }
-        else {
-            this._span = tracerOrSpan;
-        }
-    }
-    /**
-     * The underlying OpenCensus Span
-     */
-    OpenCensusSpanWrapper.prototype.getWrappedSpan = function () {
-        return this._span;
-    };
-    /**
-     * Marks the end of Span execution.
-     * @param endTime The time to use as the Span's end time. Defaults to
-     * the current time.
-     */
-    OpenCensusSpanWrapper.prototype.end = function (_endTime) {
-        this._span.end();
-    };
-    /**
-     * Returns the SpanContext associated with this Span.
-     */
-    OpenCensusSpanWrapper.prototype.context = function () {
-        var openCensusSpanContext = this._span.spanContext;
-        return {
-            spanId: openCensusSpanContext.spanId,
-            traceId: openCensusSpanContext.traceId,
-            traceFlags: openCensusSpanContext.options,
-            traceState: new OpenCensusTraceStateWrapper(openCensusSpanContext.traceState)
-        };
-    };
-    /**
-     * Sets an attribute on the Span
-     * @param key the attribute key
-     * @param value the attribute value
-     */
-    OpenCensusSpanWrapper.prototype.setAttribute = function (key, value) {
-        this._span.addAttribute(key, value);
-        return this;
-    };
-    /**
-     * Sets attributes on the Span
-     * @param attributes the attributes to add
-     */
-    OpenCensusSpanWrapper.prototype.setAttributes = function (attributes) {
-        this._span.attributes = attributes;
-        return this;
-    };
-    /**
-     * Adds an event to the Span
-     * @param name The name of the event
-     * @param attributes The associated attributes to add for this event
-     */
-    OpenCensusSpanWrapper.prototype.addEvent = function (_name, _attributes) {
-        throw new Error("Method not implemented.");
-    };
-    /**
-     * Sets a status on the span. Overrides the default of CanonicalCode.OK.
-     * @param status The status to set.
-     */
-    OpenCensusSpanWrapper.prototype.setStatus = function (status) {
-        this._span.setStatus(status.code, status.message);
-        return this;
-    };
-    /**
-     * Updates the name of the Span
-     * @param name the new Span name
-     */
-    OpenCensusSpanWrapper.prototype.updateName = function (name) {
-        this._span.name = name;
-        return this;
-    };
-    /**
-     * Returns whether this span will be recorded
-     */
-    OpenCensusSpanWrapper.prototype.isRecording = function () {
-        // NoRecordSpans have an empty traceId
-        return !!this._span.traceId;
-    };
-    return OpenCensusSpanWrapper;
-}());
-
-// Copyright (c) Microsoft Corporation.
-/**
- * An implementation of OpenTelemetry Tracer that wraps an OpenCensus Tracer.
- */
-var OpenCensusTracerWrapper = /** @class */ (function () {
-    /**
-     * Create a new wrapper around a given OpenCensus Tracer.
-     * @param tracer The OpenCensus Tracer to wrap.
-     */
-    function OpenCensusTracerWrapper(tracer) {
-        this._tracer = tracer;
-    }
-    /**
-     * The wrapped OpenCensus Tracer
-     */
-    OpenCensusTracerWrapper.prototype.getWrappedTracer = function () {
-        return this._tracer;
-    };
-    /**
-     * Starts a new Span.
-     * @param name The name of the span.
-     * @param options The SpanOptions used during Span creation.
-     */
-    OpenCensusTracerWrapper.prototype.startSpan = function (name, options) {
-        return new OpenCensusSpanWrapper(this, name, options);
-    };
-    /**
-     * Returns the current Span from the current context, if available.
-     */
-    OpenCensusTracerWrapper.prototype.getCurrentSpan = function () {
-        return undefined;
-    };
-    /**
-     * Executes the given function within the context provided by a Span.
-     * @param _span The span that provides the context.
-     * @param _fn The function to be executed.
-     */
-    OpenCensusTracerWrapper.prototype.withSpan = function (_span, _fn) {
-        throw new Error("Method not implemented.");
-    };
-    /**
-     * Bind a Span as the target's scope
-     * @param target An object to bind the scope.
-     * @param _span A specific Span to use. Otherwise, use the current one.
-     */
-    OpenCensusTracerWrapper.prototype.bind = function (_target, _span) {
-        throw new Error("Method not implemented.");
-    };
-    return OpenCensusTracerWrapper;
-}());
-
-// Copyright (c) Microsoft Corporation.
-/**
- * A mock span useful for testing.
- */
-var TestSpan = /** @class */ (function (_super) {
-    tslib.__extends(TestSpan, _super);
-    /**
-     * Starts a new Span.
-     * @param parentTracer The tracer that created this Span
-     * @param name The name of the span.
-     * @param context The SpanContext this span belongs to
-     * @param kind The SpanKind of this Span
-     * @param parentSpanId The identifier of the parent Span
-     * @param startTime The startTime of the event (defaults to now)
-     */
-    function TestSpan(parentTracer, name, context, kind, parentSpanId, startTime) {
-        if (startTime === void 0) { startTime = Date.now(); }
-        var _this = _super.call(this) || this;
-        _this._tracer = parentTracer;
-        _this.name = name;
-        _this.kind = kind;
-        _this.startTime = startTime;
-        _this.parentSpanId = parentSpanId;
-        _this.status = {
-            code: api.CanonicalCode.OK
-        };
-        _this.endCalled = false;
-        _this._context = context;
-        _this.attributes = {};
-        return _this;
-    }
-    /**
-     * Returns the Tracer that created this Span
-     */
-    TestSpan.prototype.tracer = function () {
-        return this._tracer;
-    };
-    /**
-     * Returns the SpanContext associated with this Span.
-     */
-    TestSpan.prototype.context = function () {
-        return this._context;
-    };
-    /**
-     * Marks the end of Span execution.
-     * @param _endTime The time to use as the Span's end time. Defaults to
-     * the current time.
-     */
-    TestSpan.prototype.end = function (_endTime) {
-        this.endCalled = true;
-    };
-    /**
-     * Sets a status on the span. Overrides the default of CanonicalCode.OK.
-     * @param status The status to set.
-     */
-    TestSpan.prototype.setStatus = function (status) {
-        this.status = status;
-        return this;
-    };
-    /**
-     * Returns whether this span will be recorded
-     */
-    TestSpan.prototype.isRecording = function () {
-        return true;
-    };
-    /**
-     * Sets an attribute on the Span
-     * @param key the attribute key
-     * @param value the attribute value
-     */
-    TestSpan.prototype.setAttribute = function (key, value) {
-        this.attributes[key] = value;
-        return this;
-    };
-    /**
-     * Sets attributes on the Span
-     * @param attributes the attributes to add
-     */
-    TestSpan.prototype.setAttributes = function (attributes) {
-        for (var _i = 0, _a = Object.keys(attributes); _i < _a.length; _i++) {
-            var key = _a[_i];
-            this.attributes[key] = attributes[key];
-        }
-        return this;
-    };
-    return TestSpan;
-}(NoOpSpan));
-
-// Copyright (c) Microsoft Corporation.
-/**
- * A mock tracer useful for testing
- */
-var TestTracer = /** @class */ (function (_super) {
-    tslib.__extends(TestTracer, _super);
-    function TestTracer() {
-        var _this = _super !== null && _super.apply(this, arguments) || this;
-        _this.traceIdCounter = 0;
-        _this.spanIdCounter = 0;
-        _this.rootSpans = [];
-        _this.knownSpans = [];
-        return _this;
-    }
-    TestTracer.prototype.getNextTraceId = function () {
-        this.traceIdCounter++;
-        return String(this.traceIdCounter);
-    };
-    TestTracer.prototype.getNextSpanId = function () {
-        this.spanIdCounter++;
-        return String(this.spanIdCounter);
-    };
-    /**
-     * Returns all Spans that were created without a parent
-     */
-    TestTracer.prototype.getRootSpans = function () {
-        return this.rootSpans;
-    };
-    /**
-     * Returns all Spans this Tracer knows about
-     */
-    TestTracer.prototype.getKnownSpans = function () {
-        return this.knownSpans;
-    };
-    /**
-     * Returns all Spans where end() has not been called
-     */
-    TestTracer.prototype.getActiveSpans = function () {
-        return this.knownSpans.filter(function (span) {
-            return !span.endCalled;
-        });
-    };
-    /**
-     * Return all Spans for a particular trace, grouped by their
-     * parent Span in a tree-like structure
-     * @param traceId The traceId to return the graph for
-     */
-    TestTracer.prototype.getSpanGraph = function (traceId) {
-        var traceSpans = this.knownSpans.filter(function (span) {
-            return span.context().traceId === traceId;
-        });
-        var roots = [];
-        var nodeMap = new Map();
-        for (var _i = 0, traceSpans_1 = traceSpans; _i < traceSpans_1.length; _i++) {
-            var span = traceSpans_1[_i];
-            var spanId = span.context().spanId;
-            var node = {
-                name: span.name,
-                children: []
-            };
-            nodeMap.set(spanId, node);
-            if (span.parentSpanId) {
-                var parent = nodeMap.get(span.parentSpanId);
-                if (!parent) {
-                    throw new Error("Span with name " + node.name + " has an unknown parentSpan with id " + span.parentSpanId);
-                }
-                parent.children.push(node);
-            }
-            else {
-                roots.push(node);
-            }
-        }
-        return {
-            roots: roots
-        };
-    };
-    /**
-     * Starts a new Span.
-     * @param name The name of the span.
-     * @param options The SpanOptions used during Span creation.
-     */
-    TestTracer.prototype.startSpan = function (name, options) {
-        if (options === void 0) { options = {}; }
-        var parentContext = this._getParentContext(options);
-        var traceId;
-        var isRootSpan = false;
-        if (parentContext && parentContext.traceId) {
-            traceId = parentContext.traceId;
-        }
-        else {
-            traceId = this.getNextTraceId();
-            isRootSpan = true;
-        }
-        var context = {
-            traceId: traceId,
-            spanId: this.getNextSpanId(),
-            traceFlags: api.TraceFlags.NONE
-        };
-        var span = new TestSpan(this, name, context, options.kind || api.SpanKind.INTERNAL, parentContext ? parentContext.spanId : undefined, options.startTime);
-        this.knownSpans.push(span);
-        if (isRootSpan) {
-            this.rootSpans.push(span);
-        }
-        return span;
-    };
-    TestTracer.prototype._getParentContext = function (options) {
-        var parent = options.parent;
-        var result;
-        if (parent) {
-            if ("traceId" in parent) {
-                result = parent;
-            }
-            else {
-                result = parent.context();
-            }
-        }
-        return result;
-    };
-    return TestTracer;
-}(NoOpTracer));
-
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-var VERSION = "00";
-/**
- * Generates a `SpanContext` given a `traceparent` header value.
- * @param traceParent Serialized span context data as a `traceparent` header value.
- * @returns The `SpanContext` generated from the `traceparent` value.
- */
-function extractSpanContextFromTraceParentHeader(traceParentHeader) {
-    var parts = traceParentHeader.split("-");
-    if (parts.length !== 4) {
-        return;
-    }
-    var version = parts[0], traceId = parts[1], spanId = parts[2], traceOptions = parts[3];
-    if (version !== VERSION) {
-        return;
-    }
-    var traceFlags = parseInt(traceOptions, 16);
-    var spanContext = {
-        spanId: spanId,
-        traceId: traceId,
-        traceFlags: traceFlags
-    };
-    return spanContext;
-}
-/**
- * Generates a `traceparent` value given a span context.
- * @param spanContext Contains context for a specific span.
- * @returns The `spanContext` represented as a `traceparent` value.
- */
-function getTraceParentHeader(spanContext) {
-    var missingFields = [];
-    if (!spanContext.traceId) {
-        missingFields.push("traceId");
-    }
-    if (!spanContext.spanId) {
-        missingFields.push("spanId");
-    }
-    if (missingFields.length) {
-        return;
-    }
-    var flags = spanContext.traceFlags || 0 /* NONE */;
-    var hexFlags = flags.toString(16);
-    var traceFlags = hexFlags.length === 1 ? "0" + hexFlags : hexFlags;
-    // https://www.w3.org/TR/trace-context/#traceparent-header-field-values
-    return VERSION + "-" + spanContext.traceId + "-" + spanContext.spanId + "-" + traceFlags;
-}
-
-exports.NoOpSpan = NoOpSpan;
-exports.NoOpTracer = NoOpTracer;
-exports.OpenCensusSpanWrapper = OpenCensusSpanWrapper;
-exports.OpenCensusTracerWrapper = OpenCensusTracerWrapper;
-exports.TestSpan = TestSpan;
-exports.TestTracer = TestTracer;
-exports.extractSpanContextFromTraceParentHeader = extractSpanContextFromTraceParentHeader;
-exports.getTraceParentHeader = getTraceParentHeader;
-exports.getTracer = getTracer;
-exports.setTracer = setTracer;
-//# sourceMappingURL=index.js.map
-
-
-/***/ }),
-
-/***/ 7407:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ContextAPI = void 0;
-var context_base_1 = __webpack_require__(5404);
-var global_utils_1 = __webpack_require__(3160);
-var NOOP_CONTEXT_MANAGER = new context_base_1.NoopContextManager();
-/**
- * Singleton object which represents the entry point to the OpenTelemetry Context API
- */
-var ContextAPI = /** @class */ (function () {
-    /** Empty private constructor prevents end users from constructing a new instance of the API */
-    function ContextAPI() {
-    }
-    /** Get the singleton instance of the Context API */
-    ContextAPI.getInstance = function () {
-        if (!this._instance) {
-            this._instance = new ContextAPI();
-        }
-        return this._instance;
-    };
-    /**
-     * Set the current context manager. Returns the initialized context manager
-     */
-    ContextAPI.prototype.setGlobalContextManager = function (contextManager) {
-        if (global_utils_1._global[global_utils_1.GLOBAL_CONTEXT_MANAGER_API_KEY]) {
-            // global context manager has already been set
-            return this._getContextManager();
-        }
-        global_utils_1._global[global_utils_1.GLOBAL_CONTEXT_MANAGER_API_KEY] = global_utils_1.makeGetter(global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION, contextManager, NOOP_CONTEXT_MANAGER);
-        return contextManager;
-    };
-    /**
-     * Get the currently active context
-     */
-    ContextAPI.prototype.active = function () {
-        return this._getContextManager().active();
-    };
-    /**
-     * Execute a function with an active context
-     *
-     * @param context context to be active during function execution
-     * @param fn function to execute in a context
-     */
-    ContextAPI.prototype.with = function (context, fn) {
-        return this._getContextManager().with(context, fn);
-    };
-    /**
-     * Bind a context to a target function or event emitter
-     *
-     * @param target function or event emitter to bind
-     * @param context context to bind to the event emitter or function. Defaults to the currently active context
-     */
-    ContextAPI.prototype.bind = function (target, context) {
-        if (context === void 0) { context = this.active(); }
-        return this._getContextManager().bind(target, context);
-    };
-    ContextAPI.prototype._getContextManager = function () {
-        var _a, _b;
-        return ((_b = (_a = global_utils_1._global[global_utils_1.GLOBAL_CONTEXT_MANAGER_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(global_utils_1._global, global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION)) !== null && _b !== void 0 ? _b : NOOP_CONTEXT_MANAGER);
-    };
-    /** Disable and remove the global context manager */
-    ContextAPI.prototype.disable = function () {
-        this._getContextManager().disable();
-        delete global_utils_1._global[global_utils_1.GLOBAL_CONTEXT_MANAGER_API_KEY];
-    };
-    return ContextAPI;
-}());
-exports.ContextAPI = ContextAPI;
-//# sourceMappingURL=context.js.map
-
-/***/ }),
-
-/***/ 3160:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.API_BACKWARDS_COMPATIBILITY_VERSION = exports.makeGetter = exports._global = exports.GLOBAL_TRACE_API_KEY = exports.GLOBAL_PROPAGATION_API_KEY = exports.GLOBAL_METRICS_API_KEY = exports.GLOBAL_CONTEXT_MANAGER_API_KEY = void 0;
-var platform_1 = __webpack_require__(4730);
-exports.GLOBAL_CONTEXT_MANAGER_API_KEY = Symbol.for('io.opentelemetry.js.api.context');
-exports.GLOBAL_METRICS_API_KEY = Symbol.for('io.opentelemetry.js.api.metrics');
-exports.GLOBAL_PROPAGATION_API_KEY = Symbol.for('io.opentelemetry.js.api.propagation');
-exports.GLOBAL_TRACE_API_KEY = Symbol.for('io.opentelemetry.js.api.trace');
-exports._global = platform_1._globalThis;
-/**
- * Make a function which accepts a version integer and returns the instance of an API if the version
- * is compatible, or a fallback version (usually NOOP) if it is not.
- *
- * @param requiredVersion Backwards compatibility version which is required to return the instance
- * @param instance Instance which should be returned if the required version is compatible
- * @param fallback Fallback instance, usually NOOP, which will be returned if the required version is not compatible
- */
-function makeGetter(requiredVersion, instance, fallback) {
-    return function (version) {
-        return version === requiredVersion ? instance : fallback;
-    };
-}
-exports.makeGetter = makeGetter;
-/**
- * A number which should be incremented each time a backwards incompatible
- * change is made to the API. This number is used when an API package
- * attempts to access the global API to ensure it is getting a compatible
- * version. If the global API is not compatible with the API package
- * attempting to get it, a NOOP API implementation will be returned.
- */
-exports.API_BACKWARDS_COMPATIBILITY_VERSION = 0;
-//# sourceMappingURL=global-utils.js.map
-
-/***/ }),
-
-/***/ 8361:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.MetricsAPI = void 0;
-var NoopMeterProvider_1 = __webpack_require__(4679);
-var global_utils_1 = __webpack_require__(3160);
-/**
- * Singleton object which represents the entry point to the OpenTelemetry Metrics API
- */
-var MetricsAPI = /** @class */ (function () {
-    /** Empty private constructor prevents end users from constructing a new instance of the API */
-    function MetricsAPI() {
-    }
-    /** Get the singleton instance of the Metrics API */
-    MetricsAPI.getInstance = function () {
-        if (!this._instance) {
-            this._instance = new MetricsAPI();
-        }
-        return this._instance;
-    };
-    /**
-     * Set the current global meter. Returns the initialized global meter provider.
-     */
-    MetricsAPI.prototype.setGlobalMeterProvider = function (provider) {
-        if (global_utils_1._global[global_utils_1.GLOBAL_METRICS_API_KEY]) {
-            // global meter provider has already been set
-            return this.getMeterProvider();
-        }
-        global_utils_1._global[global_utils_1.GLOBAL_METRICS_API_KEY] = global_utils_1.makeGetter(global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION, provider, NoopMeterProvider_1.NOOP_METER_PROVIDER);
-        return provider;
-    };
-    /**
-     * Returns the global meter provider.
-     */
-    MetricsAPI.prototype.getMeterProvider = function () {
-        var _a, _b;
-        return ((_b = (_a = global_utils_1._global[global_utils_1.GLOBAL_METRICS_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(global_utils_1._global, global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION)) !== null && _b !== void 0 ? _b : NoopMeterProvider_1.NOOP_METER_PROVIDER);
-    };
-    /**
-     * Returns a meter from the global meter provider.
-     */
-    MetricsAPI.prototype.getMeter = function (name, version) {
-        return this.getMeterProvider().getMeter(name, version);
-    };
-    /** Remove the global meter provider */
-    MetricsAPI.prototype.disable = function () {
-        delete global_utils_1._global[global_utils_1.GLOBAL_METRICS_API_KEY];
-    };
-    return MetricsAPI;
-}());
-exports.MetricsAPI = MetricsAPI;
-//# sourceMappingURL=metrics.js.map
-
-/***/ }),
-
-/***/ 9362:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.PropagationAPI = void 0;
-var getter_1 = __webpack_require__(2614);
-var NoopHttpTextPropagator_1 = __webpack_require__(7915);
-var setter_1 = __webpack_require__(3709);
-var context_1 = __webpack_require__(7407);
-var global_utils_1 = __webpack_require__(3160);
-var contextApi = context_1.ContextAPI.getInstance();
-/**
- * Singleton object which represents the entry point to the OpenTelemetry Propagation API
- */
-var PropagationAPI = /** @class */ (function () {
-    /** Empty private constructor prevents end users from constructing a new instance of the API */
-    function PropagationAPI() {
-    }
-    /** Get the singleton instance of the Propagator API */
-    PropagationAPI.getInstance = function () {
-        if (!this._instance) {
-            this._instance = new PropagationAPI();
-        }
-        return this._instance;
-    };
-    /**
-     * Set the current propagator. Returns the initialized propagator
-     */
-    PropagationAPI.prototype.setGlobalPropagator = function (propagator) {
-        if (global_utils_1._global[global_utils_1.GLOBAL_PROPAGATION_API_KEY]) {
-            // global propagator has already been set
-            return this._getGlobalPropagator();
-        }
-        global_utils_1._global[global_utils_1.GLOBAL_PROPAGATION_API_KEY] = global_utils_1.makeGetter(global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION, propagator, NoopHttpTextPropagator_1.NOOP_HTTP_TEXT_PROPAGATOR);
-        return propagator;
-    };
-    /**
-     * Inject context into a carrier to be propagated inter-process
-     *
-     * @param carrier carrier to inject context into
-     * @param setter Function used to set values on the carrier
-     * @param context Context carrying tracing data to inject. Defaults to the currently active context.
-     */
-    PropagationAPI.prototype.inject = function (carrier, setter, context) {
-        if (setter === void 0) { setter = setter_1.defaultSetter; }
-        if (context === void 0) { context = contextApi.active(); }
-        return this._getGlobalPropagator().inject(context, carrier, setter);
-    };
-    /**
-     * Extract context from a carrier
-     *
-     * @param carrier Carrier to extract context from
-     * @param getter Function used to extract keys from a carrier
-     * @param context Context which the newly created context will inherit from. Defaults to the currently active context.
-     */
-    PropagationAPI.prototype.extract = function (carrier, getter, context) {
-        if (getter === void 0) { getter = getter_1.defaultGetter; }
-        if (context === void 0) { context = contextApi.active(); }
-        return this._getGlobalPropagator().extract(context, carrier, getter);
-    };
-    /** Remove the global propagator */
-    PropagationAPI.prototype.disable = function () {
-        delete global_utils_1._global[global_utils_1.GLOBAL_PROPAGATION_API_KEY];
-    };
-    PropagationAPI.prototype._getGlobalPropagator = function () {
-        var _a, _b;
-        return ((_b = (_a = global_utils_1._global[global_utils_1.GLOBAL_PROPAGATION_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(global_utils_1._global, global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION)) !== null && _b !== void 0 ? _b : NoopHttpTextPropagator_1.NOOP_HTTP_TEXT_PROPAGATOR);
-    };
-    return PropagationAPI;
-}());
-exports.PropagationAPI = PropagationAPI;
-//# sourceMappingURL=propagation.js.map
-
-/***/ }),
-
-/***/ 9857:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TraceAPI = void 0;
-var NoopTracerProvider_1 = __webpack_require__(2793);
-var global_utils_1 = __webpack_require__(3160);
-/**
- * Singleton object which represents the entry point to the OpenTelemetry Tracing API
- */
-var TraceAPI = /** @class */ (function () {
-    /** Empty private constructor prevents end users from constructing a new instance of the API */
-    function TraceAPI() {
-    }
-    /** Get the singleton instance of the Trace API */
-    TraceAPI.getInstance = function () {
-        if (!this._instance) {
-            this._instance = new TraceAPI();
-        }
-        return this._instance;
-    };
-    /**
-     * Set the current global tracer. Returns the initialized global tracer provider
-     */
-    TraceAPI.prototype.setGlobalTracerProvider = function (provider) {
-        if (global_utils_1._global[global_utils_1.GLOBAL_TRACE_API_KEY]) {
-            // global tracer provider has already been set
-            return this.getTracerProvider();
-        }
-        global_utils_1._global[global_utils_1.GLOBAL_TRACE_API_KEY] = global_utils_1.makeGetter(global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION, provider, NoopTracerProvider_1.NOOP_TRACER_PROVIDER);
-        return this.getTracerProvider();
-    };
-    /**
-     * Returns the global tracer provider.
-     */
-    TraceAPI.prototype.getTracerProvider = function () {
-        var _a, _b;
-        return ((_b = (_a = global_utils_1._global[global_utils_1.GLOBAL_TRACE_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(global_utils_1._global, global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION)) !== null && _b !== void 0 ? _b : NoopTracerProvider_1.NOOP_TRACER_PROVIDER);
-    };
-    /**
-     * Returns a tracer from the global tracer provider.
-     */
-    TraceAPI.prototype.getTracer = function (name, version) {
-        return this.getTracerProvider().getTracer(name, version);
-    };
-    /** Remove the global tracer provider */
-    TraceAPI.prototype.disable = function () {
-        delete global_utils_1._global[global_utils_1.GLOBAL_TRACE_API_KEY];
-    };
-    return TraceAPI;
-}());
-exports.TraceAPI = TraceAPI;
-//# sourceMappingURL=trace.js.map
-
-/***/ }),
-
-/***/ 7720:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=Logger.js.map
-
-/***/ }),
-
-/***/ 7413:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=Time.js.map
-
-/***/ }),
-
-/***/ 4568:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=HttpTextPropagator.js.map
-
-/***/ }),
-
-/***/ 7915:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NOOP_HTTP_TEXT_PROPAGATOR = exports.NoopHttpTextPropagator = void 0;
-/**
- * No-op implementations of {@link HttpTextPropagator}.
- */
-var NoopHttpTextPropagator = /** @class */ (function () {
-    function NoopHttpTextPropagator() {
-    }
-    /** Noop inject function does nothing */
-    NoopHttpTextPropagator.prototype.inject = function (context, carrier, setter) { };
-    /** Noop extract function does nothing and returns the input context */
-    NoopHttpTextPropagator.prototype.extract = function (context, carrier, getter) {
-        return context;
-    };
-    return NoopHttpTextPropagator;
-}());
-exports.NoopHttpTextPropagator = NoopHttpTextPropagator;
-exports.NOOP_HTTP_TEXT_PROPAGATOR = new NoopHttpTextPropagator();
-//# sourceMappingURL=NoopHttpTextPropagator.js.map
-
-/***/ }),
-
-/***/ 2614:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.defaultGetter = void 0;
-/**
- * Default getter which just does a simple property access. Returns
- * undefined if the key is not set.
- *
- * @param carrier
- * @param key
- */
-function defaultGetter(carrier, key) {
-    return carrier[key];
-}
-exports.defaultGetter = defaultGetter;
-//# sourceMappingURL=getter.js.map
-
-/***/ }),
-
-/***/ 3709:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.defaultSetter = void 0;
-/**
- * Default setter which sets value via direct property access
- *
- * @param carrier
- * @param key
- */
-function defaultSetter(carrier, key, value) {
-    carrier[key] = value;
-}
-exports.defaultSetter = defaultSetter;
-//# sourceMappingURL=setter.js.map
-
-/***/ }),
-
-/***/ 2872:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=CorrelationContext.js.map
-
-/***/ }),
-
-/***/ 2050:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.EntryTtl = void 0;
-/**
- * EntryTtl is an integer that represents number of hops an entry can propagate.
- *
- * For now, ONLY special values (0 and -1) are supported.
- */
-var EntryTtl;
-(function (EntryTtl) {
-    /**
-     * NO_PROPAGATION is considered to have local context and is used within the
-     * process it created.
-     */
-    EntryTtl[EntryTtl["NO_PROPAGATION"] = 0] = "NO_PROPAGATION";
-    /** UNLIMITED_PROPAGATION can propagate unlimited hops. */
-    EntryTtl[EntryTtl["UNLIMITED_PROPAGATION"] = -1] = "UNLIMITED_PROPAGATION";
-})(EntryTtl = exports.EntryTtl || (exports.EntryTtl = {}));
-//# sourceMappingURL=EntryValue.js.map
-
-/***/ }),
-
-/***/ 6865:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.propagation = exports.metrics = exports.trace = exports.context = void 0;
-__exportStar(__webpack_require__(7720), exports);
-__exportStar(__webpack_require__(7413), exports);
-__exportStar(__webpack_require__(2614), exports);
-__exportStar(__webpack_require__(4568), exports);
-__exportStar(__webpack_require__(7915), exports);
-__exportStar(__webpack_require__(3709), exports);
-__exportStar(__webpack_require__(2872), exports);
-__exportStar(__webpack_require__(2050), exports);
-__exportStar(__webpack_require__(8976), exports);
-__exportStar(__webpack_require__(7128), exports);
-__exportStar(__webpack_require__(8237), exports);
-__exportStar(__webpack_require__(1521), exports);
-__exportStar(__webpack_require__(7248), exports);
-__exportStar(__webpack_require__(1986), exports);
-__exportStar(__webpack_require__(4679), exports);
-__exportStar(__webpack_require__(6602), exports);
-__exportStar(__webpack_require__(8), exports);
-__exportStar(__webpack_require__(761), exports);
-__exportStar(__webpack_require__(9217), exports);
-__exportStar(__webpack_require__(2574), exports);
-__exportStar(__webpack_require__(8984), exports);
-__exportStar(__webpack_require__(9067), exports);
-__exportStar(__webpack_require__(3116), exports);
-__exportStar(__webpack_require__(913), exports);
-__exportStar(__webpack_require__(2793), exports);
-__exportStar(__webpack_require__(1569), exports);
-__exportStar(__webpack_require__(7502), exports);
-__exportStar(__webpack_require__(9955), exports);
-__exportStar(__webpack_require__(3107), exports);
-__exportStar(__webpack_require__(8052), exports);
-__exportStar(__webpack_require__(9618), exports);
-__exportStar(__webpack_require__(1997), exports);
-__exportStar(__webpack_require__(886), exports);
-__exportStar(__webpack_require__(8434), exports);
-__exportStar(__webpack_require__(2749), exports);
-__exportStar(__webpack_require__(9824), exports);
-__exportStar(__webpack_require__(3833), exports);
-var context_base_1 = __webpack_require__(5404);
-Object.defineProperty(exports, "Context", ({ enumerable: true, get: function () { return context_base_1.Context; } }));
-var context_1 = __webpack_require__(7407);
-/** Entrypoint for context API */
-exports.context = context_1.ContextAPI.getInstance();
-var trace_1 = __webpack_require__(9857);
-/** Entrypoint for trace API */
-exports.trace = trace_1.TraceAPI.getInstance();
-var metrics_1 = __webpack_require__(8361);
-/** Entrypoint for metrics API */
-exports.metrics = metrics_1.MetricsAPI.getInstance();
-var propagation_1 = __webpack_require__(9362);
-/** Entrypoint for propagation API */
-exports.propagation = propagation_1.PropagationAPI.getInstance();
-exports.default = {
-    trace: exports.trace,
-    metrics: exports.metrics,
-    context: exports.context,
-    propagation: exports.propagation,
-};
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 8976:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=BatchObserverResult.js.map
-
-/***/ }),
-
-/***/ 7128:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=BoundInstrument.js.map
-
-/***/ }),
-
-/***/ 8237:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=Meter.js.map
-
-/***/ }),
-
-/***/ 1521:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=MeterProvider.js.map
-
-/***/ }),
-
-/***/ 7248:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ValueType = void 0;
-/** The Type of value. It describes how the data is reported. */
-var ValueType;
-(function (ValueType) {
-    ValueType[ValueType["INT"] = 0] = "INT";
-    ValueType[ValueType["DOUBLE"] = 1] = "DOUBLE";
-})(ValueType = exports.ValueType || (exports.ValueType = {}));
-//# sourceMappingURL=Metric.js.map
-
-/***/ }),
-
-/***/ 1986:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = function (d, b) {
-        extendStatics = Object.setPrototypeOf ||
-            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-        return extendStatics(d, b);
-    };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NOOP_BATCH_OBSERVER_METRIC = exports.NOOP_SUM_OBSERVER_METRIC = exports.NOOP_UP_DOWN_SUM_OBSERVER_METRIC = exports.NOOP_VALUE_OBSERVER_METRIC = exports.NOOP_BOUND_BASE_OBSERVER = exports.NOOP_VALUE_RECORDER_METRIC = exports.NOOP_BOUND_VALUE_RECORDER = exports.NOOP_COUNTER_METRIC = exports.NOOP_BOUND_COUNTER = exports.NOOP_METER = exports.NoopBoundBaseObserver = exports.NoopBoundValueRecorder = exports.NoopBoundCounter = exports.NoopBatchObserverMetric = exports.NoopBaseObserverMetric = exports.NoopValueRecorderMetric = exports.NoopCounterMetric = exports.NoopMetric = exports.NoopMeter = void 0;
-/**
- * NoopMeter is a noop implementation of the {@link Meter} interface. It reuses
- * constant NoopMetrics for all of its methods.
- */
-var NoopMeter = /** @class */ (function () {
-    function NoopMeter() {
-    }
-    /**
-     * Returns constant noop value recorder.
-     * @param name the name of the metric.
-     * @param [options] the metric options.
-     */
-    NoopMeter.prototype.createValueRecorder = function (name, options) {
-        return exports.NOOP_VALUE_RECORDER_METRIC;
-    };
-    /**
-     * Returns a constant noop counter.
-     * @param name the name of the metric.
-     * @param [options] the metric options.
-     */
-    NoopMeter.prototype.createCounter = function (name, options) {
-        return exports.NOOP_COUNTER_METRIC;
-    };
-    /**
-     * Returns a constant noop UpDownCounter.
-     * @param name the name of the metric.
-     * @param [options] the metric options.
-     */
-    NoopMeter.prototype.createUpDownCounter = function (name, options) {
-        return exports.NOOP_COUNTER_METRIC;
-    };
-    /**
-     * Returns constant noop value observer.
-     * @param name the name of the metric.
-     * @param [options] the metric options.
-     * @param [callback] the value observer callback
-     */
-    NoopMeter.prototype.createValueObserver = function (name, options, callback) {
-        return exports.NOOP_VALUE_OBSERVER_METRIC;
-    };
-    /**
-     * Returns constant noop batch observer.
-     * @param name the name of the metric.
-     * @param callback the batch observer callback
-     */
-    NoopMeter.prototype.createBatchObserver = function (name, callback) {
-        return exports.NOOP_BATCH_OBSERVER_METRIC;
-    };
-    return NoopMeter;
-}());
-exports.NoopMeter = NoopMeter;
-var NoopMetric = /** @class */ (function () {
-    function NoopMetric(instrument) {
-        this._instrument = instrument;
-    }
-    /**
-     * Returns a Bound Instrument associated with specified Labels.
-     * It is recommended to keep a reference to the Bound Instrument instead of
-     * always calling this method for every operations.
-     * @param labels key-values pairs that are associated with a specific metric
-     *     that you want to record.
-     */
-    NoopMetric.prototype.bind = function (labels) {
-        return this._instrument;
-    };
-    /**
-     * Removes the Binding from the metric, if it is present.
-     * @param labels key-values pairs that are associated with a specific metric.
-     */
-    NoopMetric.prototype.unbind = function (labels) {
-        return;
-    };
-    /**
-     * Clears all timeseries from the Metric.
-     */
-    NoopMetric.prototype.clear = function () {
-        return;
-    };
-    return NoopMetric;
-}());
-exports.NoopMetric = NoopMetric;
-var NoopCounterMetric = /** @class */ (function (_super) {
-    __extends(NoopCounterMetric, _super);
-    function NoopCounterMetric() {
-        return _super !== null && _super.apply(this, arguments) || this;
-    }
-    NoopCounterMetric.prototype.add = function (value, labels) {
-        this.bind(labels).add(value);
-    };
-    return NoopCounterMetric;
-}(NoopMetric));
-exports.NoopCounterMetric = NoopCounterMetric;
-var NoopValueRecorderMetric = /** @class */ (function (_super) {
-    __extends(NoopValueRecorderMetric, _super);
-    function NoopValueRecorderMetric() {
-        return _super !== null && _super.apply(this, arguments) || this;
-    }
-    NoopValueRecorderMetric.prototype.record = function (value, labels, correlationContext, spanContext) {
-        if (typeof correlationContext === 'undefined') {
-            this.bind(labels).record(value);
-        }
-        else if (typeof spanContext === 'undefined') {
-            this.bind(labels).record(value, correlationContext);
-        }
-        else {
-            this.bind(labels).record(value, correlationContext, spanContext);
-        }
-    };
-    return NoopValueRecorderMetric;
-}(NoopMetric));
-exports.NoopValueRecorderMetric = NoopValueRecorderMetric;
-var NoopBaseObserverMetric = /** @class */ (function (_super) {
-    __extends(NoopBaseObserverMetric, _super);
-    function NoopBaseObserverMetric() {
-        return _super !== null && _super.apply(this, arguments) || this;
-    }
-    NoopBaseObserverMetric.prototype.observation = function () {
-        return {
-            observer: this,
-            value: 0,
-        };
-    };
-    return NoopBaseObserverMetric;
-}(NoopMetric));
-exports.NoopBaseObserverMetric = NoopBaseObserverMetric;
-var NoopBatchObserverMetric = /** @class */ (function (_super) {
-    __extends(NoopBatchObserverMetric, _super);
-    function NoopBatchObserverMetric() {
-        return _super !== null && _super.apply(this, arguments) || this;
-    }
-    return NoopBatchObserverMetric;
-}(NoopMetric));
-exports.NoopBatchObserverMetric = NoopBatchObserverMetric;
-var NoopBoundCounter = /** @class */ (function () {
-    function NoopBoundCounter() {
-    }
-    NoopBoundCounter.prototype.add = function (value) {
-        return;
-    };
-    return NoopBoundCounter;
-}());
-exports.NoopBoundCounter = NoopBoundCounter;
-var NoopBoundValueRecorder = /** @class */ (function () {
-    function NoopBoundValueRecorder() {
-    }
-    NoopBoundValueRecorder.prototype.record = function (value, correlationContext, spanContext) {
-        return;
-    };
-    return NoopBoundValueRecorder;
-}());
-exports.NoopBoundValueRecorder = NoopBoundValueRecorder;
-var NoopBoundBaseObserver = /** @class */ (function () {
-    function NoopBoundBaseObserver() {
-    }
-    NoopBoundBaseObserver.prototype.update = function (value) { };
-    return NoopBoundBaseObserver;
-}());
-exports.NoopBoundBaseObserver = NoopBoundBaseObserver;
-exports.NOOP_METER = new NoopMeter();
-exports.NOOP_BOUND_COUNTER = new NoopBoundCounter();
-exports.NOOP_COUNTER_METRIC = new NoopCounterMetric(exports.NOOP_BOUND_COUNTER);
-exports.NOOP_BOUND_VALUE_RECORDER = new NoopBoundValueRecorder();
-exports.NOOP_VALUE_RECORDER_METRIC = new NoopValueRecorderMetric(exports.NOOP_BOUND_VALUE_RECORDER);
-exports.NOOP_BOUND_BASE_OBSERVER = new NoopBoundBaseObserver();
-exports.NOOP_VALUE_OBSERVER_METRIC = new NoopBaseObserverMetric(exports.NOOP_BOUND_BASE_OBSERVER);
-exports.NOOP_UP_DOWN_SUM_OBSERVER_METRIC = new NoopBaseObserverMetric(exports.NOOP_BOUND_BASE_OBSERVER);
-exports.NOOP_SUM_OBSERVER_METRIC = new NoopBaseObserverMetric(exports.NOOP_BOUND_BASE_OBSERVER);
-exports.NOOP_BATCH_OBSERVER_METRIC = new NoopBatchObserverMetric();
-//# sourceMappingURL=NoopMeter.js.map
-
-/***/ }),
-
-/***/ 4679:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NOOP_METER_PROVIDER = exports.NoopMeterProvider = void 0;
-var NoopMeter_1 = __webpack_require__(1986);
-/**
- * An implementation of the {@link MeterProvider} which returns an impotent Meter
- * for all calls to `getMeter`
- */
-var NoopMeterProvider = /** @class */ (function () {
-    function NoopMeterProvider() {
-    }
-    NoopMeterProvider.prototype.getMeter = function (_name, _version) {
-        return NoopMeter_1.NOOP_METER;
-    };
-    return NoopMeterProvider;
-}());
-exports.NoopMeterProvider = NoopMeterProvider;
-exports.NOOP_METER_PROVIDER = new NoopMeterProvider();
-//# sourceMappingURL=NoopMeterProvider.js.map
-
-/***/ }),
-
-/***/ 6602:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=Observation.js.map
-
-/***/ }),
-
-/***/ 8:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=ObserverResult.js.map
-
-/***/ }),
-
-/***/ 4730:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(6819), exports);
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 9164:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports._globalThis = void 0;
-/** only globals that common to node and browsers are allowed */
-// eslint-disable-next-line node/no-unsupported-features/es-builtins
-exports._globalThis = typeof globalThis === 'object' ? globalThis : global;
-//# sourceMappingURL=globalThis.js.map
-
-/***/ }),
-
-/***/ 6819:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(9164), exports);
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 9217:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=Event.js.map
-
-/***/ }),
-
-/***/ 3116:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NOOP_SPAN = exports.NoopSpan = exports.INVALID_SPAN_ID = exports.INVALID_TRACE_ID = void 0;
-var trace_flags_1 = __webpack_require__(8434);
-exports.INVALID_TRACE_ID = '0';
-exports.INVALID_SPAN_ID = '0';
-var INVALID_SPAN_CONTEXT = {
-    traceId: exports.INVALID_TRACE_ID,
-    spanId: exports.INVALID_SPAN_ID,
-    traceFlags: trace_flags_1.TraceFlags.NONE,
-};
-/**
- * The NoopSpan is the default {@link Span} that is used when no Span
- * implementation is available. All operations are no-op including context
- * propagation.
- */
-var NoopSpan = /** @class */ (function () {
-    function NoopSpan(_spanContext) {
-        if (_spanContext === void 0) { _spanContext = INVALID_SPAN_CONTEXT; }
-        this._spanContext = _spanContext;
-    }
-    // Returns a SpanContext.
-    NoopSpan.prototype.context = function () {
-        return this._spanContext;
-    };
-    // By default does nothing
-    NoopSpan.prototype.setAttribute = function (key, value) {
-        return this;
-    };
-    // By default does nothing
-    NoopSpan.prototype.setAttributes = function (attributes) {
-        return this;
-    };
-    // By default does nothing
-    NoopSpan.prototype.addEvent = function (name, attributes) {
-        return this;
-    };
-    // By default does nothing
-    NoopSpan.prototype.setStatus = function (status) {
-        return this;
-    };
-    // By default does nothing
-    NoopSpan.prototype.updateName = function (name) {
-        return this;
-    };
-    // By default does nothing
-    NoopSpan.prototype.end = function (endTime) { };
-    // isRecording always returns false for noopSpan.
-    NoopSpan.prototype.isRecording = function () {
-        return false;
-    };
-    return NoopSpan;
-}());
-exports.NoopSpan = NoopSpan;
-exports.NOOP_SPAN = new NoopSpan();
-//# sourceMappingURL=NoopSpan.js.map
-
-/***/ }),
-
-/***/ 913:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NOOP_TRACER = exports.NoopTracer = void 0;
-var NoopSpan_1 = __webpack_require__(3116);
-/**
- * No-op implementations of {@link Tracer}.
- */
-var NoopTracer = /** @class */ (function () {
-    function NoopTracer() {
-    }
-    NoopTracer.prototype.getCurrentSpan = function () {
-        return NoopSpan_1.NOOP_SPAN;
-    };
-    // startSpan starts a noop span.
-    NoopTracer.prototype.startSpan = function (name, options) {
-        return NoopSpan_1.NOOP_SPAN;
-    };
-    NoopTracer.prototype.withSpan = function (span, fn) {
-        return fn();
-    };
-    NoopTracer.prototype.bind = function (target, span) {
-        return target;
-    };
-    return NoopTracer;
-}());
-exports.NoopTracer = NoopTracer;
-exports.NOOP_TRACER = new NoopTracer();
-//# sourceMappingURL=NoopTracer.js.map
-
-/***/ }),
-
-/***/ 2793:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NOOP_TRACER_PROVIDER = exports.NoopTracerProvider = void 0;
-var NoopTracer_1 = __webpack_require__(913);
-/**
- * An implementation of the {@link TracerProvider} which returns an impotent
- * Tracer for all calls to `getTracer`.
- *
- * All operations are no-op.
- */
-var NoopTracerProvider = /** @class */ (function () {
-    function NoopTracerProvider() {
-    }
-    NoopTracerProvider.prototype.getTracer = function (_name, _version) {
-        return NoopTracer_1.NOOP_TRACER;
-    };
-    return NoopTracerProvider;
-}());
-exports.NoopTracerProvider = NoopTracerProvider;
-exports.NOOP_TRACER_PROVIDER = new NoopTracerProvider();
-//# sourceMappingURL=NoopTracerProvider.js.map
-
-/***/ }),
-
-/***/ 1569:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=Sampler.js.map
-
-/***/ }),
-
-/***/ 7502:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.SamplingDecision = void 0;
-/**
- * A sampling decision that determines how a {@link Span} will be recorded
- * and collected.
- */
-var SamplingDecision;
-(function (SamplingDecision) {
-    /**
-     * `Span.isRecording() === false`, span will not be recorded and all events
-     * and attributes will be dropped.
-     */
-    SamplingDecision[SamplingDecision["NOT_RECORD"] = 0] = "NOT_RECORD";
-    /**
-     * `Span.isRecording() === true`, but `Sampled` flag in {@link TraceFlags}
-     * MUST NOT be set.
-     */
-    SamplingDecision[SamplingDecision["RECORD"] = 1] = "RECORD";
-    /**
-     * `Span.isRecording() === true` AND `Sampled` flag in {@link TraceFlags}
-     * MUST be set.
-     */
-    SamplingDecision[SamplingDecision["RECORD_AND_SAMPLED"] = 2] = "RECORD_AND_SAMPLED";
-})(SamplingDecision = exports.SamplingDecision || (exports.SamplingDecision = {}));
-//# sourceMappingURL=SamplingResult.js.map
-
-/***/ }),
-
-/***/ 9618:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=SpanOptions.js.map
-
-/***/ }),
-
-/***/ 886:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=TimedEvent.js.map
-
-/***/ }),
-
-/***/ 761:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=attributes.js.map
-
-/***/ }),
-
-/***/ 2574:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=Plugin.js.map
-
-/***/ }),
-
-/***/ 9067:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=link.js.map
-
-/***/ }),
-
-/***/ 8984:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=link_context.js.map
-
-/***/ }),
-
-/***/ 8052:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=span.js.map
-
-/***/ }),
-
-/***/ 9955:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=span_context.js.map
-
-/***/ }),
-
-/***/ 3107:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.SpanKind = void 0;
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var SpanKind;
-(function (SpanKind) {
-    /** Default value. Indicates that the span is used internally. */
-    SpanKind[SpanKind["INTERNAL"] = 0] = "INTERNAL";
-    /**
-     * Indicates that the span covers server-side handling of an RPC or other
-     * remote request.
-     */
-    SpanKind[SpanKind["SERVER"] = 1] = "SERVER";
-    /**
-     * Indicates that the span covers the client-side wrapper around an RPC or
-     * other remote request.
-     */
-    SpanKind[SpanKind["CLIENT"] = 2] = "CLIENT";
-    /**
-     * Indicates that the span describes producer sending a message to a
-     * broker. Unlike client and server, there is no direct critical path latency
-     * relationship between producer and consumer spans.
-     */
-    SpanKind[SpanKind["PRODUCER"] = 3] = "PRODUCER";
-    /**
-     * Indicates that the span describes consumer receiving a message from a
-     * broker. Unlike client and server, there is no direct critical path latency
-     * relationship between producer and consumer spans.
-     */
-    SpanKind[SpanKind["CONSUMER"] = 4] = "CONSUMER";
-})(SpanKind = exports.SpanKind || (exports.SpanKind = {}));
-//# sourceMappingURL=span_kind.js.map
-
-/***/ }),
-
-/***/ 1997:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CanonicalCode = void 0;
-/**
- * An enumeration of canonical status codes.
- */
-var CanonicalCode;
-(function (CanonicalCode) {
-    /**
-     * Not an error; returned on success
-     */
-    CanonicalCode[CanonicalCode["OK"] = 0] = "OK";
-    /**
-     * The operation was cancelled (typically by the caller).
-     */
-    CanonicalCode[CanonicalCode["CANCELLED"] = 1] = "CANCELLED";
-    /**
-     * Unknown error.  An example of where this error may be returned is
-     * if a status value received from another address space belongs to
-     * an error-space that is not known in this address space.  Also
-     * errors raised by APIs that do not return enough error information
-     * may be converted to this error.
-     */
-    CanonicalCode[CanonicalCode["UNKNOWN"] = 2] = "UNKNOWN";
-    /**
-     * Client specified an invalid argument.  Note that this differs
-     * from FAILED_PRECONDITION.  INVALID_ARGUMENT indicates arguments
-     * that are problematic regardless of the state of the system
-     * (e.g., a malformed file name).
-     */
-    CanonicalCode[CanonicalCode["INVALID_ARGUMENT"] = 3] = "INVALID_ARGUMENT";
-    /**
-     * Deadline expired before operation could complete.  For operations
-     * that change the state of the system, this error may be returned
-     * even if the operation has completed successfully.  For example, a
-     * successful response from a server could have been delayed long
-     * enough for the deadline to expire.
-     */
-    CanonicalCode[CanonicalCode["DEADLINE_EXCEEDED"] = 4] = "DEADLINE_EXCEEDED";
-    /**
-     * Some requested entity (e.g., file or directory) was not found.
-     */
-    CanonicalCode[CanonicalCode["NOT_FOUND"] = 5] = "NOT_FOUND";
-    /**
-     * Some entity that we attempted to create (e.g., file or directory)
-     * already exists.
-     */
-    CanonicalCode[CanonicalCode["ALREADY_EXISTS"] = 6] = "ALREADY_EXISTS";
-    /**
-     * The caller does not have permission to execute the specified
-     * operation.  PERMISSION_DENIED must not be used for rejections
-     * caused by exhausting some resource (use RESOURCE_EXHAUSTED
-     * instead for those errors).  PERMISSION_DENIED must not be
-     * used if the caller can not be identified (use UNAUTHENTICATED
-     * instead for those errors).
-     */
-    CanonicalCode[CanonicalCode["PERMISSION_DENIED"] = 7] = "PERMISSION_DENIED";
-    /**
-     * Some resource has been exhausted, perhaps a per-user quota, or
-     * perhaps the entire file system is out of space.
-     */
-    CanonicalCode[CanonicalCode["RESOURCE_EXHAUSTED"] = 8] = "RESOURCE_EXHAUSTED";
-    /**
-     * Operation was rejected because the system is not in a state
-     * required for the operation's execution.  For example, directory
-     * to be deleted may be non-empty, an rmdir operation is applied to
-     * a non-directory, etc.
-     *
-     * A litmus test that may help a service implementor in deciding
-     * between FAILED_PRECONDITION, ABORTED, and UNAVAILABLE:
-     *
-     *  - Use UNAVAILABLE if the client can retry just the failing call.
-     *  - Use ABORTED if the client should retry at a higher-level
-     *    (e.g., restarting a read-modify-write sequence).
-     *  - Use FAILED_PRECONDITION if the client should not retry until
-     *    the system state has been explicitly fixed.  E.g., if an "rmdir"
-     *    fails because the directory is non-empty, FAILED_PRECONDITION
-     *    should be returned since the client should not retry unless
-     *    they have first fixed up the directory by deleting files from it.
-     *  - Use FAILED_PRECONDITION if the client performs conditional
-     *    REST Get/Update/Delete on a resource and the resource on the
-     *    server does not match the condition. E.g., conflicting
-     *    read-modify-write on the same resource.
-     */
-    CanonicalCode[CanonicalCode["FAILED_PRECONDITION"] = 9] = "FAILED_PRECONDITION";
-    /**
-     * The operation was aborted, typically due to a concurrency issue
-     * like sequencer check failures, transaction aborts, etc.
-     *
-     * See litmus test above for deciding between FAILED_PRECONDITION,
-     * ABORTED, and UNAVAILABLE.
-     */
-    CanonicalCode[CanonicalCode["ABORTED"] = 10] = "ABORTED";
-    /**
-     * Operation was attempted past the valid range.  E.g., seeking or
-     * reading past end of file.
-     *
-     * Unlike INVALID_ARGUMENT, this error indicates a problem that may
-     * be fixed if the system state changes. For example, a 32-bit file
-     * system will generate INVALID_ARGUMENT if asked to read at an
-     * offset that is not in the range [0,2^32-1], but it will generate
-     * OUT_OF_RANGE if asked to read from an offset past the current
-     * file size.
-     *
-     * There is a fair bit of overlap between FAILED_PRECONDITION and
-     * OUT_OF_RANGE.  We recommend using OUT_OF_RANGE (the more specific
-     * error) when it applies so that callers who are iterating through
-     * a space can easily look for an OUT_OF_RANGE error to detect when
-     * they are done.
-     */
-    CanonicalCode[CanonicalCode["OUT_OF_RANGE"] = 11] = "OUT_OF_RANGE";
-    /**
-     * Operation is not implemented or not supported/enabled in this service.
-     */
-    CanonicalCode[CanonicalCode["UNIMPLEMENTED"] = 12] = "UNIMPLEMENTED";
-    /**
-     * Internal errors.  Means some invariants expected by underlying
-     * system has been broken.  If you see one of these errors,
-     * something is very broken.
-     */
-    CanonicalCode[CanonicalCode["INTERNAL"] = 13] = "INTERNAL";
-    /**
-     * The service is currently unavailable.  This is a most likely a
-     * transient condition and may be corrected by retrying with
-     * a backoff.
-     *
-     * See litmus test above for deciding between FAILED_PRECONDITION,
-     * ABORTED, and UNAVAILABLE.
-     */
-    CanonicalCode[CanonicalCode["UNAVAILABLE"] = 14] = "UNAVAILABLE";
-    /**
-     * Unrecoverable data loss or corruption.
-     */
-    CanonicalCode[CanonicalCode["DATA_LOSS"] = 15] = "DATA_LOSS";
-    /**
-     * The request does not have valid authentication credentials for the
-     * operation.
-     */
-    CanonicalCode[CanonicalCode["UNAUTHENTICATED"] = 16] = "UNAUTHENTICATED";
-})(CanonicalCode = exports.CanonicalCode || (exports.CanonicalCode = {}));
-//# sourceMappingURL=status.js.map
-
-/***/ }),
-
-/***/ 8434:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TraceFlags = void 0;
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var TraceFlags;
-(function (TraceFlags) {
-    /** Represents no flag set. */
-    TraceFlags[TraceFlags["NONE"] = 0] = "NONE";
-    /** Bit to represent whether trace is sampled in trace flags. */
-    TraceFlags[TraceFlags["SAMPLED"] = 1] = "SAMPLED";
-})(TraceFlags = exports.TraceFlags || (exports.TraceFlags = {}));
-//# sourceMappingURL=trace_flags.js.map
-
-/***/ }),
-
-/***/ 2749:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=trace_state.js.map
-
-/***/ }),
-
-/***/ 3833:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=tracer.js.map
-
-/***/ }),
-
-/***/ 9824:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=tracer_provider.js.map
-
-/***/ }),
-
-/***/ 596:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NoopContextManager = void 0;
-var context_1 = __webpack_require__(1250);
-var NoopContextManager = /** @class */ (function () {
-    function NoopContextManager() {
-    }
-    NoopContextManager.prototype.active = function () {
-        return context_1.Context.ROOT_CONTEXT;
-    };
-    NoopContextManager.prototype.with = function (context, fn) {
-        return fn();
-    };
-    NoopContextManager.prototype.bind = function (target, context) {
-        return target;
-    };
-    NoopContextManager.prototype.enable = function () {
-        return this;
-    };
-    NoopContextManager.prototype.disable = function () {
-        return this;
-    };
-    return NoopContextManager;
-}());
-exports.NoopContextManager = NoopContextManager;
-//# sourceMappingURL=NoopContextManager.js.map
-
-/***/ }),
-
-/***/ 1250:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Context = void 0;
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var Context = /** @class */ (function () {
-    /**
-     * Construct a new context which inherits values from an optional parent context.
-     *
-     * @param parentContext a context from which to inherit values
-     */
-    function Context(parentContext) {
-        this._currentContext = parentContext ? new Map(parentContext) : new Map();
-    }
-    /** Get a key to uniquely identify a context value */
-    Context.createKey = function (description) {
-        return Symbol(description);
-    };
-    /**
-     * Get a value from the context.
-     *
-     * @param key key which identifies a context value
-     */
-    Context.prototype.getValue = function (key) {
-        return this._currentContext.get(key);
-    };
-    /**
-     * Create a new context which inherits from this context and has
-     * the given key set to the given value.
-     *
-     * @param key context key for which to set the value
-     * @param value value to set for the given key
-     */
-    Context.prototype.setValue = function (key, value) {
-        var context = new Context(this._currentContext);
-        context._currentContext.set(key, value);
-        return context;
-    };
-    /**
-     * Return a new context which inherits from this context but does
-     * not contain a value for the given key.
-     *
-     * @param key context key for which to clear a value
-     */
-    Context.prototype.deleteValue = function (key) {
-        var context = new Context(this._currentContext);
-        context._currentContext.delete(key);
-        return context;
-    };
-    /** The root context is used as the default parent context when there is no active context */
-    Context.ROOT_CONTEXT = new Context();
-    /**
-     * This is another identifier to the root context which allows developers to easily search the
-     * codebase for direct uses of context which need to be removed in later PRs.
-     *
-     * It's existence is temporary and it should be removed when all references are fixed.
-     */
-    Context.TODO = Context.ROOT_CONTEXT;
-    return Context;
-}());
-exports.Context = Context;
-//# sourceMappingURL=context.js.map
-
-/***/ }),
-
-/***/ 5404:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
-};
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-__exportStar(__webpack_require__(2900), exports);
-__exportStar(__webpack_require__(1250), exports);
-__exportStar(__webpack_require__(596), exports);
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 2900:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-/*
- * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-//# sourceMappingURL=types.js.map
-
-/***/ }),
-
 /***/ 7094:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
@@ -8900,7 +6380,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 
-var tslib = __webpack_require__(5388);
+var tslib = __webpack_require__(1926);
 
 // Copyright (c) Microsoft Corporation.
 /**
@@ -9359,9 +6839,36 @@ exports.PollerStoppedError = PollerStoppedError;
 
 /***/ }),
 
-/***/ 5388:
-/***/ ((module) => {
+/***/ 1926:
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "__extends": () => /* binding */ __extends,
+/* harmony export */   "__assign": () => /* binding */ __assign,
+/* harmony export */   "__rest": () => /* binding */ __rest,
+/* harmony export */   "__decorate": () => /* binding */ __decorate,
+/* harmony export */   "__param": () => /* binding */ __param,
+/* harmony export */   "__metadata": () => /* binding */ __metadata,
+/* harmony export */   "__awaiter": () => /* binding */ __awaiter,
+/* harmony export */   "__generator": () => /* binding */ __generator,
+/* harmony export */   "__createBinding": () => /* binding */ __createBinding,
+/* harmony export */   "__exportStar": () => /* binding */ __exportStar,
+/* harmony export */   "__values": () => /* binding */ __values,
+/* harmony export */   "__read": () => /* binding */ __read,
+/* harmony export */   "__spread": () => /* binding */ __spread,
+/* harmony export */   "__spreadArrays": () => /* binding */ __spreadArrays,
+/* harmony export */   "__await": () => /* binding */ __await,
+/* harmony export */   "__asyncGenerator": () => /* binding */ __asyncGenerator,
+/* harmony export */   "__asyncDelegator": () => /* binding */ __asyncDelegator,
+/* harmony export */   "__asyncValues": () => /* binding */ __asyncValues,
+/* harmony export */   "__makeTemplateObject": () => /* binding */ __makeTemplateObject,
+/* harmony export */   "__importStar": () => /* binding */ __importStar,
+/* harmony export */   "__importDefault": () => /* binding */ __importDefault,
+/* harmony export */   "__classPrivateFieldGet": () => /* binding */ __classPrivateFieldGet,
+/* harmony export */   "__classPrivateFieldSet": () => /* binding */ __classPrivateFieldSet
+/* harmony export */ });
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
 
@@ -9376,285 +6883,221 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
+/* global Reflect, Promise */
 
-/* global global, define, System, Reflect, Promise */
-var __extends;
-var __assign;
-var __rest;
-var __decorate;
-var __param;
-var __metadata;
-var __awaiter;
-var __generator;
-var __exportStar;
-var __values;
-var __read;
-var __spread;
-var __spreadArrays;
-var __await;
-var __asyncGenerator;
-var __asyncDelegator;
-var __asyncValues;
-var __makeTemplateObject;
-var __importStar;
-var __importDefault;
-var __classPrivateFieldGet;
-var __classPrivateFieldSet;
-var __createBinding;
-(function (factory) {
-    var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
-    if (typeof define === "function" && define.amd) {
-        define("tslib", ["exports"], function (exports) { factory(createExporter(root, createExporter(exports))); });
-    }
-    else if ( true && typeof module.exports === "object") {
-        factory(createExporter(root, createExporter(module.exports)));
-    }
-    else {
-        factory(createExporter(root));
-    }
-    function createExporter(exports, previous) {
-        if (exports !== root) {
-            if (typeof Object.create === "function") {
-                Object.defineProperty(exports, "__esModule", { value: true });
-            }
-            else {
-                exports.__esModule = true;
-            }
-        }
-        return function (id, v) { return exports[id] = previous ? previous(id, v) : v; };
-    }
-})
-(function (exporter) {
-    var extendStatics = Object.setPrototypeOf ||
+var extendStatics = function(d, b) {
+    extendStatics = Object.setPrototypeOf ||
         ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
         function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return extendStatics(d, b);
+};
 
-    __extends = function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
+function __extends(d, b) {
+    extendStatics(d, b);
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+}
 
-    __assign = Object.assign || function (t) {
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
             s = arguments[i];
             for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
         }
         return t;
-    };
+    }
+    return __assign.apply(this, arguments);
+}
 
-    __rest = function (s, e) {
-        var t = {};
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-            t[p] = s[p];
-        if (s != null && typeof Object.getOwnPropertySymbols === "function")
-            for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-                if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                    t[p[i]] = s[p[i]];
+function __rest(s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+}
+
+function __decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+
+function __param(paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+}
+
+function __metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
+}
+
+function __awaiter(thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+}
+
+function __generator(thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
             }
-        return t;
-    };
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+}
 
-    __decorate = function (decorators, target, key, desc) {
-        var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-        if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-        else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-        return c > 3 && r && Object.defineProperty(target, key, r), r;
-    };
+function __createBinding(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}
 
-    __param = function (paramIndex, decorator) {
-        return function (target, key) { decorator(target, key, paramIndex); }
-    };
+function __exportStar(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) exports[p] = m[p];
+}
 
-    __metadata = function (metadataKey, metadataValue) {
-        if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
-    };
-
-    __awaiter = function (thisArg, _arguments, P, generator) {
-        function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-        return new (P || (P = Promise))(function (resolve, reject) {
-            function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-            function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-            function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-            step((generator = generator.apply(thisArg, _arguments || [])).next());
-        });
-    };
-
-    __generator = function (thisArg, body) {
-        var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-        return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-        function verb(n) { return function (v) { return step([n, v]); }; }
-        function step(op) {
-            if (f) throw new TypeError("Generator is already executing.");
-            while (_) try {
-                if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-                if (y = 0, t) op = [op[0] & 2, t.value];
-                switch (op[0]) {
-                    case 0: case 1: t = op; break;
-                    case 4: _.label++; return { value: op[1], done: false };
-                    case 5: _.label++; y = op[1]; op = [0]; continue;
-                    case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                    default:
-                        if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                        if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                        if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                        if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                        if (t[2]) _.ops.pop();
-                        _.trys.pop(); continue;
-                }
-                op = body.call(thisArg, _);
-            } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-            if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+function __values(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
         }
     };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+}
 
-    __createBinding = function(o, m, k, k2) {
-        if (k2 === undefined) k2 = k;
-        o[k2] = m[k];
-    };
-
-    __exportStar = function (m, exports) {
-        for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) exports[p] = m[p];
-    };
-
-    __values = function (o) {
-        var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-        if (m) return m.call(o);
-        if (o && typeof o.length === "number") return {
-            next: function () {
-                if (o && i >= o.length) o = void 0;
-                return { value: o && o[i++], done: !o };
-            }
-        };
-        throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-    };
-
-    __read = function (o, n) {
-        var m = typeof Symbol === "function" && o[Symbol.iterator];
-        if (!m) return o;
-        var i = m.call(o), r, ar = [], e;
+function __read(o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    }
+    catch (error) { e = { error: error }; }
+    finally {
         try {
-            while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+            if (r && !r.done && (m = i["return"])) m.call(i);
         }
-        catch (error) { e = { error: error }; }
-        finally {
-            try {
-                if (r && !r.done && (m = i["return"])) m.call(i);
-            }
-            finally { if (e) throw e.error; }
-        }
-        return ar;
-    };
+        finally { if (e) throw e.error; }
+    }
+    return ar;
+}
 
-    __spread = function () {
-        for (var ar = [], i = 0; i < arguments.length; i++)
-            ar = ar.concat(__read(arguments[i]));
-        return ar;
-    };
+function __spread() {
+    for (var ar = [], i = 0; i < arguments.length; i++)
+        ar = ar.concat(__read(arguments[i]));
+    return ar;
+}
 
-    __spreadArrays = function () {
-        for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-        for (var r = Array(s), k = 0, i = 0; i < il; i++)
-            for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-                r[k] = a[j];
-        return r;
-    };
+function __spreadArrays() {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 
-    __await = function (v) {
-        return this instanceof __await ? (this.v = v, this) : new __await(v);
-    };
+function __await(v) {
+    return this instanceof __await ? (this.v = v, this) : new __await(v);
+}
 
-    __asyncGenerator = function (thisArg, _arguments, generator) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var g = generator.apply(thisArg, _arguments || []), i, q = [];
-        return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-        function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
-        function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
-        function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);  }
-        function fulfill(value) { resume("next", value); }
-        function reject(value) { resume("throw", value); }
-        function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
-    };
+function __asyncGenerator(thisArg, _arguments, generator) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var g = generator.apply(thisArg, _arguments || []), i, q = [];
+    return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
+    function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
+    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
+    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
+    function fulfill(value) { resume("next", value); }
+    function reject(value) { resume("throw", value); }
+    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
+}
 
-    __asyncDelegator = function (o) {
-        var i, p;
-        return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
-        function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
-    };
+function __asyncDelegator(o) {
+    var i, p;
+    return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
+    function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
+}
 
-    __asyncValues = function (o) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var m = o[Symbol.asyncIterator], i;
-        return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
-        function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
-        function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
-    };
+function __asyncValues(o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+}
 
-    __makeTemplateObject = function (cooked, raw) {
-        if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
-        return cooked;
-    };
+function __makeTemplateObject(cooked, raw) {
+    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
+    return cooked;
+};
 
-    __importStar = function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-        result["default"] = mod;
-        return result;
-    };
+function __importStar(mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result.default = mod;
+    return result;
+}
 
-    __importDefault = function (mod) {
-        return (mod && mod.__esModule) ? mod : { "default": mod };
-    };
+function __importDefault(mod) {
+    return (mod && mod.__esModule) ? mod : { default: mod };
+}
 
-    __classPrivateFieldGet = function (receiver, privateMap) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to get private field on non-instance");
-        }
-        return privateMap.get(receiver);
-    };
+function __classPrivateFieldGet(receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+}
 
-    __classPrivateFieldSet = function (receiver, privateMap, value) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to set private field on non-instance");
-        }
-        privateMap.set(receiver, value);
-        return value;
-    };
-
-    exporter("__extends", __extends);
-    exporter("__assign", __assign);
-    exporter("__rest", __rest);
-    exporter("__decorate", __decorate);
-    exporter("__param", __param);
-    exporter("__metadata", __metadata);
-    exporter("__awaiter", __awaiter);
-    exporter("__generator", __generator);
-    exporter("__exportStar", __exportStar);
-    exporter("__createBinding", __createBinding);
-    exporter("__values", __values);
-    exporter("__read", __read);
-    exporter("__spread", __spread);
-    exporter("__spreadArrays", __spreadArrays);
-    exporter("__await", __await);
-    exporter("__asyncGenerator", __asyncGenerator);
-    exporter("__asyncDelegator", __asyncDelegator);
-    exporter("__asyncValues", __asyncValues);
-    exporter("__makeTemplateObject", __makeTemplateObject);
-    exporter("__importStar", __importStar);
-    exporter("__importDefault", __importDefault);
-    exporter("__classPrivateFieldGet", __classPrivateFieldGet);
-    exporter("__classPrivateFieldSet", __classPrivateFieldSet);
-});
+function __classPrivateFieldSet(receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+}
 
 
 /***/ }),
 
-/***/ 4832:
+/***/ 4559:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 __webpack_require__(6821);
 
@@ -9670,9 +7113,9 @@ __webpack_require__(6821);
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 var api = __webpack_require__(5163);
-var tslib = __webpack_require__(1027);
+var tslib = __webpack_require__(5636);
 
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 /**
  * A no-op implementation of Span that can safely be used without side-effects.
  */
@@ -9743,7 +7186,7 @@ var NoOpSpan = /** @class */ (function () {
     return NoOpSpan;
 }());
 
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 /**
  * A no-op implementation of Tracer that can be used when tracing
  * is disabled.
@@ -9784,13 +7227,13 @@ var NoOpTracer = /** @class */ (function () {
     return NoOpTracer;
 }());
 
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 function getGlobalObject() {
     return global;
 }
 
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // V1 = OpenTelemetry 0.1
 // V2 = OpenTelemetry 0.2
 // V3 = OpenTelemetry 0.6.1
@@ -9831,7 +7274,7 @@ function getCache() {
     return cache;
 }
 
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 var defaultTracer;
 function getDefaultTracer() {
     if (!defaultTracer) {
@@ -9859,8 +7302,8 @@ function getTracer() {
     return cache.tracer;
 }
 
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 /**
  * @ignore
  * @internal
@@ -9884,6 +7327,7 @@ var OpenCensusTraceStateWrapper = /** @class */ (function () {
     return OpenCensusTraceStateWrapper;
 }());
 
+// Copyright (c) Microsoft Corporation.
 function isWrappedSpan(span) {
     return !!span && span.getWrappedSpan !== undefined;
 }
@@ -9993,6 +7437,7 @@ var OpenCensusSpanWrapper = /** @class */ (function () {
     return OpenCensusSpanWrapper;
 }());
 
+// Copyright (c) Microsoft Corporation.
 /**
  * An implementation of OpenTelemetry Tracer that wraps an OpenCensus Tracer.
  */
@@ -10043,6 +7488,7 @@ var OpenCensusTracerWrapper = /** @class */ (function () {
     return OpenCensusTracerWrapper;
 }());
 
+// Copyright (c) Microsoft Corporation.
 /**
  * A mock span useful for testing.
  */
@@ -10130,6 +7576,7 @@ var TestSpan = /** @class */ (function (_super) {
     return TestSpan;
 }(NoOpSpan));
 
+// Copyright (c) Microsoft Corporation.
 /**
  * A mock tracer useful for testing
  */
@@ -10250,8 +7697,8 @@ var TestTracer = /** @class */ (function (_super) {
     return TestTracer;
 }(NoOpTracer));
 
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 var VERSION = "00";
 /**
  * Generates a `SpanContext` given a `traceparent` header value.
@@ -10313,297 +7760,6 @@ exports.setTracer = setTracer;
 
 /***/ }),
 
-/***/ 1027:
-/***/ ((module) => {
-
-/*! *****************************************************************************
-Copyright (c) Microsoft Corporation.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-***************************************************************************** */
-
-/* global global, define, System, Reflect, Promise */
-var __extends;
-var __assign;
-var __rest;
-var __decorate;
-var __param;
-var __metadata;
-var __awaiter;
-var __generator;
-var __exportStar;
-var __values;
-var __read;
-var __spread;
-var __spreadArrays;
-var __await;
-var __asyncGenerator;
-var __asyncDelegator;
-var __asyncValues;
-var __makeTemplateObject;
-var __importStar;
-var __importDefault;
-var __classPrivateFieldGet;
-var __classPrivateFieldSet;
-var __createBinding;
-(function (factory) {
-    var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
-    if (typeof define === "function" && define.amd) {
-        define("tslib", ["exports"], function (exports) { factory(createExporter(root, createExporter(exports))); });
-    }
-    else if ( true && typeof module.exports === "object") {
-        factory(createExporter(root, createExporter(module.exports)));
-    }
-    else {
-        factory(createExporter(root));
-    }
-    function createExporter(exports, previous) {
-        if (exports !== root) {
-            if (typeof Object.create === "function") {
-                Object.defineProperty(exports, "__esModule", { value: true });
-            }
-            else {
-                exports.__esModule = true;
-            }
-        }
-        return function (id, v) { return exports[id] = previous ? previous(id, v) : v; };
-    }
-})
-(function (exporter) {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-
-    __extends = function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-
-    __assign = Object.assign || function (t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
-        }
-        return t;
-    };
-
-    __rest = function (s, e) {
-        var t = {};
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-            t[p] = s[p];
-        if (s != null && typeof Object.getOwnPropertySymbols === "function")
-            for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-                if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                    t[p[i]] = s[p[i]];
-            }
-        return t;
-    };
-
-    __decorate = function (decorators, target, key, desc) {
-        var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-        if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-        else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-        return c > 3 && r && Object.defineProperty(target, key, r), r;
-    };
-
-    __param = function (paramIndex, decorator) {
-        return function (target, key) { decorator(target, key, paramIndex); }
-    };
-
-    __metadata = function (metadataKey, metadataValue) {
-        if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
-    };
-
-    __awaiter = function (thisArg, _arguments, P, generator) {
-        function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-        return new (P || (P = Promise))(function (resolve, reject) {
-            function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-            function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-            function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-            step((generator = generator.apply(thisArg, _arguments || [])).next());
-        });
-    };
-
-    __generator = function (thisArg, body) {
-        var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-        return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-        function verb(n) { return function (v) { return step([n, v]); }; }
-        function step(op) {
-            if (f) throw new TypeError("Generator is already executing.");
-            while (_) try {
-                if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-                if (y = 0, t) op = [op[0] & 2, t.value];
-                switch (op[0]) {
-                    case 0: case 1: t = op; break;
-                    case 4: _.label++; return { value: op[1], done: false };
-                    case 5: _.label++; y = op[1]; op = [0]; continue;
-                    case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                    default:
-                        if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                        if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                        if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                        if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                        if (t[2]) _.ops.pop();
-                        _.trys.pop(); continue;
-                }
-                op = body.call(thisArg, _);
-            } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-            if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-        }
-    };
-
-    __createBinding = function(o, m, k, k2) {
-        if (k2 === undefined) k2 = k;
-        o[k2] = m[k];
-    };
-
-    __exportStar = function (m, exports) {
-        for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) exports[p] = m[p];
-    };
-
-    __values = function (o) {
-        var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-        if (m) return m.call(o);
-        if (o && typeof o.length === "number") return {
-            next: function () {
-                if (o && i >= o.length) o = void 0;
-                return { value: o && o[i++], done: !o };
-            }
-        };
-        throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-    };
-
-    __read = function (o, n) {
-        var m = typeof Symbol === "function" && o[Symbol.iterator];
-        if (!m) return o;
-        var i = m.call(o), r, ar = [], e;
-        try {
-            while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-        }
-        catch (error) { e = { error: error }; }
-        finally {
-            try {
-                if (r && !r.done && (m = i["return"])) m.call(i);
-            }
-            finally { if (e) throw e.error; }
-        }
-        return ar;
-    };
-
-    __spread = function () {
-        for (var ar = [], i = 0; i < arguments.length; i++)
-            ar = ar.concat(__read(arguments[i]));
-        return ar;
-    };
-
-    __spreadArrays = function () {
-        for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-        for (var r = Array(s), k = 0, i = 0; i < il; i++)
-            for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-                r[k] = a[j];
-        return r;
-    };
-
-    __await = function (v) {
-        return this instanceof __await ? (this.v = v, this) : new __await(v);
-    };
-
-    __asyncGenerator = function (thisArg, _arguments, generator) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var g = generator.apply(thisArg, _arguments || []), i, q = [];
-        return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-        function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
-        function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
-        function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);  }
-        function fulfill(value) { resume("next", value); }
-        function reject(value) { resume("throw", value); }
-        function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
-    };
-
-    __asyncDelegator = function (o) {
-        var i, p;
-        return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
-        function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
-    };
-
-    __asyncValues = function (o) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var m = o[Symbol.asyncIterator], i;
-        return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
-        function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
-        function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
-    };
-
-    __makeTemplateObject = function (cooked, raw) {
-        if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
-        return cooked;
-    };
-
-    __importStar = function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-        result["default"] = mod;
-        return result;
-    };
-
-    __importDefault = function (mod) {
-        return (mod && mod.__esModule) ? mod : { "default": mod };
-    };
-
-    __classPrivateFieldGet = function (receiver, privateMap) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to get private field on non-instance");
-        }
-        return privateMap.get(receiver);
-    };
-
-    __classPrivateFieldSet = function (receiver, privateMap, value) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to set private field on non-instance");
-        }
-        privateMap.set(receiver, value);
-        return value;
-    };
-
-    exporter("__extends", __extends);
-    exporter("__assign", __assign);
-    exporter("__rest", __rest);
-    exporter("__decorate", __decorate);
-    exporter("__param", __param);
-    exporter("__metadata", __metadata);
-    exporter("__awaiter", __awaiter);
-    exporter("__generator", __generator);
-    exporter("__exportStar", __exportStar);
-    exporter("__createBinding", __createBinding);
-    exporter("__values", __values);
-    exporter("__read", __read);
-    exporter("__spread", __spread);
-    exporter("__spreadArrays", __spreadArrays);
-    exporter("__await", __await);
-    exporter("__asyncGenerator", __asyncGenerator);
-    exporter("__asyncDelegator", __asyncDelegator);
-    exporter("__asyncValues", __asyncValues);
-    exporter("__makeTemplateObject", __makeTemplateObject);
-    exporter("__importStar", __importStar);
-    exporter("__importDefault", __importDefault);
-    exporter("__classPrivateFieldGet", __classPrivateFieldGet);
-    exporter("__classPrivateFieldSet", __classPrivateFieldSet);
-});
-
-
-/***/ }),
-
 /***/ 3233:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
@@ -10614,7 +7770,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
-var tslib = __webpack_require__(1101);
+var tslib = __webpack_require__(9094);
 var util = _interopDefault(__webpack_require__(1669));
 var os = __webpack_require__(2087);
 
@@ -10892,9 +8048,36 @@ exports.setLogLevel = setLogLevel;
 
 /***/ }),
 
-/***/ 1101:
-/***/ ((module) => {
+/***/ 9094:
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "__extends": () => /* binding */ __extends,
+/* harmony export */   "__assign": () => /* binding */ __assign,
+/* harmony export */   "__rest": () => /* binding */ __rest,
+/* harmony export */   "__decorate": () => /* binding */ __decorate,
+/* harmony export */   "__param": () => /* binding */ __param,
+/* harmony export */   "__metadata": () => /* binding */ __metadata,
+/* harmony export */   "__awaiter": () => /* binding */ __awaiter,
+/* harmony export */   "__generator": () => /* binding */ __generator,
+/* harmony export */   "__createBinding": () => /* binding */ __createBinding,
+/* harmony export */   "__exportStar": () => /* binding */ __exportStar,
+/* harmony export */   "__values": () => /* binding */ __values,
+/* harmony export */   "__read": () => /* binding */ __read,
+/* harmony export */   "__spread": () => /* binding */ __spread,
+/* harmony export */   "__spreadArrays": () => /* binding */ __spreadArrays,
+/* harmony export */   "__await": () => /* binding */ __await,
+/* harmony export */   "__asyncGenerator": () => /* binding */ __asyncGenerator,
+/* harmony export */   "__asyncDelegator": () => /* binding */ __asyncDelegator,
+/* harmony export */   "__asyncValues": () => /* binding */ __asyncValues,
+/* harmony export */   "__makeTemplateObject": () => /* binding */ __makeTemplateObject,
+/* harmony export */   "__importStar": () => /* binding */ __importStar,
+/* harmony export */   "__importDefault": () => /* binding */ __importDefault,
+/* harmony export */   "__classPrivateFieldGet": () => /* binding */ __classPrivateFieldGet,
+/* harmony export */   "__classPrivateFieldSet": () => /* binding */ __classPrivateFieldSet
+/* harmony export */ });
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
 
@@ -10909,276 +8092,210 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
+/* global Reflect, Promise */
 
-/* global global, define, System, Reflect, Promise */
-var __extends;
-var __assign;
-var __rest;
-var __decorate;
-var __param;
-var __metadata;
-var __awaiter;
-var __generator;
-var __exportStar;
-var __values;
-var __read;
-var __spread;
-var __spreadArrays;
-var __await;
-var __asyncGenerator;
-var __asyncDelegator;
-var __asyncValues;
-var __makeTemplateObject;
-var __importStar;
-var __importDefault;
-var __classPrivateFieldGet;
-var __classPrivateFieldSet;
-var __createBinding;
-(function (factory) {
-    var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
-    if (typeof define === "function" && define.amd) {
-        define("tslib", ["exports"], function (exports) { factory(createExporter(root, createExporter(exports))); });
-    }
-    else if ( true && typeof module.exports === "object") {
-        factory(createExporter(root, createExporter(module.exports)));
-    }
-    else {
-        factory(createExporter(root));
-    }
-    function createExporter(exports, previous) {
-        if (exports !== root) {
-            if (typeof Object.create === "function") {
-                Object.defineProperty(exports, "__esModule", { value: true });
-            }
-            else {
-                exports.__esModule = true;
-            }
-        }
-        return function (id, v) { return exports[id] = previous ? previous(id, v) : v; };
-    }
-})
-(function (exporter) {
-    var extendStatics = Object.setPrototypeOf ||
+var extendStatics = function(d, b) {
+    extendStatics = Object.setPrototypeOf ||
         ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
         function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return extendStatics(d, b);
+};
 
-    __extends = function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
+function __extends(d, b) {
+    extendStatics(d, b);
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+}
 
-    __assign = Object.assign || function (t) {
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
             s = arguments[i];
             for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
         }
         return t;
-    };
+    }
+    return __assign.apply(this, arguments);
+}
 
-    __rest = function (s, e) {
-        var t = {};
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-            t[p] = s[p];
-        if (s != null && typeof Object.getOwnPropertySymbols === "function")
-            for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-                if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                    t[p[i]] = s[p[i]];
+function __rest(s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+}
+
+function __decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
+
+function __param(paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+}
+
+function __metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
+}
+
+function __awaiter(thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+}
+
+function __generator(thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
             }
-        return t;
-    };
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+}
 
-    __decorate = function (decorators, target, key, desc) {
-        var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-        if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-        else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-        return c > 3 && r && Object.defineProperty(target, key, r), r;
-    };
+function __createBinding(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}
 
-    __param = function (paramIndex, decorator) {
-        return function (target, key) { decorator(target, key, paramIndex); }
-    };
+function __exportStar(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) exports[p] = m[p];
+}
 
-    __metadata = function (metadataKey, metadataValue) {
-        if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
-    };
-
-    __awaiter = function (thisArg, _arguments, P, generator) {
-        function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-        return new (P || (P = Promise))(function (resolve, reject) {
-            function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-            function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-            function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-            step((generator = generator.apply(thisArg, _arguments || [])).next());
-        });
-    };
-
-    __generator = function (thisArg, body) {
-        var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-        return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-        function verb(n) { return function (v) { return step([n, v]); }; }
-        function step(op) {
-            if (f) throw new TypeError("Generator is already executing.");
-            while (_) try {
-                if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-                if (y = 0, t) op = [op[0] & 2, t.value];
-                switch (op[0]) {
-                    case 0: case 1: t = op; break;
-                    case 4: _.label++; return { value: op[1], done: false };
-                    case 5: _.label++; y = op[1]; op = [0]; continue;
-                    case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                    default:
-                        if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                        if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                        if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                        if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                        if (t[2]) _.ops.pop();
-                        _.trys.pop(); continue;
-                }
-                op = body.call(thisArg, _);
-            } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-            if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+function __values(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
         }
     };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+}
 
-    __createBinding = function(o, m, k, k2) {
-        if (k2 === undefined) k2 = k;
-        o[k2] = m[k];
-    };
-
-    __exportStar = function (m, exports) {
-        for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) exports[p] = m[p];
-    };
-
-    __values = function (o) {
-        var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-        if (m) return m.call(o);
-        if (o && typeof o.length === "number") return {
-            next: function () {
-                if (o && i >= o.length) o = void 0;
-                return { value: o && o[i++], done: !o };
-            }
-        };
-        throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-    };
-
-    __read = function (o, n) {
-        var m = typeof Symbol === "function" && o[Symbol.iterator];
-        if (!m) return o;
-        var i = m.call(o), r, ar = [], e;
+function __read(o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    }
+    catch (error) { e = { error: error }; }
+    finally {
         try {
-            while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+            if (r && !r.done && (m = i["return"])) m.call(i);
         }
-        catch (error) { e = { error: error }; }
-        finally {
-            try {
-                if (r && !r.done && (m = i["return"])) m.call(i);
-            }
-            finally { if (e) throw e.error; }
-        }
-        return ar;
-    };
+        finally { if (e) throw e.error; }
+    }
+    return ar;
+}
 
-    __spread = function () {
-        for (var ar = [], i = 0; i < arguments.length; i++)
-            ar = ar.concat(__read(arguments[i]));
-        return ar;
-    };
+function __spread() {
+    for (var ar = [], i = 0; i < arguments.length; i++)
+        ar = ar.concat(__read(arguments[i]));
+    return ar;
+}
 
-    __spreadArrays = function () {
-        for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-        for (var r = Array(s), k = 0, i = 0; i < il; i++)
-            for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-                r[k] = a[j];
-        return r;
-    };
+function __spreadArrays() {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 
-    __await = function (v) {
-        return this instanceof __await ? (this.v = v, this) : new __await(v);
-    };
+function __await(v) {
+    return this instanceof __await ? (this.v = v, this) : new __await(v);
+}
 
-    __asyncGenerator = function (thisArg, _arguments, generator) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var g = generator.apply(thisArg, _arguments || []), i, q = [];
-        return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-        function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
-        function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
-        function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);  }
-        function fulfill(value) { resume("next", value); }
-        function reject(value) { resume("throw", value); }
-        function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
-    };
+function __asyncGenerator(thisArg, _arguments, generator) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var g = generator.apply(thisArg, _arguments || []), i, q = [];
+    return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
+    function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
+    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
+    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
+    function fulfill(value) { resume("next", value); }
+    function reject(value) { resume("throw", value); }
+    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
+}
 
-    __asyncDelegator = function (o) {
-        var i, p;
-        return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
-        function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
-    };
+function __asyncDelegator(o) {
+    var i, p;
+    return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
+    function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
+}
 
-    __asyncValues = function (o) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var m = o[Symbol.asyncIterator], i;
-        return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
-        function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
-        function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
-    };
+function __asyncValues(o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+}
 
-    __makeTemplateObject = function (cooked, raw) {
-        if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
-        return cooked;
-    };
+function __makeTemplateObject(cooked, raw) {
+    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
+    return cooked;
+};
 
-    __importStar = function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-        result["default"] = mod;
-        return result;
-    };
+function __importStar(mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result.default = mod;
+    return result;
+}
 
-    __importDefault = function (mod) {
-        return (mod && mod.__esModule) ? mod : { "default": mod };
-    };
+function __importDefault(mod) {
+    return (mod && mod.__esModule) ? mod : { default: mod };
+}
 
-    __classPrivateFieldGet = function (receiver, privateMap) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to get private field on non-instance");
-        }
-        return privateMap.get(receiver);
-    };
+function __classPrivateFieldGet(receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+}
 
-    __classPrivateFieldSet = function (receiver, privateMap, value) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to set private field on non-instance");
-        }
-        privateMap.set(receiver, value);
-        return value;
-    };
-
-    exporter("__extends", __extends);
-    exporter("__assign", __assign);
-    exporter("__rest", __rest);
-    exporter("__decorate", __decorate);
-    exporter("__param", __param);
-    exporter("__metadata", __metadata);
-    exporter("__awaiter", __awaiter);
-    exporter("__generator", __generator);
-    exporter("__exportStar", __exportStar);
-    exporter("__createBinding", __createBinding);
-    exporter("__values", __values);
-    exporter("__read", __read);
-    exporter("__spread", __spread);
-    exporter("__spreadArrays", __spreadArrays);
-    exporter("__await", __await);
-    exporter("__asyncGenerator", __asyncGenerator);
-    exporter("__asyncDelegator", __asyncDelegator);
-    exporter("__asyncValues", __asyncValues);
-    exporter("__makeTemplateObject", __makeTemplateObject);
-    exporter("__importStar", __importStar);
-    exporter("__importDefault", __importDefault);
-    exporter("__classPrivateFieldGet", __classPrivateFieldGet);
-    exporter("__classPrivateFieldSet", __classPrivateFieldSet);
-});
+function __classPrivateFieldSet(receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+}
 
 
 /***/ }),
@@ -11192,19 +8309,19 @@ var __createBinding;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 var coreHttp = __webpack_require__(4607);
-var tslib = __webpack_require__(4351);
+var tslib = __webpack_require__(5636);
 var api = __webpack_require__(5163);
 var logger$1 = __webpack_require__(3233);
 var abortController = __webpack_require__(2557);
 var os = __webpack_require__(2087);
-var fs = __webpack_require__(5747);
 var stream = __webpack_require__(2413);
-__webpack_require__(4832);
+__webpack_require__(4559);
 var crypto = __webpack_require__(6417);
-var util = __webpack_require__(1669);
+var coreLro = __webpack_require__(7094);
 var events = __webpack_require__(8614);
 var coreTracing = __webpack_require__(4175);
-var coreLro = __webpack_require__(7094);
+var fs = __webpack_require__(5747);
+var util = __webpack_require__(1669);
 
 /*
  * Copyright (c) Microsoft Corporation. All rights reserved.
@@ -11663,10 +8780,17 @@ var BlobPropertiesInternal = {
                 }
             },
             isSealed: {
-                xmlName: "IsSealed",
-                serializedName: "IsSealed",
+                xmlName: "Sealed",
+                serializedName: "Sealed",
                 type: {
                     name: "Boolean"
+                }
+            },
+            rehydratePriority: {
+                xmlName: "RehydratePriority",
+                serializedName: "RehydratePriority",
+                type: {
+                    name: "String"
                 }
             }
         }
@@ -12950,6 +10074,13 @@ var StaticWebsite = {
                 type: {
                     name: "String"
                 }
+            },
+            defaultIndexDocumentPath: {
+                xmlName: "DefaultIndexDocumentPath",
+                serializedName: "DefaultIndexDocumentPath",
+                type: {
+                    name: "String"
+                }
             }
         }
     }
@@ -13271,7 +10402,9 @@ var ServiceGetAccountInfoHeaders = {
                     allowedValues: [
                         "Storage",
                         "BlobStorage",
-                        "StorageV2"
+                        "StorageV2",
+                        "FileStorage",
+                        "BlockBlobStorage"
                     ]
                 }
             },
@@ -14195,7 +11328,9 @@ var ContainerGetAccountInfoHeaders = {
                     allowedValues: [
                         "Storage",
                         "BlobStorage",
-                        "StorageV2"
+                        "StorageV2",
+                        "FileStorage",
+                        "BlockBlobStorage"
                     ]
                 }
             },
@@ -14795,6 +11930,12 @@ var BlobGetPropertiesHeaders = {
                 serializedName: "x-ms-blob-sealed",
                 type: {
                     name: "Boolean"
+                }
+            },
+            rehydratePriority: {
+                serializedName: "x-ms-rehydrate-priority",
+                type: {
+                    name: "String"
                 }
             },
             errorCode: {
@@ -16104,7 +13245,9 @@ var BlobGetAccountInfoHeaders = {
                     allowedValues: [
                         "Storage",
                         "BlobStorage",
-                        "StorageV2"
+                        "StorageV2",
+                        "FileStorage",
+                        "BlockBlobStorage"
                     ]
                 }
             },
@@ -20989,7 +18132,6 @@ var copyFromURLOperationSpec = {
         requestId,
         sourceContentMD5,
         blobTagsString,
-        sealBlob,
         xMsRequiresSync,
         sourceIfModifiedSince,
         sourceIfUnmodifiedSince,
@@ -21060,7 +18202,8 @@ var setTierOperationSpec = {
         rehydratePriority,
         version,
         requestId,
-        leaseId0
+        leaseId0,
+        ifTags
     ],
     responses: {
         200: {
@@ -21123,7 +18266,8 @@ var queryOperationSpec = {
         ifModifiedSince,
         ifUnmodifiedSince,
         ifMatch,
-        ifNoneMatch
+        ifNoneMatch,
+        ifTags
     ],
     requestBody: {
         parameterPath: [
@@ -21463,7 +18607,8 @@ var clearPagesOperationSpec = {
         ifModifiedSince,
         ifUnmodifiedSince,
         ifMatch,
-        ifNoneMatch
+        ifNoneMatch,
+        ifTags
     ],
     responses: {
         201: {
@@ -21621,7 +18766,8 @@ var resizeOperationSpec = {
         ifModifiedSince,
         ifUnmodifiedSince,
         ifMatch,
-        ifNoneMatch
+        ifNoneMatch,
+        ifTags
     ],
     responses: {
         200: {
@@ -21654,7 +18800,8 @@ var updateSequenceNumberOperationSpec = {
         ifModifiedSince,
         ifUnmodifiedSince,
         ifMatch,
-        ifNoneMatch
+        ifNoneMatch,
+        ifTags
     ],
     responses: {
         200: {
@@ -21685,7 +18832,8 @@ var copyIncrementalOperationSpec = {
         ifModifiedSince,
         ifUnmodifiedSince,
         ifMatch,
-        ifNoneMatch
+        ifNoneMatch,
+        ifTags
     ],
     responses: {
         202: {
@@ -22257,7 +19405,7 @@ var logger = logger$1.createClientLogger("storage-blob");
 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
-var SDK_VERSION = "12.2.0-preview.1";
+var SDK_VERSION = "12.2.1";
 var SERVICE_VERSION = "2019-12-12";
 var BLOCK_BLOB_MAX_UPLOAD_BLOB_BYTES = 256 * 1024 * 1024; // 256MB
 var BLOCK_BLOB_MAX_STAGE_BLOCK_BYTES = 4000 * 1024 * 1024; // 4000MB
@@ -22411,7 +19559,9 @@ var StorageBlobLoggingAllowedHeaderNames = [
     "x-ms-source-if-none-match",
     "x-ms-source-if-unmodified-since",
     "x-ms-tag-count",
-    "x-ms-encryption-key-sha256"
+    "x-ms-encryption-key-sha256",
+    "x-ms-if-tags",
+    "x-ms-source-if-tags"
 ];
 var StorageBlobLoggingAllowedQueryParameters = [
     "comp",
@@ -22604,9 +19754,6 @@ function extractConnectionStringParts(connectionString) {
         }
         else if (!accountSas) {
             throw new Error("Invalid SharedAccessSignature in the provided SAS Connection String");
-        }
-        else if (!accountName) {
-            throw new Error("Invalid AccountName in the provided SAS Connection String");
         }
         return { kind: "SASConnString", url: blobEndpoint, accountName: accountName, accountSas: accountSas };
     }
@@ -22872,20 +20019,32 @@ function getAccountNameFromUrl(url) {
             // `${defaultEndpointsProtocol}://${accountName}.blob.${endpointSuffix}`;
             accountName = parsedUrl.getHost().split(".")[0];
         }
-        else {
+        else if (isIpEndpointStyle(parsedUrl)) {
             // IPv4/IPv6 address hosts... Example - http://192.0.0.10:10001/devstoreaccount1/
             // Single word domain without a [dot] in the endpoint... Example - http://localhost:10001/devstoreaccount1/
             // .getPath() -> /devstoreaccount1/
             accountName = parsedUrl.getPath().split("/")[1];
         }
-        if (!accountName) {
-            throw new Error("Provided accountName is invalid.");
+        else {
+            // Custom domain case: "https://customdomain.com/containername/blob".
+            accountName = "";
         }
         return accountName;
     }
     catch (error) {
         throw new Error("Unable to extract accountName with provided information.");
     }
+}
+function isIpEndpointStyle(parsedUrl) {
+    if (parsedUrl.getHost() == undefined) {
+        return false;
+    }
+    var host = parsedUrl.getHost() + (parsedUrl.getPort() == undefined ? "" : ":" + parsedUrl.getPort());
+    // Case 1: Ipv6, use a broad regex to find out candidates whose host contains two ':'.
+    // Case 2: localhost(:port), use broad regex to match port part.
+    // Case 3: Ipv4, use broad regex which just check if host contains Ipv4.
+    // For valid host please refer to https://man7.org/linux/man-pages/man7/hostname.7.html.
+    return /^.*:.*:.*$|^localhost(:[0-9]+)?$|^(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])){3}(:[0-9]+)?$/.test(host);
 }
 /**
  * Convert Tags to encoded string.
@@ -22987,6 +20146,42 @@ function toQuerySerialization(textConfiguration) {
         default:
             throw Error("Invalid BlobQueryTextConfiguration.");
     }
+}
+function parseObjectReplicationRecord(objectReplicationRecord) {
+    if (!objectReplicationRecord) {
+        return undefined;
+    }
+    if ("policy-id" in objectReplicationRecord) {
+        // If the dictionary contains a key with policy id, we are not required to do any parsing since
+        // the policy id should already be stored in the ObjectReplicationDestinationPolicyId.
+        return undefined;
+    }
+    var orProperties = [];
+    var _loop_1 = function (key) {
+        var ids = key.split("_");
+        var policyPrefix = "or-";
+        if (ids[0].startsWith(policyPrefix)) {
+            ids[0] = ids[0].substring(policyPrefix.length);
+        }
+        var rule = {
+            ruleId: ids[1],
+            replicationStatus: objectReplicationRecord[key]
+        };
+        var policyIndex = orProperties.findIndex(function (policy) { return policy.policyId === ids[0]; });
+        if (policyIndex > -1) {
+            orProperties[policyIndex].rules.push(rule);
+        }
+        else {
+            orProperties.push({
+                policyId: ids[0],
+                rules: [rule]
+            });
+        }
+    };
+    for (var key in objectReplicationRecord) {
+        _loop_1(key);
+    }
+    return orProperties;
 }
 
 // Copyright (c) Microsoft Corporation. All rights reserved.
@@ -23327,6 +20522,133 @@ var StorageRetryPolicyFactory = /** @class */ (function () {
 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 /**
+ * Credential policy used to sign HTTP(S) requests before sending. This is an
+ * abstract class.
+ *
+ * @export
+ * @abstract
+ * @class CredentialPolicy
+ * @extends {BaseRequestPolicy}
+ */
+var CredentialPolicy = /** @class */ (function (_super) {
+    tslib.__extends(CredentialPolicy, _super);
+    function CredentialPolicy() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    /**
+     * Sends out request.
+     *
+     * @param {WebResource} request
+     * @returns {Promise<HttpOperationResponse>}
+     * @memberof CredentialPolicy
+     */
+    CredentialPolicy.prototype.sendRequest = function (request) {
+        return this._nextPolicy.sendRequest(this.signRequest(request));
+    };
+    /**
+     * Child classes must implement this method with request signing. This method
+     * will be executed in {@link sendRequest}.
+     *
+     * @protected
+     * @abstract
+     * @param {WebResource} request
+     * @returns {WebResource}
+     * @memberof CredentialPolicy
+     */
+    CredentialPolicy.prototype.signRequest = function (request) {
+        // Child classes must override this method with request signing. This method
+        // will be executed in sendRequest().
+        return request;
+    };
+    return CredentialPolicy;
+}(coreHttp.BaseRequestPolicy));
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+/**
+ * AnonymousCredentialPolicy is used with HTTP(S) requests that read public resources
+ * or for use with Shared Access Signatures (SAS).
+ *
+ * @export
+ * @class AnonymousCredentialPolicy
+ * @extends {CredentialPolicy}
+ */
+var AnonymousCredentialPolicy = /** @class */ (function (_super) {
+    tslib.__extends(AnonymousCredentialPolicy, _super);
+    /**
+     * Creates an instance of AnonymousCredentialPolicy.
+     * @param {RequestPolicy} nextPolicy
+     * @param {RequestPolicyOptions} options
+     * @memberof AnonymousCredentialPolicy
+     */
+    function AnonymousCredentialPolicy(nextPolicy, options) {
+        return _super.call(this, nextPolicy, options) || this;
+    }
+    return AnonymousCredentialPolicy;
+}(CredentialPolicy));
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+/**
+ * Credential is an abstract class for Azure Storage HTTP requests signing. This
+ * class will host an credentialPolicyCreator factory which generates CredentialPolicy.
+ *
+ * @export
+ * @abstract
+ * @class Credential
+ */
+var Credential = /** @class */ (function () {
+    function Credential() {
+    }
+    /**
+     * Creates a RequestPolicy object.
+     *
+     * @param {RequestPolicy} _nextPolicy
+     * @param {RequestPolicyOptions} _options
+     * @returns {RequestPolicy}
+     * @memberof Credential
+     */
+    Credential.prototype.create = function (
+    // tslint:disable-next-line:variable-name
+    _nextPolicy, 
+    // tslint:disable-next-line:variable-name
+    _options) {
+        throw new Error("Method should be implemented in children classes.");
+    };
+    return Credential;
+}());
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+/**
+ * AnonymousCredential provides a credentialPolicyCreator member used to create
+ * AnonymousCredentialPolicy objects. AnonymousCredentialPolicy is used with
+ * HTTP(S) requests that read public resources or for use with Shared Access
+ * Signatures (SAS).
+ *
+ * @export
+ * @class AnonymousCredential
+ * @extends {Credential}
+ */
+var AnonymousCredential = /** @class */ (function (_super) {
+    tslib.__extends(AnonymousCredential, _super);
+    function AnonymousCredential() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    /**
+     * Creates an {@link AnonymousCredentialPolicy} object.
+     *
+     * @param {RequestPolicy} nextPolicy
+     * @param {RequestPolicyOptions} options
+     * @returns {AnonymousCredentialPolicy}
+     * @memberof AnonymousCredential
+     */
+    AnonymousCredential.prototype.create = function (nextPolicy, options) {
+        return new AnonymousCredentialPolicy(nextPolicy, options);
+    };
+    return AnonymousCredential;
+}(Credential));
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+/**
  * TelemetryPolicy is a policy used to tag user-agent header for every requests.
  *
  * @class TelemetryPolicy
@@ -23389,6 +20711,8 @@ var TelemetryPolicyFactory = /** @class */ (function () {
         var userAgentInfo = [];
         {
             if (telemetry) {
+                // FIXME: replace() only replaces the first space. And we have no idea why we need to replace spaces in the first place.
+                // But fixing this would be a breaking change. Logged an issue here: https://github.com/Azure/azure-sdk-for-js/issues/10793
                 var telemetryString = (telemetry.userAgentPrefix || "").replace(" ", "");
                 if (telemetryString.length > 0 && userAgentInfo.indexOf(telemetryString) === -1) {
                     userAgentInfo.push(telemetryString);
@@ -23478,10 +20802,13 @@ var Pipeline = /** @class */ (function () {
  * @returns {Pipeline} A new Pipeline object.
  */
 function newPipeline(credential, pipelineOptions) {
+    if (pipelineOptions === void 0) { pipelineOptions = {}; }
+    if (credential === undefined) {
+        credential = new AnonymousCredential();
+    }
     // Order is important. Closer to the API at the top & closer to the network at the bottom.
     // The credential's policy factory must appear close to the wire so it can sign any
     // changes made by other factories (like UniqueRequestIDPolicyFactory)
-    if (pipelineOptions === void 0) { pipelineOptions = {}; }
     var telemetryPolicy = new TelemetryPolicyFactory(pipelineOptions.userAgentOptions);
     var factories = [
         coreHttp.tracingPolicy({ userAgent: telemetryPolicy.telemetryString }),
@@ -23636,7 +20963,7 @@ var RetriableReadableStream = /** @class */ (function (_super) {
 /**
  * ONLY AVAILABLE IN NODE.JS RUNTIME.
  *
- * BlobDownloadResponse implements BlobDownloadResponseModel interface, and in Node.js runtime it will
+ * BlobDownloadResponse implements BlobDownloadResponseParsed interface, and in Node.js runtime it will
  * automatically retry when internal read stream unexpected ends. (This kind of unexpected ends cannot
  * trigger retries defined in pipeline retry policy.)
  *
@@ -23645,13 +20972,13 @@ var RetriableReadableStream = /** @class */ (function (_super) {
  *
  * @export
  * @class BlobDownloadResponse
- * @implements {BlobDownloadResponseModel}
+ * @implements {BlobDownloadResponseParsed}
  */
 var BlobDownloadResponse = /** @class */ (function () {
     /**
      * Creates an instance of BlobDownloadResponse.
      *
-     * @param {BlobDownloadResponseModel} originalResponse
+     * @param {BlobDownloadResponseParsed} originalResponse
      * @param {ReadableStreamGetter} getter
      * @param {number} offset
      * @param {number} count
@@ -24208,6 +21535,48 @@ var BlobDownloadResponse = /** @class */ (function () {
         enumerable: false,
         configurable: true
     });
+    Object.defineProperty(BlobDownloadResponse.prototype, "objectReplicationDestinationPolicyId", {
+        /**
+         * Object Replication Policy Id of the destination blob.
+         *
+         * @readonly
+         * @type {(string| undefined)}
+         * @memberof BlobDownloadResponse
+         */
+        get: function () {
+            return this.originalResponse.objectReplicationDestinationPolicyId;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(BlobDownloadResponse.prototype, "objectReplicationSourceProperties", {
+        /**
+         * Parsed Object Replication Policy Id, Rule Id(s) and status of the source blob.
+         *
+         * @readonly
+         * @type {(ObjectReplicationPolicy[] | undefined)}
+         * @memberof BlobDownloadResponse
+         */
+        get: function () {
+            return this.originalResponse.objectReplicationSourceProperties;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(BlobDownloadResponse.prototype, "isSealed", {
+        /**
+         * If this blob has been sealed.
+         *
+         * @readonly
+         * @type {(boolean | undefined)}
+         * @memberof BlobDownloadResponse
+         */
+        get: function () {
+            return this.originalResponse.isSealed;
+        },
+        enumerable: false,
+        configurable: true
+    });
     Object.defineProperty(BlobDownloadResponse.prototype, "contentAsBlob", {
         /**
          * The response body as a browser Blob.
@@ -24256,11 +21625,15 @@ var BlobDownloadResponse = /** @class */ (function () {
     return BlobDownloadResponse;
 }());
 
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 var AVRO_SYNC_MARKER_SIZE = 16;
 var AVRO_INIT_BYTES = new Uint8Array([79, 98, 106, 1]);
 var AVRO_CODEC_KEY = "avro.codec";
 var AVRO_SCHEMA_KEY = "avro.schema";
 
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 function arraysEqual(a, b) {
     if (a === b)
         return true;
@@ -24275,6 +21648,7 @@ function arraysEqual(a, b) {
     return true;
 }
 
+// Copyright (c) Microsoft Corporation.
 var AvroParser = /** @class */ (function () {
     function AvroParser() {
     }
@@ -24282,15 +21656,19 @@ var AvroParser = /** @class */ (function () {
      * Reads a fixed number of bytes from the stream.
      *
      * @static
-     * @param stream
-     * @param length
+     * @param {AvroReadable} [stream]
+     * @param {number} [length]
+     * @param {AvroParserReadOptions} [options={}]
+     * @returns {Promise<Uint8Array>}
+     * @memberof AvroParser
      */
-    AvroParser.readFixedBytes = function (stream, length) {
+    AvroParser.readFixedBytes = function (stream, length, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var bytes;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, stream.read(length)];
+                    case 0: return [4 /*yield*/, stream.read(length, { abortSignal: options.abortSignal })];
                     case 1:
                         bytes = _a.sent();
                         if (bytes.length != length) {
@@ -24305,14 +21683,18 @@ var AvroParser = /** @class */ (function () {
      * Reads a single byte from the stream.
      *
      * @static
-     * @param stream
+     * @param {AvroReadable} [stream]
+     * @param {AvroParserReadOptions} [options={}]
+     * @returns {Promise<number>}
+     * @memberof AvroParser
      */
-    AvroParser.readByte = function (stream) {
+    AvroParser.readByte = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var buf;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readFixedBytes(stream, 1)];
+                    case 0: return [4 /*yield*/, AvroParser.readFixedBytes(stream, 1, options)];
                     case 1:
                         buf = _a.sent();
                         return [2 /*return*/, buf[0]];
@@ -24323,16 +21705,17 @@ var AvroParser = /** @class */ (function () {
     // int and long are stored in variable-length zig-zag coding.
     // variable-length: https://lucene.apache.org/core/3_5_0/fileformats.html#VInt
     // zig-zag: https://developers.google.com/protocol-buffers/docs/encoding?csw=1#types
-    AvroParser.readZigZagLong = function (stream) {
+    AvroParser.readZigZagLong = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var zigZagEncoded, significanceInBit, byte, haveMoreByte, significanceInFloat;
+            var zigZagEncoded, significanceInBit, byte, haveMoreByte, significanceInFloat, res;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         zigZagEncoded = 0;
                         significanceInBit = 0;
                         _a.label = 1;
-                    case 1: return [4 /*yield*/, AvroParser.readByte(stream)];
+                    case 1: return [4 /*yield*/, AvroParser.readByte(stream, options)];
                     case 2:
                         byte = _a.sent();
                         haveMoreByte = byte & 0x80;
@@ -24345,11 +21728,10 @@ var AvroParser = /** @class */ (function () {
                     case 4:
                         if (!haveMoreByte) return [3 /*break*/, 9];
                         // Switch to float arithmetic
-                        // FIXME: this only works when zigZagEncoded is no more than Number.MAX_SAFE_INTEGER (2**53 - 1)
                         zigZagEncoded = zigZagEncoded;
                         significanceInFloat = 268435456; // 2 ** 28.
                         _a.label = 5;
-                    case 5: return [4 /*yield*/, AvroParser.readByte(stream)];
+                    case 5: return [4 /*yield*/, AvroParser.readByte(stream, options)];
                     case 6:
                         byte = _a.sent();
                         zigZagEncoded += (byte & 0x7f) * significanceInFloat;
@@ -24358,23 +21740,30 @@ var AvroParser = /** @class */ (function () {
                     case 7:
                         if (byte & 0x80) return [3 /*break*/, 5];
                         _a.label = 8;
-                    case 8: return [2 /*return*/, (zigZagEncoded % 2 ? -(zigZagEncoded + 1) : zigZagEncoded) / 2];
+                    case 8:
+                        res = (zigZagEncoded % 2 ? -(zigZagEncoded + 1) : zigZagEncoded) / 2;
+                        if (res < Number.MIN_SAFE_INTEGER || res > Number.MAX_SAFE_INTEGER) {
+                            throw new Error("Integer overflow.");
+                        }
+                        return [2 /*return*/, res];
                     case 9: return [2 /*return*/, (zigZagEncoded >> 1) ^ -(zigZagEncoded & 1)];
                 }
             });
         });
     };
-    AvroParser.readLong = function (stream) {
+    AvroParser.readLong = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             return tslib.__generator(this, function (_a) {
-                return [2 /*return*/, AvroParser.readZigZagLong(stream)];
+                return [2 /*return*/, AvroParser.readZigZagLong(stream, options)];
             });
         });
     };
-    AvroParser.readInt = function (stream) {
+    AvroParser.readInt = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             return tslib.__generator(this, function (_a) {
-                return [2 /*return*/, AvroParser.readZigZagLong(stream)];
+                return [2 /*return*/, AvroParser.readZigZagLong(stream, options)];
             });
         });
     };
@@ -24385,12 +21774,13 @@ var AvroParser = /** @class */ (function () {
             });
         });
     };
-    AvroParser.readBoolean = function (stream) {
+    AvroParser.readBoolean = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var b;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readByte(stream)];
+                    case 0: return [4 /*yield*/, AvroParser.readByte(stream, options)];
                     case 1:
                         b = _a.sent();
                         if (b == 1) {
@@ -24406,12 +21796,13 @@ var AvroParser = /** @class */ (function () {
             });
         });
     };
-    AvroParser.readFloat = function (stream) {
+    AvroParser.readFloat = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var u8arr, view;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readFixedBytes(stream, 4)];
+                    case 0: return [4 /*yield*/, AvroParser.readFixedBytes(stream, 4, options)];
                     case 1:
                         u8arr = _a.sent();
                         view = new DataView(u8arr.buffer, u8arr.byteOffset, u8arr.byteLength);
@@ -24420,12 +21811,13 @@ var AvroParser = /** @class */ (function () {
             });
         });
     };
-    AvroParser.readDouble = function (stream) {
+    AvroParser.readDouble = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var u8arr, view;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readFixedBytes(stream, 8)];
+                    case 0: return [4 /*yield*/, AvroParser.readFixedBytes(stream, 8, options)];
                     case 1:
                         u8arr = _a.sent();
                         view = new DataView(u8arr.buffer, u8arr.byteOffset, u8arr.byteLength);
@@ -24434,29 +21826,31 @@ var AvroParser = /** @class */ (function () {
             });
         });
     };
-    AvroParser.readBytes = function (stream) {
+    AvroParser.readBytes = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var size;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readLong(stream)];
+                    case 0: return [4 /*yield*/, AvroParser.readLong(stream, options)];
                     case 1:
                         size = _a.sent();
                         if (size < 0) {
                             throw new Error("Bytes size was negative.");
                         }
-                        return [4 /*yield*/, stream.read(size)];
+                        return [4 /*yield*/, stream.read(size, { abortSignal: options.abortSignal })];
                     case 2: return [2 /*return*/, _a.sent()];
                 }
             });
         });
     };
-    AvroParser.readString = function (stream) {
+    AvroParser.readString = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var u8arr, utf8decoder;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readBytes(stream)];
+                    case 0: return [4 /*yield*/, AvroParser.readBytes(stream, options)];
                     case 1:
                         u8arr = _a.sent();
                         // polyfill TextDecoder to be backward compatible with older
@@ -24470,15 +21864,16 @@ var AvroParser = /** @class */ (function () {
             });
         });
     };
-    AvroParser.readMapPair = function (stream, readItemMethod) {
+    AvroParser.readMapPair = function (stream, readItemMethod, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var key, value;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readString(stream)];
+                    case 0: return [4 /*yield*/, AvroParser.readString(stream, options)];
                     case 1:
                         key = _a.sent();
-                        return [4 /*yield*/, readItemMethod(stream)];
+                        return [4 /*yield*/, readItemMethod(stream, options)];
                     case 2:
                         value = _a.sent();
                         return [2 /*return*/, { key: key, value: value }];
@@ -24486,22 +21881,26 @@ var AvroParser = /** @class */ (function () {
             });
         });
     };
-    AvroParser.readMap = function (stream, readItemMethod) {
+    AvroParser.readMap = function (stream, readItemMethod, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var readPairMethod, pairs, dict, _i, pairs_1, pair;
             var _this = this;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        readPairMethod = function (stream) { return tslib.__awaiter(_this, void 0, void 0, function () {
-                            return tslib.__generator(this, function (_a) {
-                                switch (_a.label) {
-                                    case 0: return [4 /*yield*/, AvroParser.readMapPair(stream, readItemMethod)];
-                                    case 1: return [2 /*return*/, _a.sent()];
-                                }
+                        readPairMethod = function (stream, options) {
+                            if (options === void 0) { options = {}; }
+                            return tslib.__awaiter(_this, void 0, void 0, function () {
+                                return tslib.__generator(this, function (_a) {
+                                    switch (_a.label) {
+                                        case 0: return [4 /*yield*/, AvroParser.readMapPair(stream, readItemMethod, options)];
+                                        case 1: return [2 /*return*/, _a.sent()];
+                                    }
+                                });
                             });
-                        }); };
-                        return [4 /*yield*/, AvroParser.readArray(stream, readPairMethod)];
+                        };
+                        return [4 /*yield*/, AvroParser.readArray(stream, readPairMethod, options)];
                     case 1:
                         pairs = _a.sent();
                         dict = {};
@@ -24514,14 +21913,15 @@ var AvroParser = /** @class */ (function () {
             });
         });
     };
-    AvroParser.readArray = function (stream, readItemMethod) {
+    AvroParser.readArray = function (stream, readItemMethod, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var items, count, item;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         items = [];
-                        return [4 /*yield*/, AvroParser.readLong(stream)];
+                        return [4 /*yield*/, AvroParser.readLong(stream, options)];
                     case 1:
                         count = _a.sent();
                         _a.label = 2;
@@ -24529,7 +21929,7 @@ var AvroParser = /** @class */ (function () {
                         if (!(count != 0)) return [3 /*break*/, 8];
                         if (!(count < 0)) return [3 /*break*/, 4];
                         // Ignore block sizes
-                        return [4 /*yield*/, AvroParser.readLong(stream)];
+                        return [4 /*yield*/, AvroParser.readLong(stream, options)];
                     case 3:
                         // Ignore block sizes
                         _a.sent();
@@ -24537,12 +21937,12 @@ var AvroParser = /** @class */ (function () {
                         _a.label = 4;
                     case 4:
                         if (!count--) return [3 /*break*/, 6];
-                        return [4 /*yield*/, readItemMethod(stream)];
+                        return [4 /*yield*/, readItemMethod(stream, options)];
                     case 5:
                         item = _a.sent();
                         items.push(item);
                         return [3 /*break*/, 4];
-                    case 6: return [4 /*yield*/, AvroParser.readLong(stream)];
+                    case 6: return [4 /*yield*/, AvroParser.readLong(stream, options)];
                     case 7:
                         count = _a.sent();
                         return [3 /*break*/, 2];
@@ -24580,7 +21980,6 @@ var AvroType = /** @class */ (function () {
         }
     };
     AvroType.fromStringSchema = function (schema) {
-        // FIXME: simpler way to tell if schema is of type AvroPrimitive?
         switch (schema) {
             case AvroPrimitive.NULL:
             case AvroPrimitive.BOOLEAN:
@@ -24661,7 +22060,8 @@ var AvroPrimitiveType = /** @class */ (function (_super) {
         _this._primitive = primitive;
         return _this;
     }
-    AvroPrimitiveType.prototype.read = function (stream) {
+    AvroPrimitiveType.prototype.read = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var _a;
             return tslib.__generator(this, function (_b) {
@@ -24681,19 +22081,19 @@ var AvroPrimitiveType = /** @class */ (function (_super) {
                         return [3 /*break*/, 17];
                     case 1: return [4 /*yield*/, AvroParser.readNull()];
                     case 2: return [2 /*return*/, _b.sent()];
-                    case 3: return [4 /*yield*/, AvroParser.readBoolean(stream)];
+                    case 3: return [4 /*yield*/, AvroParser.readBoolean(stream, options)];
                     case 4: return [2 /*return*/, _b.sent()];
-                    case 5: return [4 /*yield*/, AvroParser.readInt(stream)];
+                    case 5: return [4 /*yield*/, AvroParser.readInt(stream, options)];
                     case 6: return [2 /*return*/, _b.sent()];
-                    case 7: return [4 /*yield*/, AvroParser.readLong(stream)];
+                    case 7: return [4 /*yield*/, AvroParser.readLong(stream, options)];
                     case 8: return [2 /*return*/, _b.sent()];
-                    case 9: return [4 /*yield*/, AvroParser.readFloat(stream)];
+                    case 9: return [4 /*yield*/, AvroParser.readFloat(stream, options)];
                     case 10: return [2 /*return*/, _b.sent()];
-                    case 11: return [4 /*yield*/, AvroParser.readDouble(stream)];
+                    case 11: return [4 /*yield*/, AvroParser.readDouble(stream, options)];
                     case 12: return [2 /*return*/, _b.sent()];
-                    case 13: return [4 /*yield*/, AvroParser.readBytes(stream)];
+                    case 13: return [4 /*yield*/, AvroParser.readBytes(stream, options)];
                     case 14: return [2 /*return*/, _b.sent()];
-                    case 15: return [4 /*yield*/, AvroParser.readString(stream)];
+                    case 15: return [4 /*yield*/, AvroParser.readString(stream, options)];
                     case 16: return [2 /*return*/, _b.sent()];
                     case 17: throw new Error("Unknown Avro Primitive");
                 }
@@ -24709,12 +22109,13 @@ var AvroEnumType = /** @class */ (function (_super) {
         _this._symbols = symbols;
         return _this;
     }
-    AvroEnumType.prototype.read = function (stream) {
+    AvroEnumType.prototype.read = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var value;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readInt(stream)];
+                    case 0: return [4 /*yield*/, AvroParser.readInt(stream, options)];
                     case 1:
                         value = _a.sent();
                         return [2 /*return*/, this._symbols[value]];
@@ -24731,15 +22132,16 @@ var AvroUnionType = /** @class */ (function (_super) {
         _this._types = types;
         return _this;
     }
-    AvroUnionType.prototype.read = function (stream) {
+    AvroUnionType.prototype.read = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var typeIndex;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readInt(stream)];
+                    case 0: return [4 /*yield*/, AvroParser.readInt(stream, options)];
                     case 1:
                         typeIndex = _a.sent();
-                        return [4 /*yield*/, this._types[typeIndex].read(stream)];
+                        return [4 /*yield*/, this._types[typeIndex].read(stream, options)];
                     case 2: return [2 /*return*/, _a.sent()];
                 }
             });
@@ -24754,22 +22156,23 @@ var AvroMapType = /** @class */ (function (_super) {
         _this._itemType = itemType;
         return _this;
     }
-    AvroMapType.prototype.read = function (stream) {
+    AvroMapType.prototype.read = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var readItemMethod;
             var _this = this;
             return tslib.__generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        readItemMethod = function (s) { return tslib.__awaiter(_this, void 0, void 0, function () {
+                        readItemMethod = function (s, options) { return tslib.__awaiter(_this, void 0, void 0, function () {
                             return tslib.__generator(this, function (_a) {
                                 switch (_a.label) {
-                                    case 0: return [4 /*yield*/, this._itemType.read(s)];
+                                    case 0: return [4 /*yield*/, this._itemType.read(s, options)];
                                     case 1: return [2 /*return*/, _a.sent()];
                                 }
                             });
                         }); };
-                        return [4 /*yield*/, AvroParser.readMap(stream, readItemMethod)];
+                        return [4 /*yield*/, AvroParser.readMap(stream, readItemMethod, options)];
                     case 1: return [2 /*return*/, _a.sent()];
                 }
             });
@@ -24785,14 +22188,14 @@ var AvroRecordType = /** @class */ (function (_super) {
         _this._name = name;
         return _this;
     }
-    AvroRecordType.prototype.read = function (stream) {
+    AvroRecordType.prototype.read = function (stream, options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var record, _a, _b, _i, key, _c, _d;
             return tslib.__generator(this, function (_e) {
                 switch (_e.label) {
                     case 0:
                         record = {};
-                        //  FIXME: what for?
                         record["$schema"] = this._name;
                         _a = [];
                         for (_b in this._fields)
@@ -24805,7 +22208,7 @@ var AvroRecordType = /** @class */ (function (_super) {
                         if (!this._fields.hasOwnProperty(key)) return [3 /*break*/, 3];
                         _c = record;
                         _d = key;
-                        return [4 /*yield*/, this._fields[key].read(stream)];
+                        return [4 /*yield*/, this._fields[key].read(stream, options)];
                     case 2:
                         _c[_d] = _e.sent();
                         _e.label = 3;
@@ -24820,6 +22223,7 @@ var AvroRecordType = /** @class */ (function (_super) {
     return AvroRecordType;
 }(AvroType));
 
+// Copyright (c) Microsoft Corporation.
 var AvroReader = /** @class */ (function () {
     function AvroReader(dataStream, headerStream, currentBlockOffset, indexWithinCurrentBlock) {
         this._dataStream = dataStream;
@@ -24827,6 +22231,7 @@ var AvroReader = /** @class */ (function () {
         this._initialized = false;
         this._blockOffset = currentBlockOffset || 0;
         this._objectIndex = indexWithinCurrentBlock || 0;
+        this._initialBlockOffset = currentBlockOffset || 0;
     }
     Object.defineProperty(AvroReader.prototype, "blockOffset", {
         get: function () {
@@ -24842,13 +22247,15 @@ var AvroReader = /** @class */ (function () {
         enumerable: false,
         configurable: true
     });
-    // FUTURE: cancellation / aborter?
-    AvroReader.prototype.initialize = function () {
+    AvroReader.prototype.initialize = function (options) {
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var header, _a, codec, _b, schema, _c, i;
             return tslib.__generator(this, function (_d) {
                 switch (_d.label) {
-                    case 0: return [4 /*yield*/, AvroParser.readFixedBytes(this._headerStream, AVRO_INIT_BYTES.length)];
+                    case 0: return [4 /*yield*/, AvroParser.readFixedBytes(this._headerStream, AVRO_INIT_BYTES.length, {
+                            abortSignal: options.abortSignal
+                        })];
                     case 1:
                         header = _d.sent();
                         if (!arraysEqual(header, AVRO_INIT_BYTES)) {
@@ -24857,7 +22264,9 @@ var AvroReader = /** @class */ (function () {
                         // File metadata is written as if defined by the following map schema:
                         // { "type": "map", "values": "bytes"}
                         _a = this;
-                        return [4 /*yield*/, AvroParser.readMap(this._headerStream, AvroParser.readString)];
+                        return [4 /*yield*/, AvroParser.readMap(this._headerStream, AvroParser.readString, {
+                                abortSignal: options.abortSignal
+                            })];
                     case 2:
                         // File metadata is written as if defined by the following map schema:
                         // { "type": "map", "values": "bytes"}
@@ -24868,21 +22277,25 @@ var AvroReader = /** @class */ (function () {
                         }
                         // The 16-byte, randomly-generated sync marker for this file.
                         _b = this;
-                        return [4 /*yield*/, AvroParser.readFixedBytes(this._headerStream, AVRO_SYNC_MARKER_SIZE)];
+                        return [4 /*yield*/, AvroParser.readFixedBytes(this._headerStream, AVRO_SYNC_MARKER_SIZE, {
+                                abortSignal: options.abortSignal
+                            })];
                     case 3:
                         // The 16-byte, randomly-generated sync marker for this file.
                         _b._syncMarker = _d.sent();
                         schema = JSON.parse(this._metadata[AVRO_SCHEMA_KEY]);
                         this._itemType = AvroType.fromSchema(schema);
                         if (this._blockOffset == 0) {
-                            this._blockOffset = this._dataStream.position;
+                            this._blockOffset = this._initialBlockOffset + this._dataStream.position;
                         }
                         _c = this;
-                        return [4 /*yield*/, AvroParser.readLong(this._dataStream)];
+                        return [4 /*yield*/, AvroParser.readLong(this._dataStream, {
+                                abortSignal: options.abortSignal
+                            })];
                     case 4:
                         _c._itemsRemainingInBlock = _d.sent();
                         // skip block length
-                        return [4 /*yield*/, AvroParser.readLong(this._dataStream)];
+                        return [4 /*yield*/, AvroParser.readLong(this._dataStream, { abortSignal: options.abortSignal })];
                     case 5:
                         // skip block length
                         _d.sent();
@@ -24892,7 +22305,7 @@ var AvroReader = /** @class */ (function () {
                         _d.label = 6;
                     case 6:
                         if (!(i < this._objectIndex)) return [3 /*break*/, 9];
-                        return [4 /*yield*/, this._itemType.read(this._dataStream)];
+                        return [4 /*yield*/, this._itemType.read(this._dataStream, { abortSignal: options.abortSignal })];
                     case 7:
                         _d.sent();
                         this._itemsRemainingInBlock--;
@@ -24908,29 +22321,34 @@ var AvroReader = /** @class */ (function () {
     AvroReader.prototype.hasNext = function () {
         return !this._initialized || this._itemsRemainingInBlock > 0;
     };
-    AvroReader.prototype.parseObjects = function () {
+    AvroReader.prototype.parseObjects = function (options) {
+        if (options === void 0) { options = {}; }
         return tslib.__asyncGenerator(this, arguments, function parseObjects_1() {
             var result, marker, _a, err_1;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         if (!!this._initialized) return [3 /*break*/, 2];
-                        return [4 /*yield*/, tslib.__await(this.initialize())];
+                        return [4 /*yield*/, tslib.__await(this.initialize(options))];
                     case 1:
                         _b.sent();
                         _b.label = 2;
                     case 2:
                         if (!this.hasNext()) return [3 /*break*/, 13];
-                        return [4 /*yield*/, tslib.__await(this._itemType.read(this._dataStream))];
+                        return [4 /*yield*/, tslib.__await(this._itemType.read(this._dataStream, {
+                                abortSignal: options.abortSignal
+                            }))];
                     case 3:
                         result = _b.sent();
                         this._itemsRemainingInBlock--;
                         this._objectIndex++;
                         if (!(this._itemsRemainingInBlock == 0)) return [3 /*break*/, 10];
-                        return [4 /*yield*/, tslib.__await(AvroParser.readFixedBytes(this._dataStream, AVRO_SYNC_MARKER_SIZE))];
+                        return [4 /*yield*/, tslib.__await(AvroParser.readFixedBytes(this._dataStream, AVRO_SYNC_MARKER_SIZE, {
+                                abortSignal: options.abortSignal
+                            }))];
                     case 4:
                         marker = _b.sent();
-                        this._blockOffset = this._dataStream.position;
+                        this._blockOffset = this._initialBlockOffset + this._dataStream.position;
                         this._objectIndex = 0;
                         if (!arraysEqual(this._syncMarker, marker)) {
                             throw new Error("Stream is not a valid Avro file.");
@@ -24939,7 +22357,9 @@ var AvroReader = /** @class */ (function () {
                     case 5:
                         _b.trys.push([5, 7, , 8]);
                         _a = this;
-                        return [4 /*yield*/, tslib.__await(AvroParser.readLong(this._dataStream))];
+                        return [4 /*yield*/, tslib.__await(AvroParser.readLong(this._dataStream, {
+                                abortSignal: options.abortSignal
+                            }))];
                     case 6:
                         _a._itemsRemainingInBlock = _b.sent();
                         return [3 /*break*/, 8];
@@ -24951,7 +22371,7 @@ var AvroReader = /** @class */ (function () {
                     case 8:
                         if (!(this._itemsRemainingInBlock > 0)) return [3 /*break*/, 10];
                         // Ignore block size
-                        return [4 /*yield*/, tslib.__await(AvroParser.readLong(this._dataStream))];
+                        return [4 /*yield*/, tslib.__await(AvroParser.readLong(this._dataStream, { abortSignal: options.abortSignal }))];
                     case 9:
                         // Ignore block size
                         _b.sent();
@@ -24969,28 +22389,23 @@ var AvroReader = /** @class */ (function () {
     return AvroReader;
 }());
 
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 var AvroReadable = /** @class */ (function () {
     function AvroReadable() {
     }
     return AvroReadable;
 }());
 
+// Copyright (c) Microsoft Corporation.
+var ABORT_ERROR$1 = new abortController.AbortError("Reading from the avro stream was aborted.");
 var AvroReadableFromStream = /** @class */ (function (_super) {
     tslib.__extends(AvroReadableFromStream, _super);
-    // private _stillReadable: boolean;
     function AvroReadableFromStream(readable) {
         var _this = _super.call(this) || this;
         _this._readable = readable;
         _this._position = 0;
         return _this;
-        // workaround due to Readable.readable only available after Node.js v11.4
-        // this._stillReadable = true;
-        // this._readable.on("end", () => {
-        //   this._stillReadable = false;
-        // });
-        // this._readable.on("error", () => {
-        //   this._stillReadable = false;
-        // });
     }
     AvroReadableFromStream.prototype.toUint8Array = function (data) {
         if (typeof data === "string") {
@@ -25005,20 +22420,22 @@ var AvroReadableFromStream = /** @class */ (function (_super) {
         enumerable: false,
         configurable: true
     });
-    AvroReadableFromStream.prototype.read = function (size) {
+    AvroReadableFromStream.prototype.read = function (size, options) {
+        var _a;
+        if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
             var chunk;
             var _this = this;
-            return tslib.__generator(this, function (_a) {
-                // console.log(`reading stream for size ${size} at position ${this._position}`);
+            return tslib.__generator(this, function (_b) {
+                if ((_a = options.abortSignal) === null || _a === void 0 ? void 0 : _a.aborted) {
+                    throw ABORT_ERROR$1;
+                }
                 if (size < 0) {
                     throw new Error("size parameter should be positive: " + size);
                 }
                 if (size === 0) {
                     return [2 /*return*/, new Uint8Array()];
                 }
-                // readable is true if it is safe to call readable.read(), which means the stream has not been destroyed or emitted 'error' or 'end'.
-                // if (!this._stillReadable || this._readable.destroyed) {
                 if (!this._readable.readable) {
                     throw new Error("Stream no longer readable.");
                 }
@@ -25031,29 +22448,39 @@ var AvroReadableFromStream = /** @class */ (function (_super) {
                 else {
                     // register callback to wait for enough data to read
                     return [2 /*return*/, new Promise(function (resolve, reject) {
+                            var cleanUp = function () {
+                                _this._readable.removeListener("readable", readableCallback);
+                                _this._readable.removeListener("error", rejectCallback);
+                                _this._readable.removeListener("end", rejectCallback);
+                                _this._readable.removeListener("close", rejectCallback);
+                                if (options.abortSignal) {
+                                    options.abortSignal.removeEventListener("abort", abortHandler);
+                                }
+                            };
                             var readableCallback = function () {
                                 var chunk = _this._readable.read(size);
                                 if (chunk) {
                                     _this._position += chunk.length;
-                                    _this._readable.removeListener("readable", readableCallback);
-                                    _this._readable.removeListener("error", rejectCallback);
-                                    _this._readable.removeListener("end", rejectCallback);
-                                    _this._readable.removeListener("close", rejectCallback);
+                                    cleanUp();
                                     // chunk.length maybe less than desired size if the stream ends.
                                     resolve(_this.toUint8Array(chunk));
                                 }
                             };
                             var rejectCallback = function () {
-                                _this._readable.removeListener("readable", readableCallback);
-                                _this._readable.removeListener("error", rejectCallback);
-                                _this._readable.removeListener("end", rejectCallback);
-                                _this._readable.removeListener("close", rejectCallback);
+                                cleanUp();
                                 reject();
+                            };
+                            var abortHandler = function () {
+                                cleanUp();
+                                reject(ABORT_ERROR$1);
                             };
                             _this._readable.on("readable", readableCallback);
                             _this._readable.once("error", rejectCallback);
                             _this._readable.once("end", rejectCallback);
                             _this._readable.once("close", rejectCallback);
+                            if (options.abortSignal) {
+                                options.abortSignal.addEventListener("abort", abortHandler);
+                            }
                         })];
                 }
             });
@@ -25063,11 +22490,10 @@ var AvroReadableFromStream = /** @class */ (function (_super) {
 }(AvroReadable));
 
 // Copyright (c) Microsoft Corporation. All rights reserved.
-var ABORT_ERROR$1 = new abortController.AbortError("The operation was aborted.");
 /**
  * ONLY AVAILABLE IN NODE.JS RUNTIME.
  *
- * A Node.js BlobQuickQueryStream will internally parse avor data stream for blob query.
+ * A Node.js BlobQuickQueryStream will internally parse avro data stream for blob query.
  *
  * @class BlobQuickQueryStream
  * @extends {Readable}
@@ -25084,29 +22510,18 @@ var BlobQuickQueryStream = /** @class */ (function (_super) {
     function BlobQuickQueryStream(source, options) {
         if (options === void 0) { options = {}; }
         var _this = _super.call(this) || this;
-        _this.abortHandler = function () {
-            // Workaround before avor reader doesn't support aborter
-            _this.source.pause();
-            _this.source.removeAllListeners();
-            // TODO: Avor reader supports aborter
-            _this.emit("error", ABORT_ERROR$1);
-        };
-        _this.aborter = options.abortSignal || abortController.AbortSignal.none;
         _this.source = source;
         _this.onProgress = options.onProgress;
         _this.onError = options.onError;
         _this.avroReader = new AvroReader(new AvroReadableFromStream(_this.source));
-        _this.avroIter = _this.avroReader.parseObjects();
-        _this.aborter.addEventListener("abort", _this.abortHandler);
+        _this.avroIter = _this.avroReader.parseObjects({ abortSignal: options.abortSignal });
         return _this;
     }
     BlobQuickQueryStream.prototype._read = function () {
         var _this = this;
-        if (!this.aborter.aborted) {
-            this.readInternal().catch(function (err) {
-                _this.emit("error", err);
-            });
-        }
+        this.readInternal().catch(function (err) {
+            _this.emit("error", err);
+        });
     };
     BlobQuickQueryStream.prototype.readInternal = function () {
         var e_1, _a;
@@ -25122,19 +22537,16 @@ var BlobQuickQueryStream = /** @class */ (function (_super) {
                     case 2:
                         if (!(_c = _d.sent(), !_c.done)) return [3 /*break*/, 4];
                         obj = _c.value;
-                        if (this.aborter.aborted) {
-                            return [3 /*break*/, 4];
-                        }
                         schema = obj.$schema;
                         if (typeof schema !== "string") {
-                            throw Error("Missing schema in avor record.");
+                            throw Error("Missing schema in avro record.");
                         }
                         exit = false;
                         switch (schema) {
                             case "com.microsoft.azure.storage.queryBlobContents.resultData":
                                 data = obj.data;
                                 if (data instanceof Uint8Array === false) {
-                                    throw Error("Invalid data in avor result record.");
+                                    throw Error("Invalid data in avro result record.");
                                 }
                                 if (!this.push(Buffer.from(data))) {
                                     exit = true;
@@ -25143,7 +22555,7 @@ var BlobQuickQueryStream = /** @class */ (function (_super) {
                             case "com.microsoft.azure.storage.queryBlobContents.progress":
                                 bytesScanned = obj.bytesScanned;
                                 if (typeof bytesScanned !== "number") {
-                                    throw Error("Invalid bytesScanned in avor progress record.");
+                                    throw Error("Invalid bytesScanned in avro progress record.");
                                 }
                                 if (this.onProgress) {
                                     this.onProgress({ loadedBytes: bytesScanned });
@@ -25153,7 +22565,7 @@ var BlobQuickQueryStream = /** @class */ (function (_super) {
                                 if (this.onProgress) {
                                     totalBytes = obj.totalBytes;
                                     if (typeof totalBytes !== "number") {
-                                        throw Error("Invalid totalBytes in avor end record.");
+                                        throw Error("Invalid totalBytes in avro end record.");
                                     }
                                     this.onProgress({ loadedBytes: totalBytes });
                                 }
@@ -25163,19 +22575,19 @@ var BlobQuickQueryStream = /** @class */ (function (_super) {
                                 if (this.onError) {
                                     fatal = obj.fatal;
                                     if (typeof fatal !== "boolean") {
-                                        throw Error("Invalid fatal in avor error record.");
+                                        throw Error("Invalid fatal in avro error record.");
                                     }
                                     name_1 = obj.name;
                                     if (typeof name_1 !== "string") {
-                                        throw Error("Invalid name in avor error record.");
+                                        throw Error("Invalid name in avro error record.");
                                     }
                                     description = obj.description;
                                     if (typeof description !== "string") {
-                                        throw Error("Invalid description in avor error record.");
+                                        throw Error("Invalid description in avro error record.");
                                     }
                                     position = obj.position;
                                     if (typeof position !== "number") {
-                                        throw Error("Invalid position in avor error record.");
+                                        throw Error("Invalid position in avro error record.");
                                     }
                                     this.onError({
                                         position: position,
@@ -25186,7 +22598,7 @@ var BlobQuickQueryStream = /** @class */ (function (_super) {
                                 }
                                 break;
                             default:
-                                throw Error("Unknown schema " + schema + " in avor progress record.");
+                                throw Error("Unknown schema " + schema + " in avro progress record.");
                         }
                         if (exit) {
                             return [3 /*break*/, 4];
@@ -25809,133 +23221,6 @@ var BlobQueryResponse = /** @class */ (function () {
 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 /**
- * Credential policy used to sign HTTP(S) requests before sending. This is an
- * abstract class.
- *
- * @export
- * @abstract
- * @class CredentialPolicy
- * @extends {BaseRequestPolicy}
- */
-var CredentialPolicy = /** @class */ (function (_super) {
-    tslib.__extends(CredentialPolicy, _super);
-    function CredentialPolicy() {
-        return _super !== null && _super.apply(this, arguments) || this;
-    }
-    /**
-     * Sends out request.
-     *
-     * @param {WebResource} request
-     * @returns {Promise<HttpOperationResponse>}
-     * @memberof CredentialPolicy
-     */
-    CredentialPolicy.prototype.sendRequest = function (request) {
-        return this._nextPolicy.sendRequest(this.signRequest(request));
-    };
-    /**
-     * Child classes must implement this method with request signing. This method
-     * will be executed in {@link sendRequest}.
-     *
-     * @protected
-     * @abstract
-     * @param {WebResource} request
-     * @returns {WebResource}
-     * @memberof CredentialPolicy
-     */
-    CredentialPolicy.prototype.signRequest = function (request) {
-        // Child classes must override this method with request signing. This method
-        // will be executed in sendRequest().
-        return request;
-    };
-    return CredentialPolicy;
-}(coreHttp.BaseRequestPolicy));
-
-// Copyright (c) Microsoft Corporation. All rights reserved.
-/**
- * AnonymousCredentialPolicy is used with HTTP(S) requests that read public resources
- * or for use with Shared Access Signatures (SAS).
- *
- * @export
- * @class AnonymousCredentialPolicy
- * @extends {CredentialPolicy}
- */
-var AnonymousCredentialPolicy = /** @class */ (function (_super) {
-    tslib.__extends(AnonymousCredentialPolicy, _super);
-    /**
-     * Creates an instance of AnonymousCredentialPolicy.
-     * @param {RequestPolicy} nextPolicy
-     * @param {RequestPolicyOptions} options
-     * @memberof AnonymousCredentialPolicy
-     */
-    function AnonymousCredentialPolicy(nextPolicy, options) {
-        return _super.call(this, nextPolicy, options) || this;
-    }
-    return AnonymousCredentialPolicy;
-}(CredentialPolicy));
-
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
-/**
- * Credential is an abstract class for Azure Storage HTTP requests signing. This
- * class will host an credentialPolicyCreator factory which generates CredentialPolicy.
- *
- * @export
- * @abstract
- * @class Credential
- */
-var Credential = /** @class */ (function () {
-    function Credential() {
-    }
-    /**
-     * Creates a RequestPolicy object.
-     *
-     * @param {RequestPolicy} _nextPolicy
-     * @param {RequestPolicyOptions} _options
-     * @returns {RequestPolicy}
-     * @memberof Credential
-     */
-    Credential.prototype.create = function (
-    // tslint:disable-next-line:variable-name
-    _nextPolicy, 
-    // tslint:disable-next-line:variable-name
-    _options) {
-        throw new Error("Method should be implemented in children classes.");
-    };
-    return Credential;
-}());
-
-// Copyright (c) Microsoft Corporation. All rights reserved.
-/**
- * AnonymousCredential provides a credentialPolicyCreator member used to create
- * AnonymousCredentialPolicy objects. AnonymousCredentialPolicy is used with
- * HTTP(S) requests that read public resources or for use with Shared Access
- * Signatures (SAS).
- *
- * @export
- * @class AnonymousCredential
- * @extends {Credential}
- */
-var AnonymousCredential = /** @class */ (function (_super) {
-    tslib.__extends(AnonymousCredential, _super);
-    function AnonymousCredential() {
-        return _super !== null && _super.apply(this, arguments) || this;
-    }
-    /**
-     * Creates an {@link AnonymousCredentialPolicy} object.
-     *
-     * @param {RequestPolicy} nextPolicy
-     * @param {RequestPolicyOptions} options
-     * @returns {AnonymousCredentialPolicy}
-     * @memberof AnonymousCredential
-     */
-    AnonymousCredential.prototype.create = function (nextPolicy, options) {
-        return new AnonymousCredentialPolicy(nextPolicy, options);
-    };
-    return AnonymousCredential;
-}(Credential));
-
-// Copyright (c) Microsoft Corporation. All rights reserved.
-/**
  * StorageSharedKeyCredentialPolicy is a policy used to sign HTTP request with a shared key.
  *
  * @export
@@ -25988,12 +23273,6 @@ var StorageSharedKeyCredentialPolicy = /** @class */ (function (_super) {
             this.getCanonicalizedResourceString(request);
         var signature = this.factory.computeHMACSHA256(stringToSign);
         request.headers.set(HeaderConstants.AUTHORIZATION, "SharedKey " + this.factory.accountName + ":" + signature);
-        // Workaround for https://github.com/axios/axios/issues/2107
-        // We should always keep the 'content-length' header once the issue is solved
-        // For a better explanation about this workaround, look here: https://github.com/Azure/azure-sdk-for-js/pull/3273
-        if (typeof request.body !== "function" && !(request.body && request.onUploadProgress)) {
-            request.headers.remove(HeaderConstants.CONTENT_LENGTH);
-        }
         // console.log(`[URL]:${request.url}`);
         // console.log(`[HEADERS]:${request.headers.toString()}`);
         // console.log(`[STRING TO SIGN]:${JSON.stringify(stringToSign)}`);
@@ -26155,7 +23434,7 @@ var StorageSharedKeyCredential = /** @class */ (function (_super) {
  * regenerated.
  */
 var packageName = "azure-storage-blob";
-var packageVersion = "12.2.0-preview.1";
+var packageVersion = "12.2.1";
 var StorageClientContext = /** @class */ (function (_super) {
     tslib.__extends(StorageClientContext, _super);
     /**
@@ -26177,7 +23456,7 @@ var StorageClientContext = /** @class */ (function (_super) {
             options.userAgent = packageName + "/" + packageVersion + " " + defaultUserAgent;
         }
         _this = _super.call(this, undefined, options) || this;
-        _this.version = '2019-12-12';
+        _this.version = "2019-12-12";
         _this.baseUri = "{url}";
         _this.requestContentType = "application/json; charset=utf-8";
         _this.url = url;
@@ -26262,728 +23541,6 @@ function ensureCpkIfSpecified(cpk, isHttps) {
         cpk.encryptionAlgorithm = EncryptionAlgorithmAES25;
     }
 }
-
-// Copyright (c) Microsoft Corporation. All rights reserved.
-/**
- * Reads a readable stream into buffer. Fill the buffer from offset to end.
- *
- * @export
- * @param {NodeJS.ReadableStream} stream A Node.js Readable stream
- * @param {Buffer} buffer Buffer to be filled, length must >= offset
- * @param {number} offset From which position in the buffer to be filled, inclusive
- * @param {number} end To which position in the buffer to be filled, exclusive
- * @param {string} [encoding] Encoding of the Readable stream
- * @returns {Promise<void>}
- */
-function streamToBuffer(stream, buffer, offset, end, encoding) {
-    return tslib.__awaiter(this, void 0, void 0, function () {
-        var pos, count;
-        return tslib.__generator(this, function (_a) {
-            pos = 0;
-            count = end - offset;
-            return [2 /*return*/, new Promise(function (resolve, reject) {
-                    stream.on("readable", function () {
-                        if (pos >= count) {
-                            resolve();
-                            return;
-                        }
-                        var chunk = stream.read();
-                        if (!chunk) {
-                            return;
-                        }
-                        if (typeof chunk === "string") {
-                            chunk = Buffer.from(chunk, encoding);
-                        }
-                        // How much data needed in this chunk
-                        var chunkLength = pos + chunk.length > count ? count - pos : chunk.length;
-                        buffer.fill(chunk.slice(0, chunkLength), offset + pos, offset + pos + chunkLength);
-                        pos += chunkLength;
-                    });
-                    stream.on("end", function () {
-                        if (pos < count) {
-                            reject(new Error("Stream drains before getting enough data needed. Data read: " + pos + ", data need: " + count));
-                        }
-                        resolve();
-                    });
-                    stream.on("error", reject);
-                })];
-        });
-    });
-}
-/**
- * Reads a readable stream into buffer entirely.
- *
- * @export
- * @param {NodeJS.ReadableStream} stream A Node.js Readable stream
- * @param {Buffer} buffer Buffer to be filled, length must >= offset
- * @param {string} [encoding] Encoding of the Readable stream
- * @returns {Promise<number>} with the count of bytes read.
- * @throws {RangeError} If buffer size is not big enough.
- */
-function streamToBuffer2(stream, buffer, encoding) {
-    return tslib.__awaiter(this, void 0, void 0, function () {
-        var pos, bufferSize;
-        return tslib.__generator(this, function (_a) {
-            pos = 0;
-            bufferSize = buffer.length;
-            return [2 /*return*/, new Promise(function (resolve, reject) {
-                    stream.on("readable", function () {
-                        var chunk = stream.read();
-                        if (!chunk) {
-                            return;
-                        }
-                        if (typeof chunk === "string") {
-                            chunk = Buffer.from(chunk, encoding);
-                        }
-                        if (pos + chunk.length > bufferSize) {
-                            reject(new Error("Stream exceeds buffer size. Buffer size: " + bufferSize));
-                            return;
-                        }
-                        buffer.fill(chunk, pos, pos + chunk.length);
-                        pos += chunk.length;
-                    });
-                    stream.on("end", function () {
-                        resolve(pos);
-                    });
-                    stream.on("error", reject);
-                })];
-        });
-    });
-}
-/**
- * ONLY AVAILABLE IN NODE.JS RUNTIME.
- *
- * Writes the content of a readstream to a local file. Returns a Promise which is completed after the file handle is closed.
- *
- * @export
- * @param {NodeJS.ReadableStream} rs The read stream.
- * @param {string} file Destination file path.
- * @returns {Promise<void>}
- */
-function readStreamToLocalFile(rs, file) {
-    return tslib.__awaiter(this, void 0, void 0, function () {
-        return tslib.__generator(this, function (_a) {
-            return [2 /*return*/, new Promise(function (resolve, reject) {
-                    var ws = fs.createWriteStream(file);
-                    rs.on("error", function (err) {
-                        reject(err);
-                    });
-                    ws.on("error", function (err) {
-                        reject(err);
-                    });
-                    ws.on("close", resolve);
-                    rs.pipe(ws);
-                })];
-        });
-    });
-}
-/**
- * ONLY AVAILABLE IN NODE.JS RUNTIME.
- *
- * Promisified version of fs.stat().
- */
-var fsStat = util.promisify(fs.stat);
-
-// Copyright (c) Microsoft Corporation. All rights reserved.
-/**
- * States for Batch.
- *
- * @enum {number}
- */
-var BatchStates;
-(function (BatchStates) {
-    BatchStates[BatchStates["Good"] = 0] = "Good";
-    BatchStates[BatchStates["Error"] = 1] = "Error";
-})(BatchStates || (BatchStates = {}));
-/**
- * Batch provides basic parallel execution with concurrency limits.
- * Will stop execute left operations when one of the executed operation throws an error.
- * But Batch cannot cancel ongoing operations, you need to cancel them by yourself.
- *
- * @export
- * @class Batch
- */
-var Batch = /** @class */ (function () {
-    /**
-     * Creates an instance of Batch.
-     * @param {number} [concurrency=5]
-     * @memberof Batch
-     */
-    function Batch(concurrency) {
-        if (concurrency === void 0) { concurrency = 5; }
-        /**
-         * Number of active operations under execution.
-         *
-         * @private
-         * @type {number}
-         * @memberof Batch
-         */
-        this.actives = 0;
-        /**
-         * Number of completed operations under execution.
-         *
-         * @private
-         * @type {number}
-         * @memberof Batch
-         */
-        this.completed = 0;
-        /**
-         * Offset of next operation to be executed.
-         *
-         * @private
-         * @type {number}
-         * @memberof Batch
-         */
-        this.offset = 0;
-        /**
-         * Operation array to be executed.
-         *
-         * @private
-         * @type {Operation[]}
-         * @memberof Batch
-         */
-        this.operations = [];
-        /**
-         * States of Batch. When an error happens, state will turn into error.
-         * Batch will stop execute left operations.
-         *
-         * @private
-         * @type {BatchStates}
-         * @memberof Batch
-         */
-        this.state = BatchStates.Good;
-        if (concurrency < 1) {
-            throw new RangeError("concurrency must be larger than 0");
-        }
-        this.concurrency = concurrency;
-        this.emitter = new events.EventEmitter();
-    }
-    /**
-     * Add a operation into queue.
-     *
-     * @param {Operation} operation
-     * @memberof Batch
-     */
-    Batch.prototype.addOperation = function (operation) {
-        var _this = this;
-        this.operations.push(function () { return tslib.__awaiter(_this, void 0, void 0, function () {
-            var error_1;
-            return tslib.__generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        _a.trys.push([0, 2, , 3]);
-                        this.actives++;
-                        return [4 /*yield*/, operation()];
-                    case 1:
-                        _a.sent();
-                        this.actives--;
-                        this.completed++;
-                        this.parallelExecute();
-                        return [3 /*break*/, 3];
-                    case 2:
-                        error_1 = _a.sent();
-                        this.emitter.emit("error", error_1);
-                        return [3 /*break*/, 3];
-                    case 3: return [2 /*return*/];
-                }
-            });
-        }); });
-    };
-    /**
-     * Start execute operations in the queue.
-     *
-     * @returns {Promise<void>}
-     * @memberof Batch
-     */
-    Batch.prototype.do = function () {
-        return tslib.__awaiter(this, void 0, void 0, function () {
-            var _this = this;
-            return tslib.__generator(this, function (_a) {
-                if (this.operations.length === 0) {
-                    return [2 /*return*/, Promise.resolve()];
-                }
-                this.parallelExecute();
-                return [2 /*return*/, new Promise(function (resolve, reject) {
-                        _this.emitter.on("finish", resolve);
-                        _this.emitter.on("error", function (error) {
-                            _this.state = BatchStates.Error;
-                            reject(error);
-                        });
-                    })];
-            });
-        });
-    };
-    /**
-     * Get next operation to be executed. Return null when reaching ends.
-     *
-     * @private
-     * @returns {(Operation | null)}
-     * @memberof Batch
-     */
-    Batch.prototype.nextOperation = function () {
-        if (this.offset < this.operations.length) {
-            return this.operations[this.offset++];
-        }
-        return null;
-    };
-    /**
-     * Start execute operations. One one the most important difference between
-     * this method with do() is that do() wraps as an sync method.
-     *
-     * @private
-     * @returns {void}
-     * @memberof Batch
-     */
-    Batch.prototype.parallelExecute = function () {
-        if (this.state === BatchStates.Error) {
-            return;
-        }
-        if (this.completed >= this.operations.length) {
-            this.emitter.emit("finish");
-            return;
-        }
-        while (this.actives < this.concurrency) {
-            var operation = this.nextOperation();
-            if (operation) {
-                operation();
-            }
-            else {
-                return;
-            }
-        }
-    };
-    return Batch;
-}());
-
-// Copyright (c) Microsoft Corporation.
-/**
- * Creates a span using the global tracer.
- * @param name The name of the operation being performed.
- * @param tracingOptions The options for the underlying http request.
- */
-function createSpan(operationName, tracingOptions) {
-    if (tracingOptions === void 0) { tracingOptions = {}; }
-    var tracer = coreTracing.getTracer();
-    var spanOptions = tslib.__assign(tslib.__assign({}, tracingOptions.spanOptions), { kind: api.SpanKind.INTERNAL });
-    var span = tracer.startSpan("Azure.Storage.Blob." + operationName, spanOptions);
-    span.setAttribute("az.namespace", "Microsoft.Storage");
-    var newOptions = tracingOptions.spanOptions || {};
-    if (span.isRecording()) {
-        newOptions = tslib.__assign(tslib.__assign({}, tracingOptions.spanOptions), { parent: span.context(), attributes: tslib.__assign(tslib.__assign({}, spanOptions.attributes), { "az.namespace": "Microsoft.Storage" }) });
-    }
-    return {
-        span: span,
-        spanOptions: newOptions
-    };
-}
-
-// Copyright (c) Microsoft Corporation. All rights reserved.
-/**
- * A StorageClient represents a based URL class for {@link BlobServiceClient}, {@link ContainerClient}
- * and etc.
- *
- * @export
- * @class StorageClient
- */
-var StorageClient = /** @class */ (function () {
-    /**
-     * Creates an instance of StorageClient.
-     * @param {string} url url to resource
-     * @param {Pipeline} pipeline request policy pipeline.
-     * @memberof StorageClient
-     */
-    function StorageClient(url, pipeline) {
-        // URL should be encoded and only once, protocol layer shouldn't encode URL again
-        this.url = escapeURLPath(url);
-        this.accountName = getAccountNameFromUrl(url);
-        this.pipeline = pipeline;
-        this.storageClientContext = new StorageClientContext(this.url, pipeline.toServiceClientOptions());
-        this.isHttps = iEqual(getURLScheme(this.url) || "", "https");
-        this.credential = new AnonymousCredential();
-        for (var _i = 0, _a = this.pipeline.factories; _i < _a.length; _i++) {
-            var factory = _a[_i];
-            if ((coreHttp.isNode && factory instanceof StorageSharedKeyCredential) ||
-                factory instanceof AnonymousCredential ||
-                coreHttp.isTokenCredential(factory)) {
-                this.credential = factory;
-            }
-        }
-        // Override protocol layer's default content-type
-        var storageClientContext = this.storageClientContext;
-        storageClientContext.requestContentType = undefined;
-    }
-    return StorageClient;
-}());
-
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
-/**
- * Generate a range string. For example:
- *
- * "bytes=255-" or "bytes=0-511"
- *
- * @export
- * @param {Range} iRange
- * @returns {string}
- */
-function rangeToString(iRange) {
-    if (iRange.offset < 0) {
-        throw new RangeError("Range.offset cannot be smaller than 0.");
-    }
-    if (iRange.count && iRange.count <= 0) {
-        throw new RangeError("Range.count must be larger than 0. Leave it undefined if you want a range from offset to the end.");
-    }
-    return iRange.count
-        ? "bytes=" + iRange.offset + "-" + (iRange.offset + iRange.count - 1)
-        : "bytes=" + iRange.offset + "-";
-}
-
-// Copyright (c) Microsoft Corporation. All rights reserved.
-/**
- * This class accepts a Node.js Readable stream as input, and keeps reading data
- * from the stream into the internal buffer structure, until it reaches maxBuffers.
- * Every available buffer will try to trigger outgoingHandler.
- *
- * The internal buffer structure includes an incoming buffer array, and a outgoing
- * buffer array. The incoming buffer array includes the "empty" buffers can be filled
- * with new incoming data. The outgoing array includes the filled buffers to be
- * handled by outgoingHandler. Every above buffer size is defined by parameter bufferSize.
- *
- * NUM_OF_ALL_BUFFERS = BUFFERS_IN_INCOMING + BUFFERS_IN_OUTGOING + BUFFERS_UNDER_HANDLING
- *
- * NUM_OF_ALL_BUFFERS <= maxBuffers
- *
- * PERFORMANCE IMPROVEMENT TIPS:
- * 1. Input stream highWaterMark is better to set a same value with bufferSize
- *    parameter, which will avoid Buffer.concat() operations.
- * 2. concurrency should set a smaller value than maxBuffers, which is helpful to
- *    reduce the possibility when a outgoing handler waits for the stream data.
- *    in this situation, outgoing handlers are blocked.
- *    Outgoing queue shouldn't be empty.
- * @export
- * @class BufferScheduler
- */
-var BufferScheduler = /** @class */ (function () {
-    /**
-     * Creates an instance of BufferScheduler.
-     *
-     * @param {Readable} readable A Node.js Readable stream
-     * @param {number} bufferSize Buffer size of every maintained buffer
-     * @param {number} maxBuffers How many buffers can be allocated
-     * @param {OutgoingHandler} outgoingHandler An async function scheduled to be
-     *                                          triggered when a buffer fully filled
-     *                                          with stream data
-     * @param {number} concurrency Concurrency of executing outgoingHandlers (>0)
-     * @param {string} [encoding] [Optional] Encoding of Readable stream when it's a string stream
-     * @memberof BufferScheduler
-     */
-    function BufferScheduler(readable, bufferSize, maxBuffers, outgoingHandler, concurrency, encoding) {
-        /**
-         * An internal event emitter.
-         *
-         * @private
-         * @type {EventEmitter}
-         * @memberof BufferScheduler
-         */
-        this.emitter = new events.EventEmitter();
-        /**
-         * An internal offset marker to track data offset in bytes of next outgoingHandler.
-         *
-         * @private
-         * @type {number}
-         * @memberof BufferScheduler
-         */
-        this.offset = 0;
-        /**
-         * An internal marker to track whether stream is end.
-         *
-         * @private
-         * @type {boolean}
-         * @memberof BufferScheduler
-         */
-        this.isStreamEnd = false;
-        /**
-         * An internal marker to track whether stream or outgoingHandler returns error.
-         *
-         * @private
-         * @type {boolean}
-         * @memberof BufferScheduler
-         */
-        this.isError = false;
-        /**
-         * How many handlers are executing.
-         *
-         * @private
-         * @type {number}
-         * @memberof BufferScheduler
-         */
-        this.executingOutgoingHandlers = 0;
-        /**
-         * How many buffers have been allocated.
-         *
-         * @private
-         * @type {number}
-         * @memberof BufferScheduler
-         */
-        this.numBuffers = 0;
-        /**
-         * Because this class doesn't know how much data every time stream pops, which
-         * is defined by highWaterMarker of the stream. So BufferScheduler will cache
-         * data received from the stream, when data in unresolvedDataArray exceeds the
-         * blockSize defined, it will try to concat a blockSize of buffer, fill into available
-         * buffers from incoming and push to outgoing array.
-         *
-         * @private
-         * @type {Buffer[]}
-         * @memberof BufferScheduler
-         */
-        this.unresolvedDataArray = [];
-        /**
-         * How much data consisted in unresolvedDataArray.
-         *
-         * @private
-         * @type {number}
-         * @memberof BufferScheduler
-         */
-        this.unresolvedLength = 0;
-        /**
-         * The array includes all the available buffers can be used to fill data from stream.
-         *
-         * @private
-         * @type {Buffer[]}
-         * @memberof BufferScheduler
-         */
-        this.incoming = [];
-        /**
-         * The array (queue) includes all the buffers filled from stream data.
-         *
-         * @private
-         * @type {Buffer[]}
-         * @memberof BufferScheduler
-         */
-        this.outgoing = [];
-        if (bufferSize <= 0) {
-            throw new RangeError("bufferSize must be larger than 0, current is " + bufferSize);
-        }
-        if (maxBuffers <= 0) {
-            throw new RangeError("maxBuffers must be larger than 0, current is " + maxBuffers);
-        }
-        if (concurrency <= 0) {
-            throw new RangeError("concurrency must be larger than 0, current is " + concurrency);
-        }
-        this.bufferSize = bufferSize;
-        this.maxBuffers = maxBuffers;
-        this.readable = readable;
-        this.outgoingHandler = outgoingHandler;
-        this.concurrency = concurrency;
-        this.encoding = encoding;
-    }
-    /**
-     * Start the scheduler, will return error when stream of any of the outgoingHandlers
-     * returns error.
-     *
-     * @returns {Promise<void>}
-     * @memberof BufferScheduler
-     */
-    BufferScheduler.prototype.do = function () {
-        return tslib.__awaiter(this, void 0, void 0, function () {
-            var _this = this;
-            return tslib.__generator(this, function (_a) {
-                return [2 /*return*/, new Promise(function (resolve, reject) {
-                        _this.readable.on("data", function (data) {
-                            data = typeof data === "string" ? Buffer.from(data, _this.encoding) : data;
-                            _this.appendUnresolvedData(data);
-                            if (!_this.resolveData()) {
-                                _this.readable.pause();
-                            }
-                        });
-                        _this.readable.on("error", function (err) {
-                            _this.emitter.emit("error", err);
-                        });
-                        _this.readable.on("end", function () {
-                            _this.isStreamEnd = true;
-                            _this.emitter.emit("checkEnd");
-                        });
-                        _this.emitter.on("error", function (err) {
-                            _this.isError = true;
-                            _this.readable.pause();
-                            reject(err);
-                        });
-                        _this.emitter.on("checkEnd", function () {
-                            if (_this.outgoing.length > 0) {
-                                _this.triggerOutgoingHandlers();
-                                return;
-                            }
-                            if (_this.isStreamEnd && _this.executingOutgoingHandlers === 0) {
-                                if (_this.unresolvedLength > 0 && _this.unresolvedLength < _this.bufferSize) {
-                                    _this.outgoingHandler(_this.shiftBufferFromUnresolvedDataArray(), _this.offset)
-                                        .then(resolve)
-                                        .catch(reject);
-                                }
-                                else if (_this.unresolvedLength >= _this.bufferSize) {
-                                    return;
-                                }
-                                else {
-                                    resolve();
-                                }
-                            }
-                        });
-                    })];
-            });
-        });
-    };
-    /**
-     * Insert a new data into unresolved array.
-     *
-     * @private
-     * @param {Buffer} data
-     * @memberof BufferScheduler
-     */
-    BufferScheduler.prototype.appendUnresolvedData = function (data) {
-        this.unresolvedDataArray.push(data);
-        this.unresolvedLength += data.length;
-    };
-    /**
-     * Try to shift a buffer with size in blockSize. The buffer returned may be less
-     * than blockSize when data in unresolvedDataArray is less than bufferSize.
-     *
-     * @private
-     * @returns {Buffer}
-     * @memberof BufferScheduler
-     */
-    BufferScheduler.prototype.shiftBufferFromUnresolvedDataArray = function () {
-        if (this.unresolvedLength >= this.bufferSize) {
-            if (this.bufferSize === this.unresolvedDataArray[0].length) {
-                this.unresolvedLength -= this.bufferSize;
-                return this.unresolvedDataArray.shift();
-            }
-            // Lazy concat because Buffer.concat highly drops performance
-            var merged = Buffer.concat(this.unresolvedDataArray, this.unresolvedLength);
-            var buffer = merged.slice(0, this.bufferSize);
-            merged = merged.slice(this.bufferSize);
-            this.unresolvedDataArray = [merged];
-            this.unresolvedLength -= buffer.length;
-            return buffer;
-        }
-        else if (this.unresolvedLength > 0) {
-            var merged = Buffer.concat(this.unresolvedDataArray, this.unresolvedLength);
-            this.unresolvedDataArray = [];
-            this.unresolvedLength = 0;
-            return merged;
-        }
-        else {
-            return Buffer.allocUnsafe(0);
-        }
-    };
-    /**
-     * Resolve data in unresolvedDataArray. For every buffer with size in blockSize
-     * shifted, it will try to get (or allocate a buffer) from incoming, and fill it,
-     * then push it into outgoing to be handled by outgoing handler.
-     *
-     * Return false when available buffers in incoming are not enough, else true.
-     *
-     * @private
-     * @returns {boolean} Return false when buffers in incoming are not enough, else true.
-     * @memberof BufferScheduler
-     */
-    BufferScheduler.prototype.resolveData = function () {
-        while (this.unresolvedLength >= this.bufferSize) {
-            var buffer = void 0;
-            if (this.incoming.length > 0) {
-                buffer = this.incoming.shift();
-            }
-            else {
-                if (this.numBuffers < this.maxBuffers) {
-                    buffer = Buffer.allocUnsafe(this.bufferSize);
-                    this.numBuffers++;
-                }
-                else {
-                    // No available buffer, wait for buffer returned
-                    return false;
-                }
-            }
-            buffer.fill(this.shiftBufferFromUnresolvedDataArray());
-            this.outgoing.push(buffer);
-            this.triggerOutgoingHandlers();
-        }
-        return true;
-    };
-    /**
-     * Try to trigger a outgoing handler for every buffer in outgoing. Stop when
-     * concurrency reaches.
-     *
-     * @private
-     * @memberof BufferScheduler
-     */
-    BufferScheduler.prototype.triggerOutgoingHandlers = function () {
-        return tslib.__awaiter(this, void 0, void 0, function () {
-            var buffer;
-            return tslib.__generator(this, function (_a) {
-                do {
-                    if (this.executingOutgoingHandlers >= this.concurrency) {
-                        return [2 /*return*/];
-                    }
-                    buffer = this.outgoing.shift();
-                    if (buffer) {
-                        this.triggerOutgoingHandler(buffer);
-                    }
-                } while (buffer);
-                return [2 /*return*/];
-            });
-        });
-    };
-    /**
-     * Trigger a outgoing handler for a buffer shifted from outgoing.
-     *
-     * @private
-     * @param {Buffer} buffer
-     * @returns {Promise<any>}
-     * @memberof BufferScheduler
-     */
-    BufferScheduler.prototype.triggerOutgoingHandler = function (buffer) {
-        return tslib.__awaiter(this, void 0, void 0, function () {
-            var bufferLength, err_1;
-            return tslib.__generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        bufferLength = buffer.length;
-                        this.executingOutgoingHandlers++;
-                        this.offset += bufferLength;
-                        _a.label = 1;
-                    case 1:
-                        _a.trys.push([1, 3, , 4]);
-                        return [4 /*yield*/, this.outgoingHandler(buffer, this.offset - bufferLength)];
-                    case 2:
-                        _a.sent();
-                        return [3 /*break*/, 4];
-                    case 3:
-                        err_1 = _a.sent();
-                        this.emitter.emit("error", err_1);
-                        return [2 /*return*/];
-                    case 4:
-                        this.executingOutgoingHandlers--;
-                        this.reuseBuffer(buffer);
-                        this.emitter.emit("checkEnd");
-                        return [2 /*return*/];
-                }
-            });
-        });
-    };
-    /**
-     * Return buffer used by outgoing handler into incoming.
-     *
-     * @private
-     * @param {Buffer} buffer
-     * @memberof BufferScheduler
-     */
-    BufferScheduler.prototype.reuseBuffer = function (buffer) {
-        this.incoming.push(buffer);
-        if (!this.isError && this.resolveData() && !this.isStreamEnd) {
-            this.readable.resume();
-        }
-    };
-    return BufferScheduler;
-}());
 
 /**
  * Function that converts PageRange and ClearRange to a common Range object.
@@ -27167,6 +23724,906 @@ function makeBlobBeginCopyFromURLPollOperation(state) {
 }
 
 // Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+/**
+ * Generate a range string. For example:
+ *
+ * "bytes=255-" or "bytes=0-511"
+ *
+ * @export
+ * @param {Range} iRange
+ * @returns {string}
+ */
+function rangeToString(iRange) {
+    if (iRange.offset < 0) {
+        throw new RangeError("Range.offset cannot be smaller than 0.");
+    }
+    if (iRange.count && iRange.count <= 0) {
+        throw new RangeError("Range.count must be larger than 0. Leave it undefined if you want a range from offset to the end.");
+    }
+    return iRange.count
+        ? "bytes=" + iRange.offset + "-" + (iRange.offset + iRange.count - 1)
+        : "bytes=" + iRange.offset + "-";
+}
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+/**
+ * A StorageClient represents a based URL class for {@link BlobServiceClient}, {@link ContainerClient}
+ * and etc.
+ *
+ * @export
+ * @class StorageClient
+ */
+var StorageClient = /** @class */ (function () {
+    /**
+     * Creates an instance of StorageClient.
+     * @param {string} url url to resource
+     * @param {Pipeline} pipeline request policy pipeline.
+     * @memberof StorageClient
+     */
+    function StorageClient(url, pipeline) {
+        // URL should be encoded and only once, protocol layer shouldn't encode URL again
+        this.url = escapeURLPath(url);
+        this.accountName = getAccountNameFromUrl(url);
+        this.pipeline = pipeline;
+        this.storageClientContext = new StorageClientContext(this.url, pipeline.toServiceClientOptions());
+        this.isHttps = iEqual(getURLScheme(this.url) || "", "https");
+        this.credential = new AnonymousCredential();
+        for (var _i = 0, _a = this.pipeline.factories; _i < _a.length; _i++) {
+            var factory = _a[_i];
+            if ((coreHttp.isNode && factory instanceof StorageSharedKeyCredential) ||
+                factory instanceof AnonymousCredential ||
+                coreHttp.isTokenCredential(factory)) {
+                this.credential = factory;
+            }
+        }
+        // Override protocol layer's default content-type
+        var storageClientContext = this.storageClientContext;
+        storageClientContext.requestContentType = undefined;
+    }
+    return StorageClient;
+}());
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+/**
+ * States for Batch.
+ *
+ * @enum {number}
+ */
+var BatchStates;
+(function (BatchStates) {
+    BatchStates[BatchStates["Good"] = 0] = "Good";
+    BatchStates[BatchStates["Error"] = 1] = "Error";
+})(BatchStates || (BatchStates = {}));
+/**
+ * Batch provides basic parallel execution with concurrency limits.
+ * Will stop execute left operations when one of the executed operation throws an error.
+ * But Batch cannot cancel ongoing operations, you need to cancel them by yourself.
+ *
+ * @export
+ * @class Batch
+ */
+var Batch = /** @class */ (function () {
+    /**
+     * Creates an instance of Batch.
+     * @param {number} [concurrency=5]
+     * @memberof Batch
+     */
+    function Batch(concurrency) {
+        if (concurrency === void 0) { concurrency = 5; }
+        /**
+         * Number of active operations under execution.
+         *
+         * @private
+         * @type {number}
+         * @memberof Batch
+         */
+        this.actives = 0;
+        /**
+         * Number of completed operations under execution.
+         *
+         * @private
+         * @type {number}
+         * @memberof Batch
+         */
+        this.completed = 0;
+        /**
+         * Offset of next operation to be executed.
+         *
+         * @private
+         * @type {number}
+         * @memberof Batch
+         */
+        this.offset = 0;
+        /**
+         * Operation array to be executed.
+         *
+         * @private
+         * @type {Operation[]}
+         * @memberof Batch
+         */
+        this.operations = [];
+        /**
+         * States of Batch. When an error happens, state will turn into error.
+         * Batch will stop execute left operations.
+         *
+         * @private
+         * @type {BatchStates}
+         * @memberof Batch
+         */
+        this.state = BatchStates.Good;
+        if (concurrency < 1) {
+            throw new RangeError("concurrency must be larger than 0");
+        }
+        this.concurrency = concurrency;
+        this.emitter = new events.EventEmitter();
+    }
+    /**
+     * Add a operation into queue.
+     *
+     * @param {Operation} operation
+     * @memberof Batch
+     */
+    Batch.prototype.addOperation = function (operation) {
+        var _this = this;
+        this.operations.push(function () { return tslib.__awaiter(_this, void 0, void 0, function () {
+            var error_1;
+            return tslib.__generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        this.actives++;
+                        return [4 /*yield*/, operation()];
+                    case 1:
+                        _a.sent();
+                        this.actives--;
+                        this.completed++;
+                        this.parallelExecute();
+                        return [3 /*break*/, 3];
+                    case 2:
+                        error_1 = _a.sent();
+                        this.emitter.emit("error", error_1);
+                        return [3 /*break*/, 3];
+                    case 3: return [2 /*return*/];
+                }
+            });
+        }); });
+    };
+    /**
+     * Start execute operations in the queue.
+     *
+     * @returns {Promise<void>}
+     * @memberof Batch
+     */
+    Batch.prototype.do = function () {
+        return tslib.__awaiter(this, void 0, void 0, function () {
+            var _this = this;
+            return tslib.__generator(this, function (_a) {
+                if (this.operations.length === 0) {
+                    return [2 /*return*/, Promise.resolve()];
+                }
+                this.parallelExecute();
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        _this.emitter.on("finish", resolve);
+                        _this.emitter.on("error", function (error) {
+                            _this.state = BatchStates.Error;
+                            reject(error);
+                        });
+                    })];
+            });
+        });
+    };
+    /**
+     * Get next operation to be executed. Return null when reaching ends.
+     *
+     * @private
+     * @returns {(Operation | null)}
+     * @memberof Batch
+     */
+    Batch.prototype.nextOperation = function () {
+        if (this.offset < this.operations.length) {
+            return this.operations[this.offset++];
+        }
+        return null;
+    };
+    /**
+     * Start execute operations. One one the most important difference between
+     * this method with do() is that do() wraps as an sync method.
+     *
+     * @private
+     * @returns {void}
+     * @memberof Batch
+     */
+    Batch.prototype.parallelExecute = function () {
+        if (this.state === BatchStates.Error) {
+            return;
+        }
+        if (this.completed >= this.operations.length) {
+            this.emitter.emit("finish");
+            return;
+        }
+        while (this.actives < this.concurrency) {
+            var operation = this.nextOperation();
+            if (operation) {
+                operation();
+            }
+            else {
+                return;
+            }
+        }
+    };
+    return Batch;
+}());
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+/**
+ * This class generates a readable stream from the data in an array of buffers.
+ *
+ * @export
+ * @class BuffersStream
+ */
+var BuffersStream = /** @class */ (function (_super) {
+    tslib.__extends(BuffersStream, _super);
+    /**
+     * Creates an instance of BuffersStream that will emit the data
+     * contained in the array of buffers.
+     *
+     * @param {Buffer[]} buffers Array of buffers containing the data
+     * @param {number} byteLength The total length of data contained in the buffers
+     * @memberof BuffersStream
+     */
+    function BuffersStream(buffers, byteLength, options) {
+        var _this = _super.call(this, options) || this;
+        _this.buffers = buffers;
+        _this.byteLength = byteLength;
+        _this.byteOffsetInCurrentBuffer = 0;
+        _this.bufferIndex = 0;
+        _this.pushedBytesLength = 0;
+        // check byteLength is no larger than buffers[] total length
+        var buffersLength = 0;
+        for (var _i = 0, _a = _this.buffers; _i < _a.length; _i++) {
+            var buf = _a[_i];
+            buffersLength += buf.byteLength;
+        }
+        if (buffersLength < _this.byteLength) {
+            throw new Error("Data size shouldn't be larger than the total length of buffers.");
+        }
+        return _this;
+    }
+    /**
+     * Internal _read() that will be called when the stream wants to pull more data in.
+     *
+     * @param {number} size Optional. The size of data to be read
+     * @memberof BuffersStream
+     */
+    BuffersStream.prototype._read = function (size) {
+        if (this.pushedBytesLength >= this.byteLength) {
+            this.push(null);
+        }
+        if (!size) {
+            size = this.readableHighWaterMark;
+        }
+        var outBuffers = [];
+        var i = 0;
+        while (i < size && this.pushedBytesLength < this.byteLength) {
+            // The last buffer may be longer than the data it contains.
+            var remainingDataInAllBuffers = this.byteLength - this.pushedBytesLength;
+            var remainingCapacityInThisBuffer = this.buffers[this.bufferIndex].byteLength - this.byteOffsetInCurrentBuffer;
+            var remaining = Math.min(remainingCapacityInThisBuffer, remainingDataInAllBuffers);
+            if (remaining > size - i) {
+                // chunkSize = size - i
+                var end = this.byteOffsetInCurrentBuffer + size - i;
+                outBuffers.push(this.buffers[this.bufferIndex].slice(this.byteOffsetInCurrentBuffer, end));
+                this.pushedBytesLength += size - i;
+                this.byteOffsetInCurrentBuffer = end;
+                i = size;
+                break;
+            }
+            else {
+                // chunkSize = remaining
+                var end = this.byteOffsetInCurrentBuffer + remaining;
+                outBuffers.push(this.buffers[this.bufferIndex].slice(this.byteOffsetInCurrentBuffer, end));
+                if (remaining === remainingCapacityInThisBuffer) {
+                    // this.buffers[this.bufferIndex] used up, shift to next one
+                    this.byteOffsetInCurrentBuffer = 0;
+                    this.bufferIndex++;
+                }
+                else {
+                    this.byteOffsetInCurrentBuffer = end;
+                }
+                this.pushedBytesLength += remaining;
+                i += remaining;
+            }
+        }
+        if (outBuffers.length > 1) {
+            this.push(Buffer.concat(outBuffers));
+        }
+        else if (outBuffers.length === 1) {
+            this.push(outBuffers[0]);
+        }
+    };
+    return BuffersStream;
+}(stream.Readable));
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+/**
+ * maxBufferLength is max size of each buffer in the pooled buffers.
+ */
+// Can't use import as Typescript doesn't recognize "buffer".
+var maxBufferLength = __webpack_require__(4293).constants.MAX_LENGTH;
+/**
+ * This class provides a buffer container which conceptually has no hard size limit.
+ * It accepts a capacity, an array of input buffers and the total length of input data.
+ * It will allocate an internal "buffer" of the capacity and fill the data in the input buffers
+ * into the internal "buffer" serially with respect to the total length.
+ * Then by calling PooledBuffer.getReadableStream(), you can get a readable stream
+ * assembled from all the data in the internal "buffer".
+ *
+ * @export
+ * @class BufferScheduler
+ */
+var PooledBuffer = /** @class */ (function () {
+    function PooledBuffer(capacity, buffers, totalLength) {
+        /**
+         * Internal buffers used to keep the data.
+         * Each buffer has a length of the maxBufferLength except last one.
+         *
+         * @private
+         * @type {Buffer[]}
+         * @memberof PooledBuffer
+         */
+        this.buffers = [];
+        this.capacity = capacity;
+        this._size = 0;
+        // allocate
+        var bufferNum = Math.ceil(capacity / maxBufferLength);
+        for (var i = 0; i < bufferNum; i++) {
+            var len = i === bufferNum - 1 ? capacity % maxBufferLength : maxBufferLength;
+            if (len === 0) {
+                len = maxBufferLength;
+            }
+            this.buffers.push(Buffer.allocUnsafe(len));
+        }
+        if (buffers) {
+            this.fill(buffers, totalLength);
+        }
+    }
+    Object.defineProperty(PooledBuffer.prototype, "size", {
+        /**
+         * The size of the data contained in the pooled buffers.
+         */
+        get: function () {
+            return this._size;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    /**
+     * Fill the internal buffers with data in the input buffers serially
+     * with respect to the total length and the total capacity of the internal buffers.
+     * Data copied will be shift out of the input buffers.
+     *
+     * @param {Buffer[]} buffers Input buffers containing the data to be filled in the pooled buffer
+     * @param {number} totalLength Total length of the data to be filled in.
+     *
+     * @returns {void}
+     * @memberof PooledBuffer
+     */
+    PooledBuffer.prototype.fill = function (buffers, totalLength) {
+        this._size = Math.min(this.capacity, totalLength);
+        var i = 0, j = 0, targetOffset = 0, sourceOffset = 0, totalCopiedNum = 0;
+        while (totalCopiedNum < this._size) {
+            var source = buffers[i];
+            var target = this.buffers[j];
+            var copiedNum = source.copy(target, targetOffset, sourceOffset);
+            totalCopiedNum += copiedNum;
+            sourceOffset += copiedNum;
+            targetOffset += copiedNum;
+            if (sourceOffset === source.length) {
+                i++;
+                sourceOffset = 0;
+            }
+            if (targetOffset === target.length) {
+                j++;
+                targetOffset = 0;
+            }
+        }
+        // clear copied from source buffers
+        buffers.splice(0, i);
+        if (buffers.length > 0) {
+            buffers[0] = buffers[0].slice(sourceOffset);
+        }
+    };
+    /**
+     * Get the readable stream assembled from all the data in the internal buffers.
+     *
+     * @returns {Readable}
+     * @memberof PooledBuffer
+     */
+    PooledBuffer.prototype.getReadableStream = function () {
+        return new BuffersStream(this.buffers, this.size);
+    };
+    return PooledBuffer;
+}());
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+/**
+ * This class accepts a Node.js Readable stream as input, and keeps reading data
+ * from the stream into the internal buffer structure, until it reaches maxBuffers.
+ * Every available buffer will try to trigger outgoingHandler.
+ *
+ * The internal buffer structure includes an incoming buffer array, and a outgoing
+ * buffer array. The incoming buffer array includes the "empty" buffers can be filled
+ * with new incoming data. The outgoing array includes the filled buffers to be
+ * handled by outgoingHandler. Every above buffer size is defined by parameter bufferSize.
+ *
+ * NUM_OF_ALL_BUFFERS = BUFFERS_IN_INCOMING + BUFFERS_IN_OUTGOING + BUFFERS_UNDER_HANDLING
+ *
+ * NUM_OF_ALL_BUFFERS <= maxBuffers
+ *
+ * PERFORMANCE IMPROVEMENT TIPS:
+ * 1. Input stream highWaterMark is better to set a same value with bufferSize
+ *    parameter, which will avoid Buffer.concat() operations.
+ * 2. concurrency should set a smaller value than maxBuffers, which is helpful to
+ *    reduce the possibility when a outgoing handler waits for the stream data.
+ *    in this situation, outgoing handlers are blocked.
+ *    Outgoing queue shouldn't be empty.
+ * @export
+ * @class BufferScheduler
+ */
+var BufferScheduler = /** @class */ (function () {
+    /**
+     * Creates an instance of BufferScheduler.
+     *
+     * @param {Readable} readable A Node.js Readable stream
+     * @param {number} bufferSize Buffer size of every maintained buffer
+     * @param {number} maxBuffers How many buffers can be allocated
+     * @param {OutgoingHandler} outgoingHandler An async function scheduled to be
+     *                                          triggered when a buffer fully filled
+     *                                          with stream data
+     * @param {number} concurrency Concurrency of executing outgoingHandlers (>0)
+     * @param {string} [encoding] [Optional] Encoding of Readable stream when it's a string stream
+     * @memberof BufferScheduler
+     */
+    function BufferScheduler(readable, bufferSize, maxBuffers, outgoingHandler, concurrency, encoding) {
+        /**
+         * An internal event emitter.
+         *
+         * @private
+         * @type {EventEmitter}
+         * @memberof BufferScheduler
+         */
+        this.emitter = new events.EventEmitter();
+        /**
+         * An internal offset marker to track data offset in bytes of next outgoingHandler.
+         *
+         * @private
+         * @type {number}
+         * @memberof BufferScheduler
+         */
+        this.offset = 0;
+        /**
+         * An internal marker to track whether stream is end.
+         *
+         * @private
+         * @type {boolean}
+         * @memberof BufferScheduler
+         */
+        this.isStreamEnd = false;
+        /**
+         * An internal marker to track whether stream or outgoingHandler returns error.
+         *
+         * @private
+         * @type {boolean}
+         * @memberof BufferScheduler
+         */
+        this.isError = false;
+        /**
+         * How many handlers are executing.
+         *
+         * @private
+         * @type {number}
+         * @memberof BufferScheduler
+         */
+        this.executingOutgoingHandlers = 0;
+        /**
+         * How many buffers have been allocated.
+         *
+         * @private
+         * @type {number}
+         * @memberof BufferScheduler
+         */
+        this.numBuffers = 0;
+        /**
+         * Because this class doesn't know how much data every time stream pops, which
+         * is defined by highWaterMarker of the stream. So BufferScheduler will cache
+         * data received from the stream, when data in unresolvedDataArray exceeds the
+         * blockSize defined, it will try to concat a blockSize of buffer, fill into available
+         * buffers from incoming and push to outgoing array.
+         *
+         * @private
+         * @type {Buffer[]}
+         * @memberof BufferScheduler
+         */
+        this.unresolvedDataArray = [];
+        /**
+         * How much data consisted in unresolvedDataArray.
+         *
+         * @private
+         * @type {number}
+         * @memberof BufferScheduler
+         */
+        this.unresolvedLength = 0;
+        /**
+         * The array includes all the available buffers can be used to fill data from stream.
+         *
+         * @private
+         * @type {PooledBuffer[]}
+         * @memberof BufferScheduler
+         */
+        this.incoming = [];
+        /**
+         * The array (queue) includes all the buffers filled from stream data.
+         *
+         * @private
+         * @type {PooledBuffer[]}
+         * @memberof BufferScheduler
+         */
+        this.outgoing = [];
+        if (bufferSize <= 0) {
+            throw new RangeError("bufferSize must be larger than 0, current is " + bufferSize);
+        }
+        if (maxBuffers <= 0) {
+            throw new RangeError("maxBuffers must be larger than 0, current is " + maxBuffers);
+        }
+        if (concurrency <= 0) {
+            throw new RangeError("concurrency must be larger than 0, current is " + concurrency);
+        }
+        this.bufferSize = bufferSize;
+        this.maxBuffers = maxBuffers;
+        this.readable = readable;
+        this.outgoingHandler = outgoingHandler;
+        this.concurrency = concurrency;
+        this.encoding = encoding;
+    }
+    /**
+     * Start the scheduler, will return error when stream of any of the outgoingHandlers
+     * returns error.
+     *
+     * @returns {Promise<void>}
+     * @memberof BufferScheduler
+     */
+    BufferScheduler.prototype.do = function () {
+        return tslib.__awaiter(this, void 0, void 0, function () {
+            var _this = this;
+            return tslib.__generator(this, function (_a) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        _this.readable.on("data", function (data) {
+                            data = typeof data === "string" ? Buffer.from(data, _this.encoding) : data;
+                            _this.appendUnresolvedData(data);
+                            if (!_this.resolveData()) {
+                                _this.readable.pause();
+                            }
+                        });
+                        _this.readable.on("error", function (err) {
+                            _this.emitter.emit("error", err);
+                        });
+                        _this.readable.on("end", function () {
+                            _this.isStreamEnd = true;
+                            _this.emitter.emit("checkEnd");
+                        });
+                        _this.emitter.on("error", function (err) {
+                            _this.isError = true;
+                            _this.readable.pause();
+                            reject(err);
+                        });
+                        _this.emitter.on("checkEnd", function () {
+                            if (_this.outgoing.length > 0) {
+                                _this.triggerOutgoingHandlers();
+                                return;
+                            }
+                            if (_this.isStreamEnd && _this.executingOutgoingHandlers === 0) {
+                                if (_this.unresolvedLength > 0 && _this.unresolvedLength < _this.bufferSize) {
+                                    var buffer_1 = _this.shiftBufferFromUnresolvedDataArray();
+                                    _this.outgoingHandler(function () { return buffer_1.getReadableStream(); }, buffer_1.size, _this.offset)
+                                        .then(resolve)
+                                        .catch(reject);
+                                }
+                                else if (_this.unresolvedLength >= _this.bufferSize) {
+                                    return;
+                                }
+                                else {
+                                    resolve();
+                                }
+                            }
+                        });
+                    })];
+            });
+        });
+    };
+    /**
+     * Insert a new data into unresolved array.
+     *
+     * @private
+     * @param {Buffer} data
+     * @memberof BufferScheduler
+     */
+    BufferScheduler.prototype.appendUnresolvedData = function (data) {
+        this.unresolvedDataArray.push(data);
+        this.unresolvedLength += data.length;
+    };
+    /**
+     * Try to shift a buffer with size in blockSize. The buffer returned may be less
+     * than blockSize when data in unresolvedDataArray is less than bufferSize.
+     *
+     * @private
+     * @returns {PooledBuffer}
+     * @memberof BufferScheduler
+     */
+    BufferScheduler.prototype.shiftBufferFromUnresolvedDataArray = function (buffer) {
+        if (!buffer) {
+            buffer = new PooledBuffer(this.bufferSize, this.unresolvedDataArray, this.unresolvedLength);
+        }
+        else {
+            buffer.fill(this.unresolvedDataArray, this.unresolvedLength);
+        }
+        this.unresolvedLength -= buffer.size;
+        return buffer;
+    };
+    /**
+     * Resolve data in unresolvedDataArray. For every buffer with size in blockSize
+     * shifted, it will try to get (or allocate a buffer) from incoming, and fill it,
+     * then push it into outgoing to be handled by outgoing handler.
+     *
+     * Return false when available buffers in incoming are not enough, else true.
+     *
+     * @private
+     * @returns {boolean} Return false when buffers in incoming are not enough, else true.
+     * @memberof BufferScheduler
+     */
+    BufferScheduler.prototype.resolveData = function () {
+        while (this.unresolvedLength >= this.bufferSize) {
+            var buffer = void 0;
+            if (this.incoming.length > 0) {
+                buffer = this.incoming.shift();
+                this.shiftBufferFromUnresolvedDataArray(buffer);
+            }
+            else {
+                if (this.numBuffers < this.maxBuffers) {
+                    buffer = this.shiftBufferFromUnresolvedDataArray();
+                    this.numBuffers++;
+                }
+                else {
+                    // No available buffer, wait for buffer returned
+                    return false;
+                }
+            }
+            this.outgoing.push(buffer);
+            this.triggerOutgoingHandlers();
+        }
+        return true;
+    };
+    /**
+     * Try to trigger a outgoing handler for every buffer in outgoing. Stop when
+     * concurrency reaches.
+     *
+     * @private
+     * @memberof BufferScheduler
+     */
+    BufferScheduler.prototype.triggerOutgoingHandlers = function () {
+        return tslib.__awaiter(this, void 0, void 0, function () {
+            var buffer;
+            return tslib.__generator(this, function (_a) {
+                do {
+                    if (this.executingOutgoingHandlers >= this.concurrency) {
+                        return [2 /*return*/];
+                    }
+                    buffer = this.outgoing.shift();
+                    if (buffer) {
+                        this.triggerOutgoingHandler(buffer);
+                    }
+                } while (buffer);
+                return [2 /*return*/];
+            });
+        });
+    };
+    /**
+     * Trigger a outgoing handler for a buffer shifted from outgoing.
+     *
+     * @private
+     * @param {Buffer} buffer
+     * @returns {Promise<any>}
+     * @memberof BufferScheduler
+     */
+    BufferScheduler.prototype.triggerOutgoingHandler = function (buffer) {
+        return tslib.__awaiter(this, void 0, void 0, function () {
+            var bufferLength, err_1;
+            return tslib.__generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        bufferLength = buffer.size;
+                        this.executingOutgoingHandlers++;
+                        this.offset += bufferLength;
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, this.outgoingHandler(function () { return buffer.getReadableStream(); }, bufferLength, this.offset - bufferLength)];
+                    case 2:
+                        _a.sent();
+                        return [3 /*break*/, 4];
+                    case 3:
+                        err_1 = _a.sent();
+                        this.emitter.emit("error", err_1);
+                        return [2 /*return*/];
+                    case 4:
+                        this.executingOutgoingHandlers--;
+                        this.reuseBuffer(buffer);
+                        this.emitter.emit("checkEnd");
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    /**
+     * Return buffer used by outgoing handler into incoming.
+     *
+     * @private
+     * @param {Buffer} buffer
+     * @memberof BufferScheduler
+     */
+    BufferScheduler.prototype.reuseBuffer = function (buffer) {
+        this.incoming.push(buffer);
+        if (!this.isError && this.resolveData() && !this.isStreamEnd) {
+            this.readable.resume();
+        }
+    };
+    return BufferScheduler;
+}());
+
+// Copyright (c) Microsoft Corporation.
+/**
+ * Creates a span using the global tracer.
+ * @param name The name of the operation being performed.
+ * @param tracingOptions The options for the underlying http request.
+ */
+function createSpan(operationName, tracingOptions) {
+    if (tracingOptions === void 0) { tracingOptions = {}; }
+    var tracer = coreTracing.getTracer();
+    var spanOptions = tslib.__assign(tslib.__assign({}, tracingOptions.spanOptions), { kind: api.SpanKind.INTERNAL });
+    var span = tracer.startSpan("Azure.Storage.Blob." + operationName, spanOptions);
+    span.setAttribute("az.namespace", "Microsoft.Storage");
+    var newOptions = tracingOptions.spanOptions || {};
+    if (span.isRecording()) {
+        newOptions = tslib.__assign(tslib.__assign({}, tracingOptions.spanOptions), { parent: span.context(), attributes: tslib.__assign(tslib.__assign({}, spanOptions.attributes), { "az.namespace": "Microsoft.Storage" }) });
+    }
+    return {
+        span: span,
+        spanOptions: newOptions
+    };
+}
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
+/**
+ * Reads a readable stream into buffer. Fill the buffer from offset to end.
+ *
+ * @export
+ * @param {NodeJS.ReadableStream} stream A Node.js Readable stream
+ * @param {Buffer} buffer Buffer to be filled, length must >= offset
+ * @param {number} offset From which position in the buffer to be filled, inclusive
+ * @param {number} end To which position in the buffer to be filled, exclusive
+ * @param {string} [encoding] Encoding of the Readable stream
+ * @returns {Promise<void>}
+ */
+function streamToBuffer(stream, buffer, offset, end, encoding) {
+    return tslib.__awaiter(this, void 0, void 0, function () {
+        var pos, count;
+        return tslib.__generator(this, function (_a) {
+            pos = 0;
+            count = end - offset;
+            return [2 /*return*/, new Promise(function (resolve, reject) {
+                    stream.on("readable", function () {
+                        if (pos >= count) {
+                            resolve();
+                            return;
+                        }
+                        var chunk = stream.read();
+                        if (!chunk) {
+                            return;
+                        }
+                        if (typeof chunk === "string") {
+                            chunk = Buffer.from(chunk, encoding);
+                        }
+                        // How much data needed in this chunk
+                        var chunkLength = pos + chunk.length > count ? count - pos : chunk.length;
+                        buffer.fill(chunk.slice(0, chunkLength), offset + pos, offset + pos + chunkLength);
+                        pos += chunkLength;
+                    });
+                    stream.on("end", function () {
+                        if (pos < count) {
+                            reject(new Error("Stream drains before getting enough data needed. Data read: " + pos + ", data need: " + count));
+                        }
+                        resolve();
+                    });
+                    stream.on("error", reject);
+                })];
+        });
+    });
+}
+/**
+ * Reads a readable stream into buffer entirely.
+ *
+ * @export
+ * @param {NodeJS.ReadableStream} stream A Node.js Readable stream
+ * @param {Buffer} buffer Buffer to be filled, length must >= offset
+ * @param {string} [encoding] Encoding of the Readable stream
+ * @returns {Promise<number>} with the count of bytes read.
+ * @throws {RangeError} If buffer size is not big enough.
+ */
+function streamToBuffer2(stream, buffer, encoding) {
+    return tslib.__awaiter(this, void 0, void 0, function () {
+        var pos, bufferSize;
+        return tslib.__generator(this, function (_a) {
+            pos = 0;
+            bufferSize = buffer.length;
+            return [2 /*return*/, new Promise(function (resolve, reject) {
+                    stream.on("readable", function () {
+                        var chunk = stream.read();
+                        if (!chunk) {
+                            return;
+                        }
+                        if (typeof chunk === "string") {
+                            chunk = Buffer.from(chunk, encoding);
+                        }
+                        if (pos + chunk.length > bufferSize) {
+                            reject(new Error("Stream exceeds buffer size. Buffer size: " + bufferSize));
+                            return;
+                        }
+                        buffer.fill(chunk, pos, pos + chunk.length);
+                        pos += chunk.length;
+                    });
+                    stream.on("end", function () {
+                        resolve(pos);
+                    });
+                    stream.on("error", reject);
+                })];
+        });
+    });
+}
+/**
+ * ONLY AVAILABLE IN NODE.JS RUNTIME.
+ *
+ * Writes the content of a readstream to a local file. Returns a Promise which is completed after the file handle is closed.
+ *
+ * @export
+ * @param {NodeJS.ReadableStream} rs The read stream.
+ * @param {string} file Destination file path.
+ * @returns {Promise<void>}
+ */
+function readStreamToLocalFile(rs, file) {
+    return tslib.__awaiter(this, void 0, void 0, function () {
+        return tslib.__generator(this, function (_a) {
+            return [2 /*return*/, new Promise(function (resolve, reject) {
+                    var ws = fs.createWriteStream(file);
+                    rs.on("error", function (err) {
+                        reject(err);
+                    });
+                    ws.on("error", function (err) {
+                        reject(err);
+                    });
+                    ws.on("close", resolve);
+                    rs.pipe(ws);
+                })];
+        });
+    });
+}
+/**
+ * ONLY AVAILABLE IN NODE.JS RUNTIME.
+ *
+ * Promisified version of fs.stat().
+ */
+var fsStat = util.promisify(fs.stat);
+var fsCreateReadStream = fs.createReadStream;
+
 /**
  * A BlobClient represents a URL to an Azure Storage blob; the blob may be a block blob,
  * append blob, or page blob.
@@ -27318,7 +24775,7 @@ var BlobClient = /** @class */ (function (_super) {
      * @param {number} [offset] From which position of the blob to download, >= 0
      * @param {number} [count] How much data to be downloaded, > 0. Will download to the end when undefined
      * @param {BlobDownloadOptions} [options] Optional options to Blob Download operation.
-     * @returns {Promise<BlobDownloadResponseModel>}
+     * @returns {Promise<BlobDownloadResponseParsed>}
      * @memberof BlobClient
      *
      * Example usage (Node.js):
@@ -27326,20 +24783,20 @@ var BlobClient = /** @class */ (function (_super) {
      * ```js
      * // Download and convert a blob to a string
      * const downloadBlockBlobResponse = await blobClient.download();
-     * const downloaded = await streamToString(downloadBlockBlobResponse.readableStreamBody);
-     * console.log("Downloaded blob content:", downloaded);
+     * const downloaded = await streamToBuffer(downloadBlockBlobResponse.readableStreamBody);
+     * console.log("Downloaded blob content:", downloaded.toString());
      *
-     * async function streamToString(readableStream) {
-     *   return new Promise((resolve, reject) => {
-     *     const chunks = [];
-     *     readableStream.on("data", (data) => {
-     *       chunks.push(data.toString());
-     *     });
-     *     readableStream.on("end", () => {
-     *       resolve(chunks.join(""));
-     *     });
-     *     readableStream.on("error", reject);
-     *   });
+     * async function streamToBuffer(readableStream) {
+     * return new Promise((resolve, reject) => {
+     * const chunks = [];
+     * readableStream.on("data", (data) => {
+     * chunks.push(data instanceof Buffer ? data : Buffer.from(data));
+     * });
+     * readableStream.on("end", () => {
+     * resolve(Buffer.concat(chunks));
+     * });
+     * readableStream.on("error", reject);
+     * });
      * }
      * ```
      *
@@ -27367,25 +24824,26 @@ var BlobClient = /** @class */ (function (_super) {
      * ```
      */
     BlobClient.prototype.download = function (offset, count, options) {
+        var _a;
         if (offset === void 0) { offset = 0; }
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, res_1, e_1;
+            var _b, span, spanOptions, res_1, wrappedRes, e_1;
             var _this = this;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
                         options.conditions = options.conditions || {};
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
-                        _a = createSpan("BlobClient-download", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("BlobClient-download", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.blobContext.download({
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 onDownloadProgress: coreHttp.isNode ? undefined : options.onProgress,
                                 range: offset === 0 && !count ? undefined : rangeToString({ offset: offset, count: count }),
                                 rangeGetContentMD5: options.rangeGetContentMD5,
@@ -27395,7 +24853,8 @@ var BlobClient = /** @class */ (function (_super) {
                                 spanOptions: spanOptions
                             })];
                     case 2:
-                        res_1 = _b.sent();
+                        res_1 = _c.sent();
+                        wrappedRes = tslib.__assign(tslib.__assign({}, res_1), { _response: res_1._response, objectReplicationDestinationPolicyId: res_1.objectReplicationPolicyId, objectReplicationSourceProperties: parseObjectReplicationRecord(res_1.objectReplicationRules) });
                         // We support retrying when download stream unexpected ends in Node.js runtime
                         // Following code shouldn't be bundled into browser build, however some
                         // bundlers may try to bundle following code and "FileReadResponse.ts".
@@ -27411,10 +24870,11 @@ var BlobClient = /** @class */ (function (_super) {
                         if (!res_1.etag) {
                             throw new RangeError("File download response doesn't contain valid etag header");
                         }
-                        return [2 /*return*/, new BlobDownloadResponse(res_1, function (start) { return tslib.__awaiter(_this, void 0, void 0, function () {
+                        return [2 /*return*/, new BlobDownloadResponse(wrappedRes, function (start) { return tslib.__awaiter(_this, void 0, void 0, function () {
                                 var updatedOptions;
-                                return tslib.__generator(this, function (_a) {
-                                    switch (_a.label) {
+                                var _a;
+                                return tslib.__generator(this, function (_b) {
+                                    switch (_b.label) {
                                         case 0:
                                             updatedOptions = {
                                                 leaseAccessConditions: options.conditions,
@@ -27422,7 +24882,8 @@ var BlobClient = /** @class */ (function (_super) {
                                                     ifMatch: options.conditions.ifMatch || res_1.etag,
                                                     ifModifiedSince: options.conditions.ifModifiedSince,
                                                     ifNoneMatch: options.conditions.ifNoneMatch,
-                                                    ifUnmodifiedSince: options.conditions.ifUnmodifiedSince
+                                                    ifUnmodifiedSince: options.conditions.ifUnmodifiedSince,
+                                                    ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions
                                                 },
                                                 range: rangeToString({
                                                     count: offset + res_1.contentLength - start,
@@ -27441,7 +24902,7 @@ var BlobClient = /** @class */ (function (_super) {
                                         //     updatedOptions.range
                                         //   }, options: ${JSON.stringify(updatedOptions)}`
                                         // );
-                                        return [2 /*return*/, (_a.sent()).readableStreamBody];
+                                        return [2 /*return*/, (_b.sent()).readableStreamBody];
                                     }
                                 });
                             }); }, offset, res_1.contentLength, {
@@ -27450,7 +24911,7 @@ var BlobClient = /** @class */ (function (_super) {
                                 onProgress: options.onProgress
                             })];
                     case 3:
-                        e_1 = _b.sent();
+                        e_1 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_1.message
@@ -27533,28 +24994,31 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.getProperties = function (options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_3;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, res, e_3;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-getProperties", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("BlobClient-getProperties", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         options.conditions = options.conditions || {};
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.blobContext.getProperties({
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 cpkInfo: options.customerProvidedKey,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2:
+                        res = _c.sent();
+                        return [2 /*return*/, tslib.__assign(tslib.__assign({}, res), { _response: res._response, objectReplicationDestinationPolicyId: res.objectReplicationPolicyId, objectReplicationSourceProperties: parseObjectReplicationRecord(res.objectReplicationRules) })];
                     case 3:
-                        e_3 = _b.sent();
+                        e_3 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_3.message
@@ -27580,27 +25044,28 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.delete = function (options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_4;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_4;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-delete", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
+                        _b = createSpan("BlobClient-delete", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
                         options.conditions = options.conditions || {};
-                        _b.label = 1;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.blobContext.deleteMethod({
                                 abortSignal: options.abortSignal,
                                 deleteSnapshots: options.deleteSnapshots,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_4 = _b.sent();
+                        e_4 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_4.message
@@ -27640,7 +25105,8 @@ var BlobClient = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.delete(tslib.__assign(tslib.__assign({}, options), { tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 2:
                         res = _d.sent();
-                        return [2 /*return*/, tslib.__assign({ succeeded: true }, res)];
+                        return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: true }, res), { _response: res._response // _response is made non-enumerable
+                             })];
                     case 3:
                         e_5 = _d.sent();
                         if (((_a = e_5.details) === null || _a === void 0 ? void 0 : _a.errorCode) === "BlobNotFound") {
@@ -27719,29 +25185,30 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.setHTTPHeaders = function (blobHTTPHeaders, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_7;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_7;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-setHTTPHeaders", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
+                        _b = createSpan("BlobClient-setHTTPHeaders", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
                         options.conditions = options.conditions || {};
-                        _b.label = 1;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.blobContext.setHTTPHeaders({
                                 abortSignal: options.abortSignal,
                                 blobHTTPHeaders: blobHTTPHeaders,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 cpkInfo: options.customerProvidedKey,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_7 = _b.sent();
+                        e_7 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_7.message
@@ -27769,30 +25236,31 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.setMetadata = function (metadata, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_8;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_8;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-setMetadata", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
+                        _b = createSpan("BlobClient-setMetadata", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
                         options.conditions = options.conditions || {};
-                        _b.label = 1;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.blobContext.setMetadata({
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
                                 metadata: metadata,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 cpkInfo: options.customerProvidedKey,
                                 encryptionScope: options.encryptionScope,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_8 = _b.sent();
+                        e_8 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_8.message
@@ -27818,24 +25286,26 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.setTags = function (tags, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_9;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_9;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-setTags", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("BlobClient-setTags", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.blobContext.setTags({
                                 abortSignal: options.abortSignal,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 spanOptions: spanOptions,
                                 tags: toBlobTags(tags)
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_9 = _b.sent();
+                        e_9 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_9.message
@@ -27857,26 +25327,28 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.getTags = function (options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, response, wrappedResponse, e_10;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, response, wrappedResponse, e_10;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-getTags", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("BlobClient-getTags", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.blobContext.getTags({
                                 abortSignal: options.abortSignal,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 spanOptions: spanOptions
                             })];
                     case 2:
-                        response = _b.sent();
-                        wrappedResponse = tslib.__assign(tslib.__assign({}, response), { tags: toTags({ blobTagSet: response.blobTagSet }) || {} });
+                        response = _c.sent();
+                        wrappedResponse = tslib.__assign(tslib.__assign({}, response), { _response: response._response, tags: toTags({ blobTagSet: response.blobTagSet }) || {} });
                         return [2 /*return*/, wrappedResponse];
                     case 3:
-                        e_10 = _b.sent();
+                        e_10 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_10.message
@@ -27909,30 +25381,31 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.createSnapshot = function (options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_11;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_11;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-createSnapshot", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
+                        _b = createSpan("BlobClient-createSnapshot", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
                         options.conditions = options.conditions || {};
-                        _b.label = 1;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.blobContext.createSnapshot({
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
                                 metadata: options.metadata,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 cpkInfo: options.customerProvidedKey,
                                 encryptionScope: options.encryptionScope,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_11 = _b.sent();
+                        e_11 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_11.message
@@ -28122,23 +25595,24 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.syncCopyFromURL = function (copySource, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_13;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_13;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-syncCopyFromURL", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
+                        _b = createSpan("BlobClient-syncCopyFromURL", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
                         options.conditions = options.conditions || {};
                         options.sourceConditions = options.sourceConditions || {};
-                        _b.label = 1;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.blobContext.copyFromURL(copySource, {
                                 abortSignal: options.abortSignal,
                                 metadata: options.metadata,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 sourceModifiedAccessConditions: {
                                     sourceIfMatch: options.sourceConditions.ifMatch,
                                     sourceIfModifiedSince: options.sourceConditions.ifModifiedSince,
@@ -28149,9 +25623,9 @@ var BlobClient = /** @class */ (function (_super) {
                                 blobTagsString: toBlobTagsString(options.tags),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_13 = _b.sent();
+                        e_13 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_13.message
@@ -28179,25 +25653,27 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.setAccessTier = function (tier, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_14;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_14;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-setAccessTier", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("BlobClient-setAccessTier", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.blobContext.setTier(toAccessTier(tier), {
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 rehydratePriority: options.rehydratePriority,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_14 = _b.sent();
+                        e_14 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_14.message
@@ -28346,7 +25822,7 @@ var BlobClient = /** @class */ (function (_super) {
      * @param {number} [offset] From which position of the block blob to download.
      * @param {number} [count] How much data to be downloaded. Will download to the end when passing undefined.
      * @param {BlobDownloadOptions} [options] Options to Blob download options.
-     * @returns {Promise<BlobDownloadResponseModel>} The response data for blob download operation,
+     * @returns {Promise<BlobDownloadResponseParsed>} The response data for blob download operation,
      *                                                 but with readableStreamBody set to undefined since its
      *                                                 content is already read and written into a local file
      *                                                 at the specified path.
@@ -28410,13 +25886,20 @@ var BlobClient = /** @class */ (function (_super) {
                 containerName = pathComponents[1];
                 blobName = pathComponents[3];
             }
-            else {
+            else if (isIpEndpointStyle(parsedUrl)) {
                 // IPv4/IPv6 address hosts... Example - http://192.0.0.10:10001/devstoreaccount1/containername/blob
                 // Single word domain without a [dot] in the endpoint... Example - http://localhost:10001/devstoreaccount1/containername/blob
                 // .getPath() -> /devstoreaccount1/containername/blob
                 var pathComponents = parsedUrl.getPath().match("/([^/]*)/([^/]*)(/(.*))?");
                 containerName = pathComponents[2];
                 blobName = pathComponents[4];
+            }
+            else {
+                // "https://customdomain.com/containername/blob".
+                // .getPath() -> /containername/blob
+                var pathComponents = parsedUrl.getPath().match("/([^/]*)(/(.*))?");
+                containerName = pathComponents[1];
+                blobName = pathComponents[3];
             }
             // decode the encoded blobName, containerName - to get all the special characters that might be present in them
             containerName = decodeURIComponent(containerName);
@@ -28452,37 +25935,40 @@ var BlobClient = /** @class */ (function (_super) {
      * @memberof BlobClient
      */
     BlobClient.prototype.startCopyFromURL = function (copySource, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_17;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_17;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlobClient-startCopyFromURL", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
+                        _b = createSpan("BlobClient-startCopyFromURL", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
                         options.conditions = options.conditions || {};
                         options.sourceConditions = options.sourceConditions || {};
-                        _b.label = 1;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.blobContext.startCopyFromURL(copySource, {
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
                                 metadata: options.metadata,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 sourceModifiedAccessConditions: {
                                     sourceIfMatch: options.sourceConditions.ifMatch,
                                     sourceIfModifiedSince: options.sourceConditions.ifModifiedSince,
                                     sourceIfNoneMatch: options.sourceConditions.ifNoneMatch,
-                                    sourceIfUnmodifiedSince: options.sourceConditions.ifUnmodifiedSince
+                                    sourceIfUnmodifiedSince: options.sourceConditions.ifUnmodifiedSince,
+                                    sourceIfTags: options.sourceConditions.tagConditions
                                 },
                                 rehydratePriority: options.rehydratePriority,
                                 tier: toAccessTier(options.tier),
                                 blobTagsString: toBlobTagsString(options.tags),
+                                sealBlob: options.sealBlob,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_17 = _b.sent();
+                        e_17 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_17.message
@@ -28596,32 +26082,33 @@ var AppendBlobClient = /** @class */ (function (_super) {
      * ```
      */
     AppendBlobClient.prototype.create = function (options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_18;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_18;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("AppendBlobClient-create", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
+                        _b = createSpan("AppendBlobClient-create", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
                         options.conditions = options.conditions || {};
-                        _b.label = 1;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.appendBlobContext.create(0, {
                                 abortSignal: options.abortSignal,
                                 blobHTTPHeaders: options.blobHTTPHeaders,
                                 leaseAccessConditions: options.conditions,
                                 metadata: options.metadata,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 cpkInfo: options.customerProvidedKey,
                                 encryptionScope: options.encryptionScope,
                                 blobTagsString: toBlobTagsString(options.tags),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_18 = _b.sent();
+                        e_18 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
                             message: e_18.message
@@ -28660,7 +26147,8 @@ var AppendBlobClient = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.create(tslib.__assign(tslib.__assign({}, options), { conditions: conditions, tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 2:
                         res = _d.sent();
-                        return [2 /*return*/, tslib.__assign({ succeeded: true }, res)];
+                        return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: true }, res), { _response: res._response // _response is made non-enumerable
+                             })];
                     case 3:
                         e_19 = _d.sent();
                         if (((_a = e_19.details) === null || _a === void 0 ? void 0 : _a.errorCode) === "BlobAlreadyExists") {
@@ -28675,6 +26163,49 @@ var AppendBlobClient = /** @class */ (function (_super) {
                             message: e_19.message
                         });
                         throw e_19;
+                    case 4:
+                        span.end();
+                        return [7 /*endfinally*/];
+                    case 5: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    /**
+     * Seals the append blob, making it read only.
+     *
+     * @param {AppendBlobSealOptions} [options={}]
+     * @returns {Promise<AppendBlobAppendBlockResponse>}
+     * @memberof AppendBlobClient
+     */
+    AppendBlobClient.prototype.seal = function (options) {
+        var _a;
+        if (options === void 0) { options = {}; }
+        return tslib.__awaiter(this, void 0, void 0, function () {
+            var _b, span, spanOptions, e_20;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        _b = createSpan("AppendBlobClient-seal", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        options.conditions = options.conditions || {};
+                        _c.label = 1;
+                    case 1:
+                        _c.trys.push([1, 3, 4, 5]);
+                        return [4 /*yield*/, this.appendBlobContext.seal({
+                                abortSignal: options.abortSignal,
+                                appendPositionAccessConditions: options.conditions,
+                                leaseAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
+                                spanOptions: spanOptions
+                            })];
+                    case 2: return [2 /*return*/, _c.sent()];
+                    case 3:
+                        e_20 = _c.sent();
+                        span.setStatus({
+                            code: api.CanonicalCode.UNKNOWN,
+                            message: e_20.message
+                        });
+                        throw e_20;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -28709,23 +26240,24 @@ var AppendBlobClient = /** @class */ (function (_super) {
      * ```
      */
     AppendBlobClient.prototype.appendBlock = function (body, contentLength, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_20;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_21;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("AppendBlobClient-appendBlock", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
+                        _b = createSpan("AppendBlobClient-appendBlock", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
                         options.conditions = options.conditions || {};
-                        _b.label = 1;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.appendBlobContext.appendBlock(body, contentLength, {
                                 abortSignal: options.abortSignal,
                                 appendPositionAccessConditions: options.conditions,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 onUploadProgress: options.onProgress,
                                 transactionalContentMD5: options.transactionalContentMD5,
                                 transactionalContentCrc64: options.transactionalContentCrc64,
@@ -28733,14 +26265,14 @@ var AppendBlobClient = /** @class */ (function (_super) {
                                 encryptionScope: options.encryptionScope,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_20 = _b.sent();
+                        e_21 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_20.message
+                            message: e_21.message
                         });
-                        throw e_20;
+                        throw e_21;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -28766,18 +26298,19 @@ var AppendBlobClient = /** @class */ (function (_super) {
      * @memberof AppendBlobClient
      */
     AppendBlobClient.prototype.appendBlockFromURL = function (sourceURL, sourceOffset, count, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_21;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_22;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("AppendBlobClient-appendBlockFromURL", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
+                        _b = createSpan("AppendBlobClient-appendBlockFromURL", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
                         options.conditions = options.conditions || {};
                         options.sourceConditions = options.sourceConditions || {};
-                        _b.label = 1;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.appendBlobContext.appendBlockFromUrl(sourceURL, 0, {
                                 abortSignal: options.abortSignal,
@@ -28786,7 +26319,7 @@ var AppendBlobClient = /** @class */ (function (_super) {
                                 sourceContentCrc64: options.sourceContentCrc64,
                                 leaseAccessConditions: options.conditions,
                                 appendPositionAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 sourceModifiedAccessConditions: {
                                     sourceIfMatch: options.sourceConditions.ifMatch,
                                     sourceIfModifiedSince: options.sourceConditions.ifModifiedSince,
@@ -28797,14 +26330,14 @@ var AppendBlobClient = /** @class */ (function (_super) {
                                 encryptionScope: options.encryptionScope,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_21 = _b.sent();
+                        e_22 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_21.message
+                            message: e_22.message
                         });
-                        throw e_21;
+                        throw e_22;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -28899,6 +26432,8 @@ var BlockBlobClient = /** @class */ (function (_super) {
         return new BlockBlobClient(setURLParameter(this.url, URLConstants.Parameters.SNAPSHOT, snapshot.length === 0 ? undefined : snapshot), this.pipeline);
     };
     /**
+     * ONLY AVAILABLE IN NODE.JS RUNTIME.
+     *
      * Quick query for a JSON or CSV formatted blob.
      *
      * Example usage (Node.js):
@@ -28906,17 +26441,17 @@ var BlockBlobClient = /** @class */ (function (_super) {
      * ```js
      * // Query and convert a blob to a string
      * const queryBlockBlobResponse = await blockBlobClient.query("select * from BlobStorage");
-     * const downloaded = await streamToString(queryBlockBlobResponse.readableStreamBody);
+     * const downloaded = (await streamToBuffer(queryBlockBlobResponse.readableStreamBody)).toString();
      * console.log("Query blob content:", downloaded);
      *
-     * async function streamToString(readableStream) {
+     * async function streamToBuffer(readableStream) {
      *   return new Promise((resolve, reject) => {
      *     const chunks = [];
      *     readableStream.on("data", (data) => {
-     *       chunks.push(data.toString());
+     *       chunks.push(data instanceof Buffer ? data : Buffer.from(data));
      *     });
      *     readableStream.on("end", () => {
-     *       resolve(chunks.join(""));
+     *       resolve(Buffer.concat(chunks));
      *     });
      *     readableStream.on("error", reject);
      *   });
@@ -28929,17 +26464,18 @@ var BlockBlobClient = /** @class */ (function (_super) {
      * @memberof BlockBlobClient
      */
     BlockBlobClient.prototype.query = function (query, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, response, e_22;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, response, e_23;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
-                        _a = createSpan("BlockBlobClient-query", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("BlockBlobClient-query", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this._blobContext.query({
                                 abortSignal: options.abortSignal,
                                 queryRequest: {
@@ -28948,23 +26484,23 @@ var BlockBlobClient = /** @class */ (function (_super) {
                                     outputSerialization: toQuerySerialization(options.outputTextConfiguration)
                                 },
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 spanOptions: spanOptions
                             })];
                     case 2:
-                        response = _b.sent();
+                        response = _c.sent();
                         return [2 /*return*/, new BlobQueryResponse(response, {
                                 abortSignal: options.abortSignal,
                                 onProgress: options.onProgress,
                                 onError: options.onError
                             })];
                     case 3:
-                        e_22 = _b.sent();
+                        e_23 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_22.message
+                            message: e_23.message
                         });
-                        throw e_22;
+                        throw e_23;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29002,24 +26538,25 @@ var BlockBlobClient = /** @class */ (function (_super) {
      * ```
      */
     BlockBlobClient.prototype.upload = function (body, contentLength, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_23;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_24;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("BlockBlobClient-upload", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("BlockBlobClient-upload", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.blockBlobContext.upload(body, contentLength, {
                                 abortSignal: options.abortSignal,
                                 blobHTTPHeaders: options.blobHTTPHeaders,
                                 leaseAccessConditions: options.conditions,
                                 metadata: options.metadata,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 onUploadProgress: options.onProgress,
                                 cpkInfo: options.customerProvidedKey,
                                 encryptionScope: options.encryptionScope,
@@ -29027,14 +26564,14 @@ var BlockBlobClient = /** @class */ (function (_super) {
                                 blobTagsString: toBlobTagsString(options.tags),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_23 = _b.sent();
+                        e_24 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_23.message
+                            message: e_24.message
                         });
-                        throw e_23;
+                        throw e_24;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29058,7 +26595,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
     BlockBlobClient.prototype.stageBlock = function (blockId, body, contentLength, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_24;
+            var _a, span, spanOptions, e_25;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -29079,12 +26616,12 @@ var BlockBlobClient = /** @class */ (function (_super) {
                             })];
                     case 2: return [2 /*return*/, _b.sent()];
                     case 3:
-                        e_24 = _b.sent();
+                        e_25 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_24.message
+                            message: e_25.message
                         });
-                        throw e_24;
+                        throw e_25;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29119,7 +26656,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
         if (offset === void 0) { offset = 0; }
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_25;
+            var _a, span, spanOptions, e_26;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -29140,12 +26677,12 @@ var BlockBlobClient = /** @class */ (function (_super) {
                             })];
                     case 2: return [2 /*return*/, _b.sent()];
                     case 3:
-                        e_25 = _b.sent();
+                        e_26 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_25.message
+                            message: e_26.message
                         });
-                        throw e_25;
+                        throw e_26;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29168,38 +26705,39 @@ var BlockBlobClient = /** @class */ (function (_super) {
      * @memberof BlockBlobClient
      */
     BlockBlobClient.prototype.commitBlockList = function (blocks, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_26;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_27;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("BlockBlobClient-commitBlockList", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("BlockBlobClient-commitBlockList", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.blockBlobContext.commitBlockList({ latest: blocks }, {
                                 abortSignal: options.abortSignal,
                                 blobHTTPHeaders: options.blobHTTPHeaders,
                                 leaseAccessConditions: options.conditions,
                                 metadata: options.metadata,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 cpkInfo: options.customerProvidedKey,
                                 encryptionScope: options.encryptionScope,
                                 tier: toAccessTier(options.tier),
                                 blobTagsString: toBlobTagsString(options.tags),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_26 = _b.sent();
+                        e_27 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_26.message
+                            message: e_27.message
                         });
-                        throw e_26;
+                        throw e_27;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29220,23 +26758,25 @@ var BlockBlobClient = /** @class */ (function (_super) {
      * @memberof BlockBlobClient
      */
     BlockBlobClient.prototype.getBlockList = function (listType, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, res, e_27;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, res, e_28;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("BlockBlobClient-getBlockList", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("BlockBlobClient-getBlockList", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.blockBlobContext.getBlockList(listType, {
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 spanOptions: spanOptions
                             })];
                     case 2:
-                        res = _b.sent();
+                        res = _c.sent();
                         if (!res.committedBlocks) {
                             res.committedBlocks = [];
                         }
@@ -29245,12 +26785,12 @@ var BlockBlobClient = /** @class */ (function (_super) {
                         }
                         return [2 /*return*/, res];
                     case 3:
-                        e_27 = _b.sent();
+                        e_28 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_27.message
+                            message: e_28.message
                         });
-                        throw e_27;
+                        throw e_28;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29278,7 +26818,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
     BlockBlobClient.prototype.uploadBrowserData = function (browserData, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, browserBlob_1, e_28;
+            var _a, span, spanOptions, browserBlob_1, e_29;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -29292,12 +26832,12 @@ var BlockBlobClient = /** @class */ (function (_super) {
                             }, browserBlob_1.size, tslib.__assign(tslib.__assign({}, options), { tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 2: return [2 /*return*/, _b.sent()];
                     case 3:
-                        e_28 = _b.sent();
+                        e_29 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_28.message
+                            message: e_29.message
                         });
-                        throw e_28;
+                        throw e_29;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29325,7 +26865,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
     BlockBlobClient.prototype.uploadSeekableBlob = function (blobFactory, size, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, numBlocks_1, blockList_1, blockIDPrefix_1, transferProgress_2, batch, _loop_2, i, e_29;
+            var _a, span, spanOptions, numBlocks_1, blockList_1, blockIDPrefix_1, transferProgress_2, batch, _loop_2, i, e_30;
             var _this = this;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
@@ -29417,12 +26957,12 @@ var BlockBlobClient = /** @class */ (function (_super) {
                         _b.sent();
                         return [2 /*return*/, this.commitBlockList(blockList_1, tslib.__assign(tslib.__assign({}, options), { tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 5:
-                        e_29 = _b.sent();
+                        e_30 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_29.message
+                            message: e_30.message
                         });
-                        throw e_29;
+                        throw e_30;
                     case 6:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29448,7 +26988,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
     BlockBlobClient.prototype.uploadFile = function (filePath, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, size, e_30;
+            var _a, span, spanOptions, size, e_31;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -29460,7 +27000,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
                     case 2:
                         size = (_b.sent()).size;
                         return [4 /*yield*/, this.uploadResetableStream(function (offset, count) {
-                                return fs.createReadStream(filePath, {
+                                return fsCreateReadStream(filePath, {
                                     autoClose: true,
                                     end: count ? offset + count - 1 : Infinity,
                                     start: offset
@@ -29468,12 +27008,12 @@ var BlockBlobClient = /** @class */ (function (_super) {
                             }, size, tslib.__assign(tslib.__assign({}, options), { tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 3: return [2 /*return*/, _b.sent()];
                     case 4:
-                        e_30 = _b.sent();
+                        e_31 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_30.message
+                            message: e_31.message
                         });
-                        throw e_30;
+                        throw e_31;
                     case 5:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29504,7 +27044,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
         if (maxConcurrency === void 0) { maxConcurrency = 5; }
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, blockNum_1, blockIDPrefix_2, transferProgress_3, blockList_2, scheduler, e_31;
+            var _a, span, spanOptions, blockNum_1, blockIDPrefix_2, transferProgress_3, blockList_2, scheduler, e_32;
             var _this = this;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
@@ -29523,7 +27063,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
                         blockIDPrefix_2 = coreHttp.generateUuid();
                         transferProgress_3 = 0;
                         blockList_2 = [];
-                        scheduler = new BufferScheduler(stream, bufferSize, maxConcurrency, function (buffer) { return tslib.__awaiter(_this, void 0, void 0, function () {
+                        scheduler = new BufferScheduler(stream, bufferSize, maxConcurrency, function (body, length) { return tslib.__awaiter(_this, void 0, void 0, function () {
                             var blockID;
                             return tslib.__generator(this, function (_a) {
                                 switch (_a.label) {
@@ -29531,7 +27071,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
                                         blockID = generateBlockID(blockIDPrefix_2, blockNum_1);
                                         blockList_2.push(blockID);
                                         blockNum_1++;
-                                        return [4 /*yield*/, this.stageBlock(blockID, buffer, buffer.length, {
+                                        return [4 /*yield*/, this.stageBlock(blockID, body, length, {
                                                 conditions: options.conditions,
                                                 encryptionScope: options.encryptionScope,
                                                 tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions })
@@ -29539,7 +27079,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
                                     case 1:
                                         _a.sent();
                                         // Update progress after block is successfully uploaded to server, in case of block trying
-                                        transferProgress_3 += buffer.length;
+                                        transferProgress_3 += length;
                                         if (options.onProgress) {
                                             options.onProgress({ loadedBytes: transferProgress_3 });
                                         }
@@ -29558,12 +27098,12 @@ var BlockBlobClient = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.commitBlockList(blockList_2, tslib.__assign(tslib.__assign({}, options), { tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 3: return [2 /*return*/, _b.sent()];
                     case 4:
-                        e_31 = _b.sent();
+                        e_32 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_31.message
+                            message: e_32.message
                         });
-                        throw e_31;
+                        throw e_32;
                     case 5:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29594,7 +27134,7 @@ var BlockBlobClient = /** @class */ (function (_super) {
     BlockBlobClient.prototype.uploadResetableStream = function (streamFactory, size, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, numBlocks_2, blockList_3, blockIDPrefix_3, transferProgress_4, batch, _loop_3, i, e_32;
+            var _a, span, spanOptions, numBlocks_2, blockList_3, blockIDPrefix_3, transferProgress_4, batch, _loop_3, i, e_33;
             var _this = this;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
@@ -29684,12 +27224,12 @@ var BlockBlobClient = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.commitBlockList(blockList_3, tslib.__assign(tslib.__assign({}, options), { tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 5: return [2 /*return*/, _b.sent()];
                     case 6:
-                        e_32 = _b.sent();
+                        e_33 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_32.message
+                            message: e_33.message
                         });
-                        throw e_32;
+                        throw e_33;
                     case 7:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29793,17 +27333,18 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.create = function (size, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_33;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_34;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("PageBlobClient-create", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-create", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.pageBlobContext.create(0, size, {
                                 abortSignal: options.abortSignal,
@@ -29811,21 +27352,21 @@ var PageBlobClient = /** @class */ (function (_super) {
                                 blobSequenceNumber: options.blobSequenceNumber,
                                 leaseAccessConditions: options.conditions,
                                 metadata: options.metadata,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 cpkInfo: options.customerProvidedKey,
                                 encryptionScope: options.encryptionScope,
                                 tier: toAccessTier(options.tier),
                                 blobTagsString: toBlobTagsString(options.tags),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_33 = _b.sent();
+                        e_34 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_33.message
+                            message: e_34.message
                         });
-                        throw e_33;
+                        throw e_34;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29849,7 +27390,7 @@ var PageBlobClient = /** @class */ (function (_super) {
         var _a, _b;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _c, span, spanOptions, conditions, res, e_34;
+            var _c, span, spanOptions, conditions, res, e_35;
             return tslib.__generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -29861,21 +27402,22 @@ var PageBlobClient = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.create(size, tslib.__assign(tslib.__assign({}, options), { conditions: conditions, tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 2:
                         res = _d.sent();
-                        return [2 /*return*/, tslib.__assign({ succeeded: true }, res)];
+                        return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: true }, res), { _response: res._response // _response is made non-enumerable
+                             })];
                     case 3:
-                        e_34 = _d.sent();
-                        if (((_a = e_34.details) === null || _a === void 0 ? void 0 : _a.errorCode) === "BlobAlreadyExists") {
+                        e_35 = _d.sent();
+                        if (((_a = e_35.details) === null || _a === void 0 ? void 0 : _a.errorCode) === "BlobAlreadyExists") {
                             span.setStatus({
                                 code: api.CanonicalCode.ALREADY_EXISTS,
                                 message: "Expected exception when creating a blob only if it does not already exist."
                             });
-                            return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: false }, (_b = e_34.response) === null || _b === void 0 ? void 0 : _b.parsedHeaders), { _response: e_34.response })];
+                            return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: false }, (_b = e_35.response) === null || _b === void 0 ? void 0 : _b.parsedHeaders), { _response: e_35.response })];
                         }
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_34.message
+                            message: e_35.message
                         });
-                        throw e_34;
+                        throw e_35;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29896,22 +27438,23 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.uploadPages = function (body, offset, count, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_35;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_36;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("PageBlobClient-uploadPages", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-uploadPages", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.pageBlobContext.uploadPages(body, count, {
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 onUploadProgress: options.onProgress,
                                 range: rangeToString({ offset: offset, count: count }),
                                 sequenceNumberAccessConditions: options.conditions,
@@ -29921,14 +27464,14 @@ var PageBlobClient = /** @class */ (function (_super) {
                                 encryptionScope: options.encryptionScope,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_35 = _b.sent();
+                        e_36 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_35.message
+                            message: e_36.message
                         });
-                        throw e_35;
+                        throw e_36;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -29951,18 +27494,19 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.uploadPagesFromURL = function (sourceURL, sourceOffset, destOffset, count, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_36;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_37;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
                         options.sourceConditions = options.sourceConditions || {};
-                        _a = createSpan("PageBlobClient-uploadPagesFromURL", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-uploadPagesFromURL", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         ensureCpkIfSpecified(options.customerProvidedKey, this.isHttps);
                         return [4 /*yield*/, this.pageBlobContext.uploadPagesFromURL(sourceURL, rangeToString({ offset: sourceOffset, count: count }), 0, rangeToString({ offset: destOffset, count: count }), {
                                 abortSignal: options.abortSignal,
@@ -29970,7 +27514,7 @@ var PageBlobClient = /** @class */ (function (_super) {
                                 sourceContentCrc64: options.sourceContentCrc64,
                                 leaseAccessConditions: options.conditions,
                                 sequenceNumberAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 sourceModifiedAccessConditions: {
                                     sourceIfMatch: options.sourceConditions.ifMatch,
                                     sourceIfModifiedSince: options.sourceConditions.ifModifiedSince,
@@ -29981,14 +27525,14 @@ var PageBlobClient = /** @class */ (function (_super) {
                                 encryptionScope: options.encryptionScope,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_36 = _b.sent();
+                        e_37 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_36.message
+                            message: e_37.message
                         });
-                        throw e_36;
+                        throw e_37;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30008,36 +27552,37 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.clearPages = function (offset, count, options) {
+        var _a;
         if (offset === void 0) { offset = 0; }
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_37;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_38;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("PageBlobClient-clearPages", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-clearPages", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.pageBlobContext.clearPages(0, {
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 range: rangeToString({ offset: offset, count: count }),
                                 sequenceNumberAccessConditions: options.conditions,
                                 cpkInfo: options.customerProvidedKey,
                                 encryptionScope: options.encryptionScope,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_37 = _b.sent();
+                        e_38 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_37.message
+                            message: e_38.message
                         });
-                        throw e_37;
+                        throw e_38;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30057,35 +27602,36 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.getPageRanges = function (offset, count, options) {
+        var _a;
         if (offset === void 0) { offset = 0; }
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_38;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_39;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("PageBlobClient-getPageRanges", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-getPageRanges", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.pageBlobContext
                                 .getPageRanges({
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 range: rangeToString({ offset: offset, count: count }),
                                 spanOptions: spanOptions
                             })
                                 .then(rangeResponseFromModel)];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_38 = _b.sent();
+                        e_39 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_38.message
+                            message: e_39.message
                         });
-                        throw e_38;
+                        throw e_39;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30106,35 +27652,36 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.getPageRangesDiff = function (offset, count, prevSnapshot, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_39;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_40;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("PageBlobClient-getPageRangesDiff", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-getPageRangesDiff", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.pageBlobContext
                                 .getPageRangesDiff({
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 prevsnapshot: prevSnapshot,
                                 range: rangeToString({ offset: offset, count: count }),
                                 spanOptions: spanOptions
                             })
                                 .then(rangeResponseFromModel)];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_39 = _b.sent();
+                        e_40 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_39.message
+                            message: e_40.message
                         });
-                        throw e_39;
+                        throw e_40;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30155,35 +27702,36 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.getPageRangesDiffForManagedDisks = function (offset, count, prevSnapshotUrl, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_40;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_41;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("PageBlobClient-GetPageRangesDiffForManagedDisks", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-GetPageRangesDiffForManagedDisks", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.pageBlobContext
                                 .getPageRangesDiff({
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 prevSnapshotUrl: prevSnapshotUrl,
                                 range: rangeToString({ offset: offset, count: count }),
                                 spanOptions: spanOptions
                             })
                                 .then(rangeResponseFromModel)];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_40 = _b.sent();
+                        e_41 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_40.message
+                            message: e_41.message
                         });
-                        throw e_40;
+                        throw e_41;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30202,32 +27750,33 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.resize = function (size, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_41;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_42;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("PageBlobClient-resize", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-resize", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.pageBlobContext.resize(size, {
                                 abortSignal: options.abortSignal,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 encryptionScope: options.encryptionScope,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_41 = _b.sent();
+                        e_42 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_41.message
+                            message: e_42.message
                         });
-                        throw e_41;
+                        throw e_42;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30247,32 +27796,33 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.updateSequenceNumber = function (sequenceNumberAction, sequenceNumber, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_42;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_43;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         options.conditions = options.conditions || {};
-                        _a = createSpan("PageBlobClient-updateSequenceNumber", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-updateSequenceNumber", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.pageBlobContext.updateSequenceNumber(sequenceNumberAction, {
                                 abortSignal: options.abortSignal,
                                 blobSequenceNumber: sequenceNumber,
                                 leaseAccessConditions: options.conditions,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_42 = _b.sent();
+                        e_43 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_42.message
+                            message: e_43.message
                         });
-                        throw e_42;
+                        throw e_43;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30296,29 +27846,30 @@ var PageBlobClient = /** @class */ (function (_super) {
      * @memberof PageBlobClient
      */
     PageBlobClient.prototype.startCopyIncremental = function (copySource, options) {
+        var _a;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_43;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _b, span, spanOptions, e_44;
+            return tslib.__generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _a = createSpan("PageBlobClient-startCopyIncremental", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _b = createSpan("PageBlobClient-startCopyIncremental", options.tracingOptions), span = _b.span, spanOptions = _b.spanOptions;
+                        _c.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _c.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.pageBlobContext.copyIncremental(copySource, {
                                 abortSignal: options.abortSignal,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_a = options.conditions) === null || _a === void 0 ? void 0 : _a.tagConditions }),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_43 = _b.sent();
+                        e_44 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_43.message
+                            message: e_44.message
                         });
-                        throw e_43;
+                        throw e_44;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30346,9 +27897,11 @@ var BlobLeaseClient = /** @class */ (function () {
         var clientContext = new StorageClientContext(client.url, client.pipeline.toServiceClientOptions());
         this._url = client.url;
         if (client instanceof ContainerClient) {
+            this._isContainer = true;
             this._containerOrBlobOperation = new Container(clientContext);
         }
         else {
+            this._isContainer = false;
             this._containerOrBlobOperation = new Blob$1(clientContext);
         }
         if (!leaseId) {
@@ -30398,31 +27951,37 @@ var BlobLeaseClient = /** @class */ (function () {
      * @memberof BlobLeaseClient
      */
     BlobLeaseClient.prototype.acquireLease = function (duration, options) {
+        var _a, _b, _c, _d, _e, _f;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_44;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _g, span, spanOptions, e_45;
+            return tslib.__generator(this, function (_h) {
+                switch (_h.label) {
                     case 0:
-                        _a = createSpan("BlobLeaseClient-acquireLease", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _g = createSpan("BlobLeaseClient-acquireLease", options.tracingOptions), span = _g.span, spanOptions = _g.spanOptions;
+                        if (this._isContainer &&
+                            ((((_a = options.conditions) === null || _a === void 0 ? void 0 : _a.ifMatch) && ((_b = options.conditions) === null || _b === void 0 ? void 0 : _b.ifMatch) !== ETagNone) ||
+                                (((_c = options.conditions) === null || _c === void 0 ? void 0 : _c.ifNoneMatch) && ((_d = options.conditions) === null || _d === void 0 ? void 0 : _d.ifNoneMatch) !== ETagNone) || ((_e = options.conditions) === null || _e === void 0 ? void 0 : _e.tagConditions))) {
+                            throw new RangeError("The IfMatch, IfNoneMatch and tags access conditions are ignored by the service. Values other than undefined or their default values are not acceptable.");
+                        }
+                        _h.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _h.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this._containerOrBlobOperation.acquireLease({
                                 abortSignal: options.abortSignal,
                                 duration: duration,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_f = options.conditions) === null || _f === void 0 ? void 0 : _f.tagConditions }),
                                 proposedLeaseId: this._leaseId,
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _h.sent()];
                     case 3:
-                        e_44 = _b.sent();
+                        e_45 = _h.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_44.message
+                            message: e_45.message
                         });
-                        throw e_44;
+                        throw e_45;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30443,32 +28002,38 @@ var BlobLeaseClient = /** @class */ (function () {
      * @memberof BlobLeaseClient
      */
     BlobLeaseClient.prototype.changeLease = function (proposedLeaseId, options) {
+        var _a, _b, _c, _d, _e, _f;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, response, e_45;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _g, span, spanOptions, response, e_46;
+            return tslib.__generator(this, function (_h) {
+                switch (_h.label) {
                     case 0:
-                        _a = createSpan("BlobLeaseClient-changeLease", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _g = createSpan("BlobLeaseClient-changeLease", options.tracingOptions), span = _g.span, spanOptions = _g.spanOptions;
+                        if (this._isContainer &&
+                            ((((_a = options.conditions) === null || _a === void 0 ? void 0 : _a.ifMatch) && ((_b = options.conditions) === null || _b === void 0 ? void 0 : _b.ifMatch) !== ETagNone) ||
+                                (((_c = options.conditions) === null || _c === void 0 ? void 0 : _c.ifNoneMatch) && ((_d = options.conditions) === null || _d === void 0 ? void 0 : _d.ifNoneMatch) !== ETagNone) || ((_e = options.conditions) === null || _e === void 0 ? void 0 : _e.tagConditions))) {
+                            throw new RangeError("The IfMatch, IfNoneMatch and tags access conditions are ignored by the service. Values other than undefined or their default values are not acceptable.");
+                        }
+                        _h.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _h.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this._containerOrBlobOperation.changeLease(this._leaseId, proposedLeaseId, {
                                 abortSignal: options.abortSignal,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_f = options.conditions) === null || _f === void 0 ? void 0 : _f.tagConditions }),
                                 spanOptions: spanOptions
                             })];
                     case 2:
-                        response = _b.sent();
+                        response = _h.sent();
                         this._leaseId = proposedLeaseId;
                         return [2 /*return*/, response];
                     case 3:
-                        e_45 = _b.sent();
+                        e_46 = _h.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_45.message
+                            message: e_46.message
                         });
-                        throw e_45;
+                        throw e_46;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30489,29 +28054,35 @@ var BlobLeaseClient = /** @class */ (function () {
      * @memberof BlobLeaseClient
      */
     BlobLeaseClient.prototype.releaseLease = function (options) {
+        var _a, _b, _c, _d, _e, _f;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_46;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _g, span, spanOptions, e_47;
+            return tslib.__generator(this, function (_h) {
+                switch (_h.label) {
                     case 0:
-                        _a = createSpan("BlobLeaseClient-releaseLease", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _g = createSpan("BlobLeaseClient-releaseLease", options.tracingOptions), span = _g.span, spanOptions = _g.spanOptions;
+                        if (this._isContainer &&
+                            ((((_a = options.conditions) === null || _a === void 0 ? void 0 : _a.ifMatch) && ((_b = options.conditions) === null || _b === void 0 ? void 0 : _b.ifMatch) !== ETagNone) ||
+                                (((_c = options.conditions) === null || _c === void 0 ? void 0 : _c.ifNoneMatch) && ((_d = options.conditions) === null || _d === void 0 ? void 0 : _d.ifNoneMatch) !== ETagNone) || ((_e = options.conditions) === null || _e === void 0 ? void 0 : _e.tagConditions))) {
+                            throw new RangeError("The IfMatch, IfNoneMatch and tags access conditions are ignored by the service. Values other than undefined or their default values are not acceptable.");
+                        }
+                        _h.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _h.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this._containerOrBlobOperation.releaseLease(this._leaseId, {
                                 abortSignal: options.abortSignal,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_f = options.conditions) === null || _f === void 0 ? void 0 : _f.tagConditions }),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _h.sent()];
                     case 3:
-                        e_46 = _b.sent();
+                        e_47 = _h.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_46.message
+                            message: e_47.message
                         });
-                        throw e_46;
+                        throw e_47;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30531,29 +28102,35 @@ var BlobLeaseClient = /** @class */ (function () {
      * @memberof BlobLeaseClient
      */
     BlobLeaseClient.prototype.renewLease = function (options) {
+        var _a, _b, _c, _d, _e, _f;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_47;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _g, span, spanOptions, e_48;
+            return tslib.__generator(this, function (_h) {
+                switch (_h.label) {
                     case 0:
-                        _a = createSpan("BlobLeaseClient-renewLease", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _g = createSpan("BlobLeaseClient-renewLease", options.tracingOptions), span = _g.span, spanOptions = _g.spanOptions;
+                        if (this._isContainer &&
+                            ((((_a = options.conditions) === null || _a === void 0 ? void 0 : _a.ifMatch) && ((_b = options.conditions) === null || _b === void 0 ? void 0 : _b.ifMatch) !== ETagNone) ||
+                                (((_c = options.conditions) === null || _c === void 0 ? void 0 : _c.ifNoneMatch) && ((_d = options.conditions) === null || _d === void 0 ? void 0 : _d.ifNoneMatch) !== ETagNone) || ((_e = options.conditions) === null || _e === void 0 ? void 0 : _e.tagConditions))) {
+                            throw new RangeError("The IfMatch, IfNoneMatch and tags access conditions are ignored by the service. Values other than undefined or their default values are not acceptable.");
+                        }
+                        _h.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _h.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this._containerOrBlobOperation.renewLease(this._leaseId, {
                                 abortSignal: options.abortSignal,
-                                modifiedAccessConditions: options.conditions,
+                                modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_f = options.conditions) === null || _f === void 0 ? void 0 : _f.tagConditions }),
                                 spanOptions: spanOptions
                             })];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _h.sent()];
                     case 3:
-                        e_47 = _b.sent();
+                        e_48 = _h.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_47.message
+                            message: e_48.message
                         });
-                        throw e_47;
+                        throw e_48;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30576,31 +28153,37 @@ var BlobLeaseClient = /** @class */ (function () {
      * @memberof BlobLeaseClient
      */
     BlobLeaseClient.prototype.breakLease = function (breakPeriod, options) {
+        var _a, _b, _c, _d, _e, _f;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, operationOptions, e_48;
-            return tslib.__generator(this, function (_b) {
-                switch (_b.label) {
+            var _g, span, spanOptions, operationOptions, e_49;
+            return tslib.__generator(this, function (_h) {
+                switch (_h.label) {
                     case 0:
-                        _a = createSpan("BlobLeaseClient-breakLease", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
-                        _b.label = 1;
+                        _g = createSpan("BlobLeaseClient-breakLease", options.tracingOptions), span = _g.span, spanOptions = _g.spanOptions;
+                        if (this._isContainer &&
+                            ((((_a = options.conditions) === null || _a === void 0 ? void 0 : _a.ifMatch) && ((_b = options.conditions) === null || _b === void 0 ? void 0 : _b.ifMatch) !== ETagNone) ||
+                                (((_c = options.conditions) === null || _c === void 0 ? void 0 : _c.ifNoneMatch) && ((_d = options.conditions) === null || _d === void 0 ? void 0 : _d.ifNoneMatch) !== ETagNone) || ((_e = options.conditions) === null || _e === void 0 ? void 0 : _e.tagConditions))) {
+                            throw new RangeError("The IfMatch, IfNoneMatch and tags access conditions are ignored by the service. Values other than undefined or their default values are not acceptable.");
+                        }
+                        _h.label = 1;
                     case 1:
-                        _b.trys.push([1, 3, 4, 5]);
+                        _h.trys.push([1, 3, 4, 5]);
                         operationOptions = {
                             abortSignal: options.abortSignal,
                             breakPeriod: breakPeriod,
-                            modifiedAccessConditions: options.conditions,
+                            modifiedAccessConditions: tslib.__assign(tslib.__assign({}, options.conditions), { ifTags: (_f = options.conditions) === null || _f === void 0 ? void 0 : _f.tagConditions }),
                             spanOptions: spanOptions
                         };
                         return [4 /*yield*/, this._containerOrBlobOperation.breakLease(operationOptions)];
-                    case 2: return [2 /*return*/, _b.sent()];
+                    case 2: return [2 /*return*/, _h.sent()];
                     case 3:
-                        e_48 = _b.sent();
+                        e_49 = _h.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_48.message
+                            message: e_49.message
                         });
-                        throw e_48;
+                        throw e_49;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30705,7 +28288,7 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.create = function (options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_49;
+            var _a, span, spanOptions, e_50;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -30719,12 +28302,12 @@ var ContainerClient = /** @class */ (function (_super) {
                     // this will filter out unwanted properties from the response object into result object
                     return [2 /*return*/, _b.sent()];
                     case 3:
-                        e_49 = _b.sent();
+                        e_50 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_49.message
+                            message: e_50.message
                         });
-                        throw e_49;
+                        throw e_50;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30746,7 +28329,7 @@ var ContainerClient = /** @class */ (function (_super) {
         var _a, _b;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _c, span, spanOptions, res, e_50;
+            var _c, span, spanOptions, res, e_51;
             return tslib.__generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -30757,21 +28340,22 @@ var ContainerClient = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.create(tslib.__assign(tslib.__assign({}, options), { tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 2:
                         res = _d.sent();
-                        return [2 /*return*/, tslib.__assign({ succeeded: true }, res)];
+                        return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: true }, res), { _response: res._response // _response is made non-enumerable
+                             })];
                     case 3:
-                        e_50 = _d.sent();
-                        if (((_a = e_50.details) === null || _a === void 0 ? void 0 : _a.errorCode) === "ContainerAlreadyExists") {
+                        e_51 = _d.sent();
+                        if (((_a = e_51.details) === null || _a === void 0 ? void 0 : _a.errorCode) === "ContainerAlreadyExists") {
                             span.setStatus({
                                 code: api.CanonicalCode.ALREADY_EXISTS,
                                 message: "Expected exception when creating a container only if it does not already exist."
                             });
-                            return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: false }, (_b = e_50.response) === null || _b === void 0 ? void 0 : _b.parsedHeaders), { _response: e_50.response })];
+                            return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: false }, (_b = e_51.response) === null || _b === void 0 ? void 0 : _b.parsedHeaders), { _response: e_51.response })];
                         }
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_50.message
+                            message: e_51.message
                         });
-                        throw e_50;
+                        throw e_51;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30794,7 +28378,7 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.exists = function (options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_51;
+            var _a, span, spanOptions, e_52;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -30810,8 +28394,8 @@ var ContainerClient = /** @class */ (function (_super) {
                         _b.sent();
                         return [2 /*return*/, true];
                     case 3:
-                        e_51 = _b.sent();
-                        if (e_51.statusCode === 404) {
+                        e_52 = _b.sent();
+                        if (e_52.statusCode === 404) {
                             span.setStatus({
                                 code: api.CanonicalCode.NOT_FOUND,
                                 message: "Expected exception when checking container existence"
@@ -30820,9 +28404,9 @@ var ContainerClient = /** @class */ (function (_super) {
                         }
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_51.message
+                            message: e_52.message
                         });
-                        throw e_51;
+                        throw e_52;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30897,7 +28481,7 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.getProperties = function (options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_52;
+            var _a, span, spanOptions, e_53;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -30911,12 +28495,12 @@ var ContainerClient = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.containerContext.getProperties(tslib.__assign(tslib.__assign({ abortSignal: options.abortSignal }, options.conditions), { spanOptions: spanOptions }))];
                     case 2: return [2 /*return*/, _b.sent()];
                     case 3:
-                        e_52 = _b.sent();
+                        e_53 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_52.message
+                            message: e_53.message
                         });
-                        throw e_52;
+                        throw e_53;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30937,17 +28521,12 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.delete = function (options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_53;
+            var _a, span, spanOptions, e_54;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         if (!options.conditions) {
                             options.conditions = {};
-                        }
-                        if ((options.conditions.ifMatch && options.conditions.ifMatch !== ETagNone) ||
-                            (options.conditions.ifNoneMatch && options.conditions.ifNoneMatch !== ETagNone)) {
-                            throw new RangeError("the IfMatch and IfNoneMatch access conditions must have their default\
-        values because they are ignored by the service");
                         }
                         _a = createSpan("ContainerClient-delete", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
                         _b.label = 1;
@@ -30961,12 +28540,12 @@ var ContainerClient = /** @class */ (function (_super) {
                             })];
                     case 2: return [2 /*return*/, _b.sent()];
                     case 3:
-                        e_53 = _b.sent();
+                        e_54 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_53.message
+                            message: e_54.message
                         });
-                        throw e_53;
+                        throw e_54;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -30988,7 +28567,7 @@ var ContainerClient = /** @class */ (function (_super) {
         var _a, _b;
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _c, span, spanOptions, res, e_54;
+            var _c, span, spanOptions, res, e_55;
             return tslib.__generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -30999,21 +28578,22 @@ var ContainerClient = /** @class */ (function (_super) {
                         return [4 /*yield*/, this.delete(tslib.__assign(tslib.__assign({}, options), { tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 2:
                         res = _d.sent();
-                        return [2 /*return*/, tslib.__assign({ succeeded: true }, res)];
+                        return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: true }, res), { _response: res._response // _response is made non-enumerable
+                             })];
                     case 3:
-                        e_54 = _d.sent();
-                        if (((_a = e_54.details) === null || _a === void 0 ? void 0 : _a.errorCode) === "ContainerNotFound") {
+                        e_55 = _d.sent();
+                        if (((_a = e_55.details) === null || _a === void 0 ? void 0 : _a.errorCode) === "ContainerNotFound") {
                             span.setStatus({
                                 code: api.CanonicalCode.NOT_FOUND,
                                 message: "Expected exception when deleting a container only if it exists."
                             });
-                            return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: false }, (_b = e_54.response) === null || _b === void 0 ? void 0 : _b.parsedHeaders), { _response: e_54.response })];
+                            return [2 /*return*/, tslib.__assign(tslib.__assign({ succeeded: false }, (_b = e_55.response) === null || _b === void 0 ? void 0 : _b.parsedHeaders), { _response: e_55.response })];
                         }
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_54.message
+                            message: e_55.message
                         });
-                        throw e_54;
+                        throw e_55;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -31039,18 +28619,15 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.setMetadata = function (metadata, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, e_55;
+            var _a, span, spanOptions, e_56;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         if (!options.conditions) {
                             options.conditions = {};
                         }
-                        if (options.conditions.ifUnmodifiedSince ||
-                            (options.conditions.ifMatch && options.conditions.ifMatch !== ETagNone) ||
-                            (options.conditions.ifNoneMatch && options.conditions.ifNoneMatch !== ETagNone)) {
-                            throw new RangeError("the IfUnmodifiedSince, IfMatch, and IfNoneMatch must have their default values\
-        because they are ignored by the blob service");
+                        if (options.conditions.ifUnmodifiedSince) {
+                            throw new RangeError("the IfUnmodifiedSince must have their default values because they are ignored by the blob service");
                         }
                         _a = createSpan("ContainerClient-setMetadata", options.tracingOptions), span = _a.span, spanOptions = _a.spanOptions;
                         _b.label = 1;
@@ -31065,12 +28642,12 @@ var ContainerClient = /** @class */ (function (_super) {
                             })];
                     case 2: return [2 /*return*/, _b.sent()];
                     case 3:
-                        e_55 = _b.sent();
+                        e_56 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_55.message
+                            message: e_56.message
                         });
-                        throw e_55;
+                        throw e_56;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -31095,7 +28672,7 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.getAccessPolicy = function (options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, response, res, _i, response_1, identifier, accessPolicy, e_56;
+            var _a, span, spanOptions, response, res, _i, response_1, identifier, accessPolicy, e_57;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -31146,12 +28723,12 @@ var ContainerClient = /** @class */ (function (_super) {
                         }
                         return [2 /*return*/, res];
                     case 3:
-                        e_56 = _b.sent();
+                        e_57 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_56.message
+                            message: e_57.message
                         });
-                        throw e_56;
+                        throw e_57;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -31182,7 +28759,7 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.setAccessPolicy = function (access, containerAcl, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, acl, _i, _b, identifier, e_57;
+            var _a, span, spanOptions, acl, _i, _b, identifier, e_58;
             return tslib.__generator(this, function (_c) {
                 switch (_c.label) {
                     case 0:
@@ -31217,12 +28794,12 @@ var ContainerClient = /** @class */ (function (_super) {
                             })];
                     case 2: return [2 /*return*/, _c.sent()];
                     case 3:
-                        e_57 = _c.sent();
+                        e_58 = _c.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_57.message
+                            message: e_58.message
                         });
-                        throw e_57;
+                        throw e_58;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -31267,7 +28844,7 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.uploadBlockBlob = function (blobName, body, contentLength, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, blockBlobClient, response, e_58;
+            var _a, span, spanOptions, blockBlobClient, response, e_59;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -31284,12 +28861,12 @@ var ContainerClient = /** @class */ (function (_super) {
                                 response: response
                             }];
                     case 3:
-                        e_58 = _b.sent();
+                        e_59 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_58.message
+                            message: e_59.message
                         });
-                        throw e_58;
+                        throw e_59;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -31313,7 +28890,7 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.deleteBlob = function (blobName, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, blobClient, e_59;
+            var _a, span, spanOptions, blobClient, e_60;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -31328,12 +28905,12 @@ var ContainerClient = /** @class */ (function (_super) {
                         return [4 /*yield*/, blobClient.delete(tslib.__assign(tslib.__assign({}, options), { tracingOptions: tslib.__assign(tslib.__assign({}, options.tracingOptions), { spanOptions: spanOptions }) }))];
                     case 2: return [2 /*return*/, _b.sent()];
                     case 3:
-                        e_59 = _b.sent();
+                        e_60 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_59.message
+                            message: e_60.message
                         });
-                        throw e_59;
+                        throw e_60;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -31357,7 +28934,7 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.listBlobFlatSegment = function (marker, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, resposne, wrappedResponse, e_60;
+            var _a, span, spanOptions, response, wrappedResponse, e_61;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -31367,19 +28944,19 @@ var ContainerClient = /** @class */ (function (_super) {
                         _b.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.containerContext.listBlobFlatSegment(tslib.__assign(tslib.__assign({ marker: marker }, options), { spanOptions: spanOptions }))];
                     case 2:
-                        resposne = _b.sent();
-                        wrappedResponse = tslib.__assign(tslib.__assign({}, resposne), { segment: tslib.__assign(tslib.__assign({}, resposne.segment), { blobItems: resposne.segment.blobItems.map(function (blobItemInteral) {
-                                    var blobItem = tslib.__assign(tslib.__assign({}, blobItemInteral), { tags: toTags(blobItemInteral.blobTags) });
+                        response = _b.sent();
+                        wrappedResponse = tslib.__assign(tslib.__assign({}, response), { _response: response._response, segment: tslib.__assign(tslib.__assign({}, response.segment), { blobItems: response.segment.blobItems.map(function (blobItemInteral) {
+                                    var blobItem = tslib.__assign(tslib.__assign({}, blobItemInteral), { tags: toTags(blobItemInteral.blobTags), objectReplicationSourceProperties: parseObjectReplicationRecord(blobItemInteral.objectReplicationMetadata) });
                                     return blobItem;
                                 }) }) });
                         return [2 /*return*/, wrappedResponse];
                     case 3:
-                        e_60 = _b.sent();
+                        e_61 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_60.message
+                            message: e_61.message
                         });
-                        throw e_60;
+                        throw e_61;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -31404,7 +28981,7 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.listBlobHierarchySegment = function (delimiter, marker, options) {
         if (options === void 0) { options = {}; }
         return tslib.__awaiter(this, void 0, void 0, function () {
-            var _a, span, spanOptions, resposne, wrappedResponse, e_61;
+            var _a, span, spanOptions, response, wrappedResponse, e_62;
             return tslib.__generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -31414,19 +28991,19 @@ var ContainerClient = /** @class */ (function (_super) {
                         _b.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, this.containerContext.listBlobHierarchySegment(delimiter, tslib.__assign(tslib.__assign({ marker: marker }, options), { spanOptions: spanOptions }))];
                     case 2:
-                        resposne = _b.sent();
-                        wrappedResponse = tslib.__assign(tslib.__assign({}, resposne), { segment: tslib.__assign(tslib.__assign({}, resposne.segment), { blobItems: resposne.segment.blobItems.map(function (blobItemInteral) {
-                                    var blobItem = tslib.__assign(tslib.__assign({}, blobItemInteral), { tags: toTags(blobItemInteral.blobTags) });
+                        response = _b.sent();
+                        wrappedResponse = tslib.__assign(tslib.__assign({}, response), { _response: response._response, segment: tslib.__assign(tslib.__assign({}, response.segment), { blobItems: response.segment.blobItems.map(function (blobItemInteral) {
+                                    var blobItem = tslib.__assign(tslib.__assign({}, blobItemInteral), { tags: toTags(blobItemInteral.blobTags), objectReplicationSourceProperties: parseObjectReplicationRecord(blobItemInteral.objectReplicationMetadata) });
                                     return blobItem;
                                 }) }) });
                         return [2 /*return*/, wrappedResponse];
                     case 3:
-                        e_61 = _b.sent();
+                        e_62 = _b.sent();
                         span.setStatus({
                             code: api.CanonicalCode.UNKNOWN,
-                            message: e_61.message
+                            message: e_62.message
                         });
-                        throw e_61;
+                        throw e_62;
                     case 4:
                         span.end();
                         return [7 /*endfinally*/];
@@ -31488,8 +29065,8 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.listItems = function (options) {
         if (options === void 0) { options = {}; }
         return tslib.__asyncGenerator(this, arguments, function listItems_1() {
-            var marker, _a, _b, listBlobsFlatSegmentResponse, e_62_1;
-            var e_62, _c;
+            var marker, _a, _b, listBlobsFlatSegmentResponse, e_63_1;
+            var e_63, _c;
             return tslib.__generator(this, function (_d) {
                 switch (_d.label) {
                     case 0:
@@ -31508,8 +29085,8 @@ var ContainerClient = /** @class */ (function (_super) {
                     case 5: return [3 /*break*/, 1];
                     case 6: return [3 /*break*/, 13];
                     case 7:
-                        e_62_1 = _d.sent();
-                        e_62 = { error: e_62_1 };
+                        e_63_1 = _d.sent();
+                        e_63 = { error: e_63_1 };
                         return [3 /*break*/, 13];
                     case 8:
                         _d.trys.push([8, , 11, 12]);
@@ -31520,7 +29097,7 @@ var ContainerClient = /** @class */ (function (_super) {
                         _d.label = 10;
                     case 10: return [3 /*break*/, 12];
                     case 11:
-                        if (e_62) throw e_62.error;
+                        if (e_63) throw e_63.error;
                         return [7 /*endfinally*/];
                     case 12: return [7 /*endfinally*/];
                     case 13: return [2 /*return*/];
@@ -31709,8 +29286,8 @@ var ContainerClient = /** @class */ (function (_super) {
     ContainerClient.prototype.listItemsByHierarchy = function (delimiter, options) {
         if (options === void 0) { options = {}; }
         return tslib.__asyncGenerator(this, arguments, function listItemsByHierarchy_1() {
-            var marker, _a, _b, listBlobsHierarchySegmentResponse, segment, _i, _c, prefix, _d, _e, blob, e_63_1;
-            var e_63, _f;
+            var marker, _a, _b, listBlobsHierarchySegmentResponse, segment, _i, _c, prefix, _d, _e, blob, e_64_1;
+            var e_64, _f;
             return tslib.__generator(this, function (_g) {
                 switch (_g.label) {
                     case 0:
@@ -31753,8 +29330,8 @@ var ContainerClient = /** @class */ (function (_super) {
                     case 12: return [3 /*break*/, 1];
                     case 13: return [3 /*break*/, 20];
                     case 14:
-                        e_63_1 = _g.sent();
-                        e_63 = { error: e_63_1 };
+                        e_64_1 = _g.sent();
+                        e_64 = { error: e_64_1 };
                         return [3 /*break*/, 20];
                     case 15:
                         _g.trys.push([15, , 18, 19]);
@@ -31765,7 +29342,7 @@ var ContainerClient = /** @class */ (function (_super) {
                         _g.label = 17;
                     case 17: return [3 /*break*/, 19];
                     case 18:
-                        if (e_63) throw e_63.error;
+                        if (e_64) throw e_64.error;
                         return [7 /*endfinally*/];
                     case 19: return [7 /*endfinally*/];
                     case 20: return [2 /*return*/];
@@ -31858,6 +29435,9 @@ var ContainerClient = /** @class */ (function (_super) {
         var _a;
         var _this = this;
         if (options === void 0) { options = {}; }
+        if (delimiter === "") {
+            throw new RangeError("delimiter should contain one or more characters");
+        }
         var include = [];
         if (options.includeCopy) {
             include.push("copy");
@@ -31924,14 +29504,20 @@ var ContainerClient = /** @class */ (function (_super) {
             var parsedUrl = coreHttp.URLBuilder.parse(this.url);
             if (parsedUrl.getHost().split(".")[1] === "blob") {
                 // "https://myaccount.blob.core.windows.net/containername".
+                // "https://customdomain.com/containername".
                 // .getPath() -> /containername
                 containerName = parsedUrl.getPath().split("/")[1];
             }
-            else {
+            else if (isIpEndpointStyle(parsedUrl)) {
                 // IPv4/IPv6 address hosts... Example - http://192.0.0.10:10001/devstoreaccount1/containername
                 // Single word domain without a [dot] in the endpoint... Example - http://localhost:10001/devstoreaccount1/containername
                 // .getPath() -> /devstoreaccount1/containername
                 containerName = parsedUrl.getPath().split("/")[2];
+            }
+            else {
+                // "https://customdomain.com/containername".
+                // .getPath() -> /containername
+                containerName = parsedUrl.getPath().split("/")[1];
             }
             // decode the encoded containerName - to get all the special characters that might be present in it
             containerName = decodeURIComponent(containerName);
@@ -35014,8 +32600,8 @@ exports.newPipeline = newPipeline;
 
 "use strict";
 
-/*!
- * Copyright 2020, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35030,56 +32616,127 @@ exports.newPipeline = newPipeline;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const context_base_1 = __webpack_require__(5664);
+exports.ContextAPI = void 0;
+var context_base_1 = __webpack_require__(9852);
+var global_utils_1 = __webpack_require__(3529);
+var NOOP_CONTEXT_MANAGER = new context_base_1.NoopContextManager();
 /**
  * Singleton object which represents the entry point to the OpenTelemetry Context API
  */
-class ContextAPI {
+var ContextAPI = /** @class */ (function () {
     /** Empty private constructor prevents end users from constructing a new instance of the API */
-    constructor() {
-        this._contextManager = new context_base_1.NoopContextManager();
+    function ContextAPI() {
     }
     /** Get the singleton instance of the Context API */
-    static getInstance() {
+    ContextAPI.getInstance = function () {
         if (!this._instance) {
             this._instance = new ContextAPI();
         }
         return this._instance;
-    }
+    };
     /**
      * Set the current context manager. Returns the initialized context manager
      */
-    setGlobalContextManager(contextManager) {
-        this._contextManager = contextManager;
+    ContextAPI.prototype.setGlobalContextManager = function (contextManager) {
+        if (global_utils_1._global[global_utils_1.GLOBAL_CONTEXT_MANAGER_API_KEY]) {
+            // global context manager has already been set
+            return this._getContextManager();
+        }
+        global_utils_1._global[global_utils_1.GLOBAL_CONTEXT_MANAGER_API_KEY] = global_utils_1.makeGetter(global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION, contextManager, NOOP_CONTEXT_MANAGER);
         return contextManager;
-    }
+    };
     /**
      * Get the currently active context
      */
-    active() {
-        return this._contextManager.active();
-    }
+    ContextAPI.prototype.active = function () {
+        return this._getContextManager().active();
+    };
     /**
      * Execute a function with an active context
      *
      * @param context context to be active during function execution
      * @param fn function to execute in a context
      */
-    with(context, fn) {
-        return this._contextManager.with(context, fn);
-    }
+    ContextAPI.prototype.with = function (context, fn) {
+        return this._getContextManager().with(context, fn);
+    };
     /**
      * Bind a context to a target function or event emitter
      *
      * @param target function or event emitter to bind
      * @param context context to bind to the event emitter or function. Defaults to the currently active context
      */
-    bind(target, context = this.active()) {
-        return this._contextManager.bind(target, context);
-    }
-}
+    ContextAPI.prototype.bind = function (target, context) {
+        if (context === void 0) { context = this.active(); }
+        return this._getContextManager().bind(target, context);
+    };
+    ContextAPI.prototype._getContextManager = function () {
+        var _a, _b;
+        return ((_b = (_a = global_utils_1._global[global_utils_1.GLOBAL_CONTEXT_MANAGER_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(global_utils_1._global, global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION)) !== null && _b !== void 0 ? _b : NOOP_CONTEXT_MANAGER);
+    };
+    /** Disable and remove the global context manager */
+    ContextAPI.prototype.disable = function () {
+        this._getContextManager().disable();
+        delete global_utils_1._global[global_utils_1.GLOBAL_CONTEXT_MANAGER_API_KEY];
+    };
+    return ContextAPI;
+}());
 exports.ContextAPI = ContextAPI;
 //# sourceMappingURL=context.js.map
+
+/***/ }),
+
+/***/ 3529:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.API_BACKWARDS_COMPATIBILITY_VERSION = exports.makeGetter = exports._global = exports.GLOBAL_TRACE_API_KEY = exports.GLOBAL_PROPAGATION_API_KEY = exports.GLOBAL_METRICS_API_KEY = exports.GLOBAL_CONTEXT_MANAGER_API_KEY = void 0;
+var platform_1 = __webpack_require__(9957);
+exports.GLOBAL_CONTEXT_MANAGER_API_KEY = Symbol.for('io.opentelemetry.js.api.context');
+exports.GLOBAL_METRICS_API_KEY = Symbol.for('io.opentelemetry.js.api.metrics');
+exports.GLOBAL_PROPAGATION_API_KEY = Symbol.for('io.opentelemetry.js.api.propagation');
+exports.GLOBAL_TRACE_API_KEY = Symbol.for('io.opentelemetry.js.api.trace');
+exports._global = platform_1._globalThis;
+/**
+ * Make a function which accepts a version integer and returns the instance of an API if the version
+ * is compatible, or a fallback version (usually NOOP) if it is not.
+ *
+ * @param requiredVersion Backwards compatibility version which is required to return the instance
+ * @param instance Instance which should be returned if the required version is compatible
+ * @param fallback Fallback instance, usually NOOP, which will be returned if the required version is not compatible
+ */
+function makeGetter(requiredVersion, instance, fallback) {
+    return function (version) {
+        return version === requiredVersion ? instance : fallback;
+    };
+}
+exports.makeGetter = makeGetter;
+/**
+ * A number which should be incremented each time a backwards incompatible
+ * change is made to the API. This number is used when an API package
+ * attempts to access the global API to ensure it is getting a compatible
+ * version. If the global API is not compatible with the API package
+ * attempting to get it, a NOOP API implementation will be returned.
+ */
+exports.API_BACKWARDS_COMPATIBILITY_VERSION = 0;
+//# sourceMappingURL=global-utils.js.map
 
 /***/ }),
 
@@ -35088,8 +32745,8 @@ exports.ContextAPI = ContextAPI;
 
 "use strict";
 
-/*!
- * Copyright 2020, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35104,42 +32761,53 @@ exports.ContextAPI = ContextAPI;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const NoopMeterProvider_1 = __webpack_require__(2647);
+exports.MetricsAPI = void 0;
+var NoopMeterProvider_1 = __webpack_require__(2647);
+var global_utils_1 = __webpack_require__(3529);
 /**
  * Singleton object which represents the entry point to the OpenTelemetry Metrics API
  */
-class MetricsAPI {
+var MetricsAPI = /** @class */ (function () {
     /** Empty private constructor prevents end users from constructing a new instance of the API */
-    constructor() {
-        this._meterProvider = NoopMeterProvider_1.NOOP_METER_PROVIDER;
+    function MetricsAPI() {
     }
     /** Get the singleton instance of the Metrics API */
-    static getInstance() {
+    MetricsAPI.getInstance = function () {
         if (!this._instance) {
             this._instance = new MetricsAPI();
         }
         return this._instance;
-    }
+    };
     /**
      * Set the current global meter. Returns the initialized global meter provider.
      */
-    setGlobalMeterProvider(provider) {
-        this._meterProvider = provider;
+    MetricsAPI.prototype.setGlobalMeterProvider = function (provider) {
+        if (global_utils_1._global[global_utils_1.GLOBAL_METRICS_API_KEY]) {
+            // global meter provider has already been set
+            return this.getMeterProvider();
+        }
+        global_utils_1._global[global_utils_1.GLOBAL_METRICS_API_KEY] = global_utils_1.makeGetter(global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION, provider, NoopMeterProvider_1.NOOP_METER_PROVIDER);
         return provider;
-    }
+    };
     /**
      * Returns the global meter provider.
      */
-    getMeterProvider() {
-        return this._meterProvider;
-    }
+    MetricsAPI.prototype.getMeterProvider = function () {
+        var _a, _b;
+        return ((_b = (_a = global_utils_1._global[global_utils_1.GLOBAL_METRICS_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(global_utils_1._global, global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION)) !== null && _b !== void 0 ? _b : NoopMeterProvider_1.NOOP_METER_PROVIDER);
+    };
     /**
      * Returns a meter from the global meter provider.
      */
-    getMeter(name, version) {
+    MetricsAPI.prototype.getMeter = function (name, version) {
         return this.getMeterProvider().getMeter(name, version);
-    }
-}
+    };
+    /** Remove the global meter provider */
+    MetricsAPI.prototype.disable = function () {
+        delete global_utils_1._global[global_utils_1.GLOBAL_METRICS_API_KEY];
+    };
+    return MetricsAPI;
+}());
 exports.MetricsAPI = MetricsAPI;
 //# sourceMappingURL=metrics.js.map
 
@@ -35150,8 +32818,8 @@ exports.MetricsAPI = MetricsAPI;
 
 "use strict";
 
-/*!
- * Copyright 2020, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35166,33 +32834,38 @@ exports.MetricsAPI = MetricsAPI;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const getter_1 = __webpack_require__(3050);
-const NoopHttpTextPropagator_1 = __webpack_require__(9757);
-const setter_1 = __webpack_require__(4707);
-const context_1 = __webpack_require__(7171);
-const contextApi = context_1.ContextAPI.getInstance();
+exports.PropagationAPI = void 0;
+var getter_1 = __webpack_require__(3050);
+var NoopHttpTextPropagator_1 = __webpack_require__(9757);
+var setter_1 = __webpack_require__(4707);
+var context_1 = __webpack_require__(7171);
+var global_utils_1 = __webpack_require__(3529);
+var contextApi = context_1.ContextAPI.getInstance();
 /**
  * Singleton object which represents the entry point to the OpenTelemetry Propagation API
  */
-class PropagationAPI {
+var PropagationAPI = /** @class */ (function () {
     /** Empty private constructor prevents end users from constructing a new instance of the API */
-    constructor() {
-        this._propagator = NoopHttpTextPropagator_1.NOOP_HTTP_TEXT_PROPAGATOR;
+    function PropagationAPI() {
     }
     /** Get the singleton instance of the Propagator API */
-    static getInstance() {
+    PropagationAPI.getInstance = function () {
         if (!this._instance) {
             this._instance = new PropagationAPI();
         }
         return this._instance;
-    }
+    };
     /**
      * Set the current propagator. Returns the initialized propagator
      */
-    setGlobalPropagator(propagator) {
-        this._propagator = propagator;
+    PropagationAPI.prototype.setGlobalPropagator = function (propagator) {
+        if (global_utils_1._global[global_utils_1.GLOBAL_PROPAGATION_API_KEY]) {
+            // global propagator has already been set
+            return this._getGlobalPropagator();
+        }
+        global_utils_1._global[global_utils_1.GLOBAL_PROPAGATION_API_KEY] = global_utils_1.makeGetter(global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION, propagator, NoopHttpTextPropagator_1.NOOP_HTTP_TEXT_PROPAGATOR);
         return propagator;
-    }
+    };
     /**
      * Inject context into a carrier to be propagated inter-process
      *
@@ -35200,9 +32873,11 @@ class PropagationAPI {
      * @param setter Function used to set values on the carrier
      * @param context Context carrying tracing data to inject. Defaults to the currently active context.
      */
-    inject(carrier, setter = setter_1.defaultSetter, context = contextApi.active()) {
-        return this._propagator.inject(context, carrier, setter);
-    }
+    PropagationAPI.prototype.inject = function (carrier, setter, context) {
+        if (setter === void 0) { setter = setter_1.defaultSetter; }
+        if (context === void 0) { context = contextApi.active(); }
+        return this._getGlobalPropagator().inject(context, carrier, setter);
+    };
     /**
      * Extract context from a carrier
      *
@@ -35210,10 +32885,21 @@ class PropagationAPI {
      * @param getter Function used to extract keys from a carrier
      * @param context Context which the newly created context will inherit from. Defaults to the currently active context.
      */
-    extract(carrier, getter = getter_1.defaultGetter, context = contextApi.active()) {
-        return this._propagator.extract(context, carrier, getter);
-    }
-}
+    PropagationAPI.prototype.extract = function (carrier, getter, context) {
+        if (getter === void 0) { getter = getter_1.defaultGetter; }
+        if (context === void 0) { context = contextApi.active(); }
+        return this._getGlobalPropagator().extract(context, carrier, getter);
+    };
+    /** Remove the global propagator */
+    PropagationAPI.prototype.disable = function () {
+        delete global_utils_1._global[global_utils_1.GLOBAL_PROPAGATION_API_KEY];
+    };
+    PropagationAPI.prototype._getGlobalPropagator = function () {
+        var _a, _b;
+        return ((_b = (_a = global_utils_1._global[global_utils_1.GLOBAL_PROPAGATION_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(global_utils_1._global, global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION)) !== null && _b !== void 0 ? _b : NoopHttpTextPropagator_1.NOOP_HTTP_TEXT_PROPAGATOR);
+    };
+    return PropagationAPI;
+}());
 exports.PropagationAPI = PropagationAPI;
 //# sourceMappingURL=propagation.js.map
 
@@ -35224,8 +32910,8 @@ exports.PropagationAPI = PropagationAPI;
 
 "use strict";
 
-/*!
- * Copyright 2020, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35240,44 +32926,115 @@ exports.PropagationAPI = PropagationAPI;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const NoopTracerProvider_1 = __webpack_require__(3259);
+exports.TraceAPI = void 0;
+var NoopTracerProvider_1 = __webpack_require__(3259);
+var global_utils_1 = __webpack_require__(3529);
 /**
  * Singleton object which represents the entry point to the OpenTelemetry Tracing API
  */
-class TraceAPI {
+var TraceAPI = /** @class */ (function () {
     /** Empty private constructor prevents end users from constructing a new instance of the API */
-    constructor() {
-        this._tracerProvider = NoopTracerProvider_1.NOOP_TRACER_PROVIDER;
+    function TraceAPI() {
     }
     /** Get the singleton instance of the Trace API */
-    static getInstance() {
+    TraceAPI.getInstance = function () {
         if (!this._instance) {
             this._instance = new TraceAPI();
         }
         return this._instance;
-    }
+    };
     /**
      * Set the current global tracer. Returns the initialized global tracer provider
      */
-    setGlobalTracerProvider(provider) {
-        this._tracerProvider = provider;
-        return provider;
-    }
+    TraceAPI.prototype.setGlobalTracerProvider = function (provider) {
+        if (global_utils_1._global[global_utils_1.GLOBAL_TRACE_API_KEY]) {
+            // global tracer provider has already been set
+            return this.getTracerProvider();
+        }
+        global_utils_1._global[global_utils_1.GLOBAL_TRACE_API_KEY] = global_utils_1.makeGetter(global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION, provider, NoopTracerProvider_1.NOOP_TRACER_PROVIDER);
+        return this.getTracerProvider();
+    };
     /**
      * Returns the global tracer provider.
      */
-    getTracerProvider() {
-        return this._tracerProvider;
-    }
+    TraceAPI.prototype.getTracerProvider = function () {
+        var _a, _b;
+        return ((_b = (_a = global_utils_1._global[global_utils_1.GLOBAL_TRACE_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(global_utils_1._global, global_utils_1.API_BACKWARDS_COMPATIBILITY_VERSION)) !== null && _b !== void 0 ? _b : NoopTracerProvider_1.NOOP_TRACER_PROVIDER);
+    };
     /**
      * Returns a tracer from the global tracer provider.
      */
-    getTracer(name, version) {
+    TraceAPI.prototype.getTracer = function (name, version) {
         return this.getTracerProvider().getTracer(name, version);
-    }
-}
+    };
+    /** Remove the global tracer provider */
+    TraceAPI.prototype.disable = function () {
+        delete global_utils_1._global[global_utils_1.GLOBAL_TRACE_API_KEY];
+    };
+    return TraceAPI;
+}());
 exports.TraceAPI = TraceAPI;
 //# sourceMappingURL=trace.js.map
+
+/***/ }),
+
+/***/ 1344:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Logger.js.map
+
+/***/ }),
+
+/***/ 2358:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Time.js.map
+
+/***/ }),
+
+/***/ 3422:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=HttpTextPropagator.js.map
 
 /***/ }),
 
@@ -35286,8 +33043,8 @@ exports.TraceAPI = TraceAPI;
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35302,17 +33059,21 @@ exports.TraceAPI = TraceAPI;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NOOP_HTTP_TEXT_PROPAGATOR = exports.NoopHttpTextPropagator = void 0;
 /**
  * No-op implementations of {@link HttpTextPropagator}.
  */
-class NoopHttpTextPropagator {
-    /** Noop inject function does nothing */
-    inject(context, carrier, setter) { }
-    /** Noop extract function does nothing and returns the input context */
-    extract(context, carrier, getter) {
-        return context;
+var NoopHttpTextPropagator = /** @class */ (function () {
+    function NoopHttpTextPropagator() {
     }
-}
+    /** Noop inject function does nothing */
+    NoopHttpTextPropagator.prototype.inject = function (context, carrier, setter) { };
+    /** Noop extract function does nothing and returns the input context */
+    NoopHttpTextPropagator.prototype.extract = function (context, carrier, getter) {
+        return context;
+    };
+    return NoopHttpTextPropagator;
+}());
 exports.NoopHttpTextPropagator = NoopHttpTextPropagator;
 exports.NOOP_HTTP_TEXT_PROPAGATOR = new NoopHttpTextPropagator();
 //# sourceMappingURL=NoopHttpTextPropagator.js.map
@@ -35324,8 +33085,8 @@ exports.NOOP_HTTP_TEXT_PROPAGATOR = new NoopHttpTextPropagator();
 
 "use strict";
 
-/*!
- * Copyright 2020, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35340,6 +33101,7 @@ exports.NOOP_HTTP_TEXT_PROPAGATOR = new NoopHttpTextPropagator();
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.defaultGetter = void 0;
 /**
  * Default getter which just does a simple property access. Returns
  * undefined if the key is not set.
@@ -35360,8 +33122,8 @@ exports.defaultGetter = defaultGetter;
 
 "use strict";
 
-/*!
- * Copyright 2020, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35376,6 +33138,7 @@ exports.defaultGetter = defaultGetter;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.defaultSetter = void 0;
 /**
  * Default setter which sets value via direct property access
  *
@@ -35390,13 +33153,13 @@ exports.defaultSetter = defaultSetter;
 
 /***/ }),
 
-/***/ 1809:
+/***/ 808:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35411,6 +33174,17 @@ exports.defaultSetter = defaultSetter;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=CorrelationContext.js.map
+
+/***/ }),
+
+/***/ 1809:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EntryTtl = void 0;
 /**
  * EntryTtl is an integer that represents number of hops an entry can propagate.
  *
@@ -35431,12 +33205,12 @@ var EntryTtl;
 /***/ }),
 
 /***/ 5163:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35450,35 +33224,67 @@ var EntryTtl;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function __export(m) {
-    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-}
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__export(__webpack_require__(3050));
-__export(__webpack_require__(9757));
-__export(__webpack_require__(4707));
-__export(__webpack_require__(1809));
-__export(__webpack_require__(9999));
-__export(__webpack_require__(4837));
-__export(__webpack_require__(2647));
-__export(__webpack_require__(1169));
-__export(__webpack_require__(7606));
-__export(__webpack_require__(3259));
-__export(__webpack_require__(1424));
-__export(__webpack_require__(8845));
-__export(__webpack_require__(6905));
-var context_base_1 = __webpack_require__(5664);
-exports.Context = context_base_1.Context;
-const context_1 = __webpack_require__(7171);
+exports.propagation = exports.metrics = exports.trace = exports.context = void 0;
+__exportStar(__webpack_require__(1344), exports);
+__exportStar(__webpack_require__(2358), exports);
+__exportStar(__webpack_require__(3050), exports);
+__exportStar(__webpack_require__(3422), exports);
+__exportStar(__webpack_require__(9757), exports);
+__exportStar(__webpack_require__(4707), exports);
+__exportStar(__webpack_require__(808), exports);
+__exportStar(__webpack_require__(1809), exports);
+__exportStar(__webpack_require__(2500), exports);
+__exportStar(__webpack_require__(4931), exports);
+__exportStar(__webpack_require__(1754), exports);
+__exportStar(__webpack_require__(7507), exports);
+__exportStar(__webpack_require__(9999), exports);
+__exportStar(__webpack_require__(4837), exports);
+__exportStar(__webpack_require__(2647), exports);
+__exportStar(__webpack_require__(817), exports);
+__exportStar(__webpack_require__(3347), exports);
+__exportStar(__webpack_require__(7492), exports);
+__exportStar(__webpack_require__(4595), exports);
+__exportStar(__webpack_require__(6169), exports);
+__exportStar(__webpack_require__(9373), exports);
+__exportStar(__webpack_require__(4023), exports);
+__exportStar(__webpack_require__(1169), exports);
+__exportStar(__webpack_require__(7606), exports);
+__exportStar(__webpack_require__(3259), exports);
+__exportStar(__webpack_require__(9671), exports);
+__exportStar(__webpack_require__(3209), exports);
+__exportStar(__webpack_require__(5769), exports);
+__exportStar(__webpack_require__(1424), exports);
+__exportStar(__webpack_require__(4416), exports);
+__exportStar(__webpack_require__(955), exports);
+__exportStar(__webpack_require__(8845), exports);
+__exportStar(__webpack_require__(6025), exports);
+__exportStar(__webpack_require__(6905), exports);
+__exportStar(__webpack_require__(8384), exports);
+__exportStar(__webpack_require__(891), exports);
+__exportStar(__webpack_require__(3168), exports);
+var context_base_1 = __webpack_require__(9852);
+Object.defineProperty(exports, "Context", ({ enumerable: true, get: function () { return context_base_1.Context; } }));
+var context_1 = __webpack_require__(7171);
 /** Entrypoint for context API */
 exports.context = context_1.ContextAPI.getInstance();
-const trace_1 = __webpack_require__(1539);
+var trace_1 = __webpack_require__(1539);
 /** Entrypoint for trace API */
 exports.trace = trace_1.TraceAPI.getInstance();
-const metrics_1 = __webpack_require__(7696);
+var metrics_1 = __webpack_require__(7696);
 /** Entrypoint for metrics API */
 exports.metrics = metrics_1.MetricsAPI.getInstance();
-const propagation_1 = __webpack_require__(9909);
+var propagation_1 = __webpack_require__(9909);
 /** Entrypoint for propagation API */
 exports.propagation = propagation_1.PropagationAPI.getInstance();
 exports.default = {
@@ -35491,13 +33297,13 @@ exports.default = {
 
 /***/ }),
 
-/***/ 9999:
+/***/ 2500:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35512,6 +33318,107 @@ exports.default = {
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=BatchObserverResult.js.map
+
+/***/ }),
+
+/***/ 4931:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=BoundInstrument.js.map
+
+/***/ }),
+
+/***/ 1754:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Meter.js.map
+
+/***/ }),
+
+/***/ 7507:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=MeterProvider.js.map
+
+/***/ }),
+
+/***/ 9999:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ValueType = void 0;
 /** The Type of value. It describes how the data is reported. */
 var ValueType;
 (function (ValueType) {
@@ -35523,12 +33430,12 @@ var ValueType;
 /***/ }),
 
 /***/ 4837:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35542,41 +33449,74 @@ var ValueType;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NOOP_BATCH_OBSERVER_METRIC = exports.NOOP_SUM_OBSERVER_METRIC = exports.NOOP_UP_DOWN_SUM_OBSERVER_METRIC = exports.NOOP_VALUE_OBSERVER_METRIC = exports.NOOP_BOUND_BASE_OBSERVER = exports.NOOP_VALUE_RECORDER_METRIC = exports.NOOP_BOUND_VALUE_RECORDER = exports.NOOP_COUNTER_METRIC = exports.NOOP_BOUND_COUNTER = exports.NOOP_METER = exports.NoopBoundBaseObserver = exports.NoopBoundValueRecorder = exports.NoopBoundCounter = exports.NoopBatchObserverMetric = exports.NoopBaseObserverMetric = exports.NoopValueRecorderMetric = exports.NoopCounterMetric = exports.NoopMetric = exports.NoopMeter = void 0;
 /**
  * NoopMeter is a noop implementation of the {@link Meter} interface. It reuses
  * constant NoopMetrics for all of its methods.
  */
-class NoopMeter {
-    constructor() { }
+var NoopMeter = /** @class */ (function () {
+    function NoopMeter() {
+    }
     /**
-     * Returns constant noop measure.
+     * Returns constant noop value recorder.
      * @param name the name of the metric.
      * @param [options] the metric options.
      */
-    createMeasure(name, options) {
-        return exports.NOOP_MEASURE_METRIC;
-    }
+    NoopMeter.prototype.createValueRecorder = function (name, options) {
+        return exports.NOOP_VALUE_RECORDER_METRIC;
+    };
     /**
      * Returns a constant noop counter.
      * @param name the name of the metric.
      * @param [options] the metric options.
      */
-    createCounter(name, options) {
+    NoopMeter.prototype.createCounter = function (name, options) {
         return exports.NOOP_COUNTER_METRIC;
-    }
+    };
     /**
-     * Returns constant noop observer.
+     * Returns a constant noop UpDownCounter.
      * @param name the name of the metric.
      * @param [options] the metric options.
      */
-    createObserver(name, options) {
-        return exports.NOOP_OBSERVER_METRIC;
-    }
-}
+    NoopMeter.prototype.createUpDownCounter = function (name, options) {
+        return exports.NOOP_COUNTER_METRIC;
+    };
+    /**
+     * Returns constant noop value observer.
+     * @param name the name of the metric.
+     * @param [options] the metric options.
+     * @param [callback] the value observer callback
+     */
+    NoopMeter.prototype.createValueObserver = function (name, options, callback) {
+        return exports.NOOP_VALUE_OBSERVER_METRIC;
+    };
+    /**
+     * Returns constant noop batch observer.
+     * @param name the name of the metric.
+     * @param callback the batch observer callback
+     */
+    NoopMeter.prototype.createBatchObserver = function (name, callback) {
+        return exports.NOOP_BATCH_OBSERVER_METRIC;
+    };
+    return NoopMeter;
+}());
 exports.NoopMeter = NoopMeter;
-class NoopMetric {
-    constructor(instrument) {
+var NoopMetric = /** @class */ (function () {
+    function NoopMetric(instrument) {
         this._instrument = instrument;
     }
     /**
@@ -35586,32 +33526,42 @@ class NoopMetric {
      * @param labels key-values pairs that are associated with a specific metric
      *     that you want to record.
      */
-    bind(labels) {
+    NoopMetric.prototype.bind = function (labels) {
         return this._instrument;
-    }
+    };
     /**
      * Removes the Binding from the metric, if it is present.
      * @param labels key-values pairs that are associated with a specific metric.
      */
-    unbind(labels) {
+    NoopMetric.prototype.unbind = function (labels) {
         return;
-    }
+    };
     /**
      * Clears all timeseries from the Metric.
      */
-    clear() {
+    NoopMetric.prototype.clear = function () {
         return;
-    }
-}
+    };
+    return NoopMetric;
+}());
 exports.NoopMetric = NoopMetric;
-class NoopCounterMetric extends NoopMetric {
-    add(value, labels) {
-        this.bind(labels).add(value);
+var NoopCounterMetric = /** @class */ (function (_super) {
+    __extends(NoopCounterMetric, _super);
+    function NoopCounterMetric() {
+        return _super !== null && _super.apply(this, arguments) || this;
     }
-}
+    NoopCounterMetric.prototype.add = function (value, labels) {
+        this.bind(labels).add(value);
+    };
+    return NoopCounterMetric;
+}(NoopMetric));
 exports.NoopCounterMetric = NoopCounterMetric;
-class NoopMeasureMetric extends NoopMetric {
-    record(value, labels, correlationContext, spanContext) {
+var NoopValueRecorderMetric = /** @class */ (function (_super) {
+    __extends(NoopValueRecorderMetric, _super);
+    function NoopValueRecorderMetric() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    NoopValueRecorderMetric.prototype.record = function (value, labels, correlationContext, spanContext) {
         if (typeof correlationContext === 'undefined') {
             this.bind(labels).record(value);
         }
@@ -35621,36 +33571,67 @@ class NoopMeasureMetric extends NoopMetric {
         else {
             this.bind(labels).record(value, correlationContext, spanContext);
         }
+    };
+    return NoopValueRecorderMetric;
+}(NoopMetric));
+exports.NoopValueRecorderMetric = NoopValueRecorderMetric;
+var NoopBaseObserverMetric = /** @class */ (function (_super) {
+    __extends(NoopBaseObserverMetric, _super);
+    function NoopBaseObserverMetric() {
+        return _super !== null && _super.apply(this, arguments) || this;
     }
-}
-exports.NoopMeasureMetric = NoopMeasureMetric;
-class NoopObserverMetric extends NoopMetric {
-    setCallback(callback) { }
-}
-exports.NoopObserverMetric = NoopObserverMetric;
-class NoopBoundCounter {
-    add(value) {
+    NoopBaseObserverMetric.prototype.observation = function () {
+        return {
+            observer: this,
+            value: 0,
+        };
+    };
+    return NoopBaseObserverMetric;
+}(NoopMetric));
+exports.NoopBaseObserverMetric = NoopBaseObserverMetric;
+var NoopBatchObserverMetric = /** @class */ (function (_super) {
+    __extends(NoopBatchObserverMetric, _super);
+    function NoopBatchObserverMetric() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return NoopBatchObserverMetric;
+}(NoopMetric));
+exports.NoopBatchObserverMetric = NoopBatchObserverMetric;
+var NoopBoundCounter = /** @class */ (function () {
+    function NoopBoundCounter() {
+    }
+    NoopBoundCounter.prototype.add = function (value) {
         return;
-    }
-}
+    };
+    return NoopBoundCounter;
+}());
 exports.NoopBoundCounter = NoopBoundCounter;
-class NoopBoundMeasure {
-    record(value, correlationContext, spanContext) {
-        return;
+var NoopBoundValueRecorder = /** @class */ (function () {
+    function NoopBoundValueRecorder() {
     }
-}
-exports.NoopBoundMeasure = NoopBoundMeasure;
-class NoopBoundObserver {
-    setCallback(callback) { }
-}
-exports.NoopBoundObserver = NoopBoundObserver;
+    NoopBoundValueRecorder.prototype.record = function (value, correlationContext, spanContext) {
+        return;
+    };
+    return NoopBoundValueRecorder;
+}());
+exports.NoopBoundValueRecorder = NoopBoundValueRecorder;
+var NoopBoundBaseObserver = /** @class */ (function () {
+    function NoopBoundBaseObserver() {
+    }
+    NoopBoundBaseObserver.prototype.update = function (value) { };
+    return NoopBoundBaseObserver;
+}());
+exports.NoopBoundBaseObserver = NoopBoundBaseObserver;
 exports.NOOP_METER = new NoopMeter();
 exports.NOOP_BOUND_COUNTER = new NoopBoundCounter();
 exports.NOOP_COUNTER_METRIC = new NoopCounterMetric(exports.NOOP_BOUND_COUNTER);
-exports.NOOP_BOUND_MEASURE = new NoopBoundMeasure();
-exports.NOOP_MEASURE_METRIC = new NoopMeasureMetric(exports.NOOP_BOUND_MEASURE);
-exports.NOOP_BOUND_OBSERVER = new NoopBoundObserver();
-exports.NOOP_OBSERVER_METRIC = new NoopObserverMetric(exports.NOOP_BOUND_OBSERVER);
+exports.NOOP_BOUND_VALUE_RECORDER = new NoopBoundValueRecorder();
+exports.NOOP_VALUE_RECORDER_METRIC = new NoopValueRecorderMetric(exports.NOOP_BOUND_VALUE_RECORDER);
+exports.NOOP_BOUND_BASE_OBSERVER = new NoopBoundBaseObserver();
+exports.NOOP_VALUE_OBSERVER_METRIC = new NoopBaseObserverMetric(exports.NOOP_BOUND_BASE_OBSERVER);
+exports.NOOP_UP_DOWN_SUM_OBSERVER_METRIC = new NoopBaseObserverMetric(exports.NOOP_BOUND_BASE_OBSERVER);
+exports.NOOP_SUM_OBSERVER_METRIC = new NoopBaseObserverMetric(exports.NOOP_BOUND_BASE_OBSERVER);
+exports.NOOP_BATCH_OBSERVER_METRIC = new NoopBatchObserverMetric();
 //# sourceMappingURL=NoopMeter.js.map
 
 /***/ }),
@@ -35660,8 +33641,8 @@ exports.NOOP_OBSERVER_METRIC = new NoopObserverMetric(exports.NOOP_BOUND_OBSERVE
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35676,19 +33657,199 @@ exports.NOOP_OBSERVER_METRIC = new NoopObserverMetric(exports.NOOP_BOUND_OBSERVE
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const NoopMeter_1 = __webpack_require__(4837);
+exports.NOOP_METER_PROVIDER = exports.NoopMeterProvider = void 0;
+var NoopMeter_1 = __webpack_require__(4837);
 /**
  * An implementation of the {@link MeterProvider} which returns an impotent Meter
  * for all calls to `getMeter`
  */
-class NoopMeterProvider {
-    getMeter(_name, _version) {
-        return NoopMeter_1.NOOP_METER;
+var NoopMeterProvider = /** @class */ (function () {
+    function NoopMeterProvider() {
     }
-}
+    NoopMeterProvider.prototype.getMeter = function (_name, _version) {
+        return NoopMeter_1.NOOP_METER;
+    };
+    return NoopMeterProvider;
+}());
 exports.NoopMeterProvider = NoopMeterProvider;
 exports.NOOP_METER_PROVIDER = new NoopMeterProvider();
 //# sourceMappingURL=NoopMeterProvider.js.map
+
+/***/ }),
+
+/***/ 817:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Observation.js.map
+
+/***/ }),
+
+/***/ 3347:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=ObserverResult.js.map
+
+/***/ }),
+
+/***/ 9957:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(7200), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 9406:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports._globalThis = void 0;
+/** only globals that common to node and browsers are allowed */
+// eslint-disable-next-line node/no-unsupported-features/es-builtins
+exports._globalThis = typeof globalThis === 'object' ? globalThis : global;
+//# sourceMappingURL=globalThis.js.map
+
+/***/ }),
+
+/***/ 7200:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(9406), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 4595:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Event.js.map
 
 /***/ }),
 
@@ -35697,8 +33858,8 @@ exports.NOOP_METER_PROVIDER = new NoopMeterProvider();
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35713,10 +33874,11 @@ exports.NOOP_METER_PROVIDER = new NoopMeterProvider();
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const trace_flags_1 = __webpack_require__(6905);
+exports.NOOP_SPAN = exports.NoopSpan = exports.INVALID_SPAN_ID = exports.INVALID_TRACE_ID = void 0;
+var trace_flags_1 = __webpack_require__(6905);
 exports.INVALID_TRACE_ID = '0';
 exports.INVALID_SPAN_ID = '0';
-const INVALID_SPAN_CONTEXT = {
+var INVALID_SPAN_CONTEXT = {
     traceId: exports.INVALID_TRACE_ID,
     spanId: exports.INVALID_SPAN_ID,
     traceFlags: trace_flags_1.TraceFlags.NONE,
@@ -35726,41 +33888,43 @@ const INVALID_SPAN_CONTEXT = {
  * implementation is available. All operations are no-op including context
  * propagation.
  */
-class NoopSpan {
-    constructor(_spanContext = INVALID_SPAN_CONTEXT) {
+var NoopSpan = /** @class */ (function () {
+    function NoopSpan(_spanContext) {
+        if (_spanContext === void 0) { _spanContext = INVALID_SPAN_CONTEXT; }
         this._spanContext = _spanContext;
     }
     // Returns a SpanContext.
-    context() {
+    NoopSpan.prototype.context = function () {
         return this._spanContext;
-    }
+    };
     // By default does nothing
-    setAttribute(key, value) {
+    NoopSpan.prototype.setAttribute = function (key, value) {
         return this;
-    }
+    };
     // By default does nothing
-    setAttributes(attributes) {
+    NoopSpan.prototype.setAttributes = function (attributes) {
         return this;
-    }
+    };
     // By default does nothing
-    addEvent(name, attributes) {
+    NoopSpan.prototype.addEvent = function (name, attributes) {
         return this;
-    }
+    };
     // By default does nothing
-    setStatus(status) {
+    NoopSpan.prototype.setStatus = function (status) {
         return this;
-    }
+    };
     // By default does nothing
-    updateName(name) {
+    NoopSpan.prototype.updateName = function (name) {
         return this;
-    }
+    };
     // By default does nothing
-    end(endTime) { }
+    NoopSpan.prototype.end = function (endTime) { };
     // isRecording always returns false for noopSpan.
-    isRecording() {
+    NoopSpan.prototype.isRecording = function () {
         return false;
-    }
-}
+    };
+    return NoopSpan;
+}());
 exports.NoopSpan = NoopSpan;
 exports.NOOP_SPAN = new NoopSpan();
 //# sourceMappingURL=NoopSpan.js.map
@@ -35772,8 +33936,8 @@ exports.NOOP_SPAN = new NoopSpan();
 
 "use strict";
 
-/*!
- * Copyright 2020, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35788,25 +33952,29 @@ exports.NOOP_SPAN = new NoopSpan();
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const NoopSpan_1 = __webpack_require__(1169);
+exports.NOOP_TRACER = exports.NoopTracer = void 0;
+var NoopSpan_1 = __webpack_require__(1169);
 /**
  * No-op implementations of {@link Tracer}.
  */
-class NoopTracer {
-    getCurrentSpan() {
-        return NoopSpan_1.NOOP_SPAN;
+var NoopTracer = /** @class */ (function () {
+    function NoopTracer() {
     }
+    NoopTracer.prototype.getCurrentSpan = function () {
+        return NoopSpan_1.NOOP_SPAN;
+    };
     // startSpan starts a noop span.
-    startSpan(name, options) {
+    NoopTracer.prototype.startSpan = function (name, options) {
         return NoopSpan_1.NOOP_SPAN;
-    }
-    withSpan(span, fn) {
+    };
+    NoopTracer.prototype.withSpan = function (span, fn) {
         return fn();
-    }
-    bind(target, span) {
+    };
+    NoopTracer.prototype.bind = function (target, span) {
         return target;
-    }
-}
+    };
+    return NoopTracer;
+}());
 exports.NoopTracer = NoopTracer;
 exports.NOOP_TRACER = new NoopTracer();
 //# sourceMappingURL=NoopTracer.js.map
@@ -35818,8 +33986,8 @@ exports.NOOP_TRACER = new NoopTracer();
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35834,19 +34002,283 @@ exports.NOOP_TRACER = new NoopTracer();
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const NoopTracer_1 = __webpack_require__(7606);
+exports.NOOP_TRACER_PROVIDER = exports.NoopTracerProvider = void 0;
+var NoopTracer_1 = __webpack_require__(7606);
 /**
- * An implementation of the {@link TracerProvider} which returns an impotent Tracer
- * for all calls to `getTracer`
+ * An implementation of the {@link TracerProvider} which returns an impotent
+ * Tracer for all calls to `getTracer`.
+ *
+ * All operations are no-op.
  */
-class NoopTracerProvider {
-    getTracer(_name, _version) {
-        return NoopTracer_1.NOOP_TRACER;
+var NoopTracerProvider = /** @class */ (function () {
+    function NoopTracerProvider() {
     }
-}
+    NoopTracerProvider.prototype.getTracer = function (_name, _version) {
+        return NoopTracer_1.NOOP_TRACER;
+    };
+    return NoopTracerProvider;
+}());
 exports.NoopTracerProvider = NoopTracerProvider;
 exports.NOOP_TRACER_PROVIDER = new NoopTracerProvider();
 //# sourceMappingURL=NoopTracerProvider.js.map
+
+/***/ }),
+
+/***/ 9671:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Sampler.js.map
+
+/***/ }),
+
+/***/ 3209:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SamplingDecision = void 0;
+/**
+ * A sampling decision that determines how a {@link Span} will be recorded
+ * and collected.
+ */
+var SamplingDecision;
+(function (SamplingDecision) {
+    /**
+     * `Span.isRecording() === false`, span will not be recorded and all events
+     * and attributes will be dropped.
+     */
+    SamplingDecision[SamplingDecision["NOT_RECORD"] = 0] = "NOT_RECORD";
+    /**
+     * `Span.isRecording() === true`, but `Sampled` flag in {@link TraceFlags}
+     * MUST NOT be set.
+     */
+    SamplingDecision[SamplingDecision["RECORD"] = 1] = "RECORD";
+    /**
+     * `Span.isRecording() === true` AND `Sampled` flag in {@link TraceFlags}
+     * MUST be set.
+     */
+    SamplingDecision[SamplingDecision["RECORD_AND_SAMPLED"] = 2] = "RECORD_AND_SAMPLED";
+})(SamplingDecision = exports.SamplingDecision || (exports.SamplingDecision = {}));
+//# sourceMappingURL=SamplingResult.js.map
+
+/***/ }),
+
+/***/ 955:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=SpanOptions.js.map
+
+/***/ }),
+
+/***/ 6025:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=TimedEvent.js.map
+
+/***/ }),
+
+/***/ 7492:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=attributes.js.map
+
+/***/ }),
+
+/***/ 6169:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Plugin.js.map
+
+/***/ }),
+
+/***/ 4023:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=link.js.map
+
+/***/ }),
+
+/***/ 9373:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=link_context.js.map
+
+/***/ }),
+
+/***/ 4416:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=span.js.map
+
+/***/ }),
+
+/***/ 5769:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=span_context.js.map
 
 /***/ }),
 
@@ -35855,8 +34287,10 @@ exports.NOOP_TRACER_PROVIDER = new NoopTracerProvider();
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SpanKind = void 0;
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35869,11 +34303,6 @@ exports.NOOP_TRACER_PROVIDER = new NoopTracerProvider();
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-/**
- * Type of span. Can be used to specify additional relationships between spans
- * in addition to a parent/child relationship.
  */
 var SpanKind;
 (function (SpanKind) {
@@ -35911,22 +34340,8 @@ var SpanKind;
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CanonicalCode = void 0;
 /**
  * An enumeration of canonical status codes.
  */
@@ -36073,8 +34488,10 @@ var CanonicalCode;
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TraceFlags = void 0;
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36087,12 +34504,6 @@ var CanonicalCode;
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-/**
- * An enumeration that represents global trace flags. These flags are
- * propagated to all child {@link Span}. These determine features such as
- * whether a Span should be traced. It is implemented as a bitmask.
  */
 var TraceFlags;
 (function (TraceFlags) {
@@ -36105,13 +34516,23 @@ var TraceFlags;
 
 /***/ }),
 
-/***/ 2331:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ 8384:
+/***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=trace_state.js.map
+
+/***/ }),
+
+/***/ 3168:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36126,36 +34547,92 @@ var TraceFlags;
  * limitations under the License.
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const context_1 = __webpack_require__(2678);
-class NoopContextManager {
-    active() {
+//# sourceMappingURL=tracer.js.map
+
+/***/ }),
+
+/***/ 891:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=tracer_provider.js.map
+
+/***/ }),
+
+/***/ 6367:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NoopContextManager = void 0;
+var context_1 = __webpack_require__(2696);
+var NoopContextManager = /** @class */ (function () {
+    function NoopContextManager() {
+    }
+    NoopContextManager.prototype.active = function () {
         return context_1.Context.ROOT_CONTEXT;
-    }
-    with(context, fn) {
+    };
+    NoopContextManager.prototype.with = function (context, fn) {
         return fn();
-    }
-    bind(target, context) {
+    };
+    NoopContextManager.prototype.bind = function (target, context) {
         return target;
-    }
-    enable() {
+    };
+    NoopContextManager.prototype.enable = function () {
         return this;
-    }
-    disable() {
+    };
+    NoopContextManager.prototype.disable = function () {
         return this;
-    }
-}
+    };
+    return NoopContextManager;
+}());
 exports.NoopContextManager = NoopContextManager;
 //# sourceMappingURL=NoopContextManager.js.map
 
 /***/ }),
 
-/***/ 2678:
+/***/ 2696:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
 
-/*!
- * Copyright 2020, OpenTelemetry Authors
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Context = void 0;
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36169,33 +34646,27 @@ exports.NoopContextManager = NoopContextManager;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-/**
- * Class which stores and manages current context values. All methods which
- * update context such as get and delete do not modify an existing context,
- * but create a new one with updated values.
- */
-class Context {
+var Context = /** @class */ (function () {
     /**
      * Construct a new context which inherits values from an optional parent context.
      *
      * @param parentContext a context from which to inherit values
      */
-    constructor(parentContext) {
+    function Context(parentContext) {
         this._currentContext = parentContext ? new Map(parentContext) : new Map();
     }
     /** Get a key to uniquely identify a context value */
-    static createKey(description) {
+    Context.createKey = function (description) {
         return Symbol(description);
-    }
+    };
     /**
      * Get a value from the context.
      *
      * @param key key which identifies a context value
      */
-    getValue(key) {
+    Context.prototype.getValue = function (key) {
         return this._currentContext.get(key);
-    }
+    };
     /**
      * Create a new context which inherits from this context and has
      * the given key set to the given value.
@@ -36203,44 +34674,45 @@ class Context {
      * @param key context key for which to set the value
      * @param value value to set for the given key
      */
-    setValue(key, value) {
-        const context = new Context(this._currentContext);
+    Context.prototype.setValue = function (key, value) {
+        var context = new Context(this._currentContext);
         context._currentContext.set(key, value);
         return context;
-    }
+    };
     /**
      * Return a new context which inherits from this context but does
      * not contain a value for the given key.
      *
      * @param key context key for which to clear a value
      */
-    deleteValue(key) {
-        const context = new Context(this._currentContext);
+    Context.prototype.deleteValue = function (key) {
+        var context = new Context(this._currentContext);
         context._currentContext.delete(key);
         return context;
-    }
-}
+    };
+    /** The root context is used as the default parent context when there is no active context */
+    Context.ROOT_CONTEXT = new Context();
+    /**
+     * This is another identifier to the root context which allows developers to easily search the
+     * codebase for direct uses of context which need to be removed in later PRs.
+     *
+     * It's existence is temporary and it should be removed when all references are fixed.
+     */
+    Context.TODO = Context.ROOT_CONTEXT;
+    return Context;
+}());
 exports.Context = Context;
-/** The root context is used as the default parent context when there is no active context */
-Context.ROOT_CONTEXT = new Context();
-/**
- * This is another identifier to the root context which allows developers to easily search the
- * codebase for direct uses of context which need to be removed in later PRs.
- *
- * It's existence is temporary and it should be removed when all references are fixed.
- */
-Context.TODO = Context.ROOT_CONTEXT;
 //# sourceMappingURL=context.js.map
 
 /***/ }),
 
-/***/ 5664:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ 9852:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
-/*!
- * Copyright 2019, OpenTelemetry Authors
+/*
+ * Copyright The OpenTelemetry Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36254,13 +34726,46 @@ Context.TODO = Context.ROOT_CONTEXT;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-function __export(m) {
-    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-}
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-__export(__webpack_require__(2678));
-__export(__webpack_require__(2331));
+__exportStar(__webpack_require__(2453), exports);
+__exportStar(__webpack_require__(2696), exports);
+__exportStar(__webpack_require__(6367), exports);
 //# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 2453:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=types.js.map
 
 /***/ }),
 
@@ -38237,6 +36742,12 @@ function convertBody(buffer, headers) {
 	// html4
 	if (!res && str) {
 		res = /<meta[\s]+?http-equiv=(['"])content-type\1[\s]+?content=(['"])(.+?)\2/i.exec(str);
+		if (!res) {
+			res = /<meta[\s]+?content=(['"])(.+?)\1[\s]+?http-equiv=(['"])content-type\3/i.exec(str);
+			if (res) {
+				res.pop(); // drop last quote
+			}
+		}
 
 		if (res) {
 			res = /charset=(.*)/i.exec(res.pop());
@@ -39244,7 +37755,7 @@ function fetch(url, opts) {
 				// HTTP fetch step 5.5
 				switch (request.redirect) {
 					case 'error':
-						reject(new FetchError(`redirect mode is set to error: ${request.url}`, 'no-redirect'));
+						reject(new FetchError(`uri requested responds with a redirect, redirect mode is set to error: ${request.url}`, 'no-redirect'));
 						finalize();
 						return;
 					case 'manual':
@@ -39283,7 +37794,8 @@ function fetch(url, opts) {
 							method: request.method,
 							body: request.body,
 							signal: request.signal,
-							timeout: request.timeout
+							timeout: request.timeout,
+							size: request.size
 						};
 
 						// HTTP-redirect fetch step 9
@@ -43428,9 +41940,36 @@ module.exports = '4.0.0'
 
 /***/ }),
 
-/***/ 4351:
-/***/ ((module) => {
+/***/ 5636:
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "__extends": () => /* binding */ __extends,
+/* harmony export */   "__assign": () => /* binding */ __assign,
+/* harmony export */   "__rest": () => /* binding */ __rest,
+/* harmony export */   "__decorate": () => /* binding */ __decorate,
+/* harmony export */   "__param": () => /* binding */ __param,
+/* harmony export */   "__metadata": () => /* binding */ __metadata,
+/* harmony export */   "__awaiter": () => /* binding */ __awaiter,
+/* harmony export */   "__generator": () => /* binding */ __generator,
+/* harmony export */   "__createBinding": () => /* binding */ __createBinding,
+/* harmony export */   "__exportStar": () => /* binding */ __exportStar,
+/* harmony export */   "__values": () => /* binding */ __values,
+/* harmony export */   "__read": () => /* binding */ __read,
+/* harmony export */   "__spread": () => /* binding */ __spread,
+/* harmony export */   "__spreadArrays": () => /* binding */ __spreadArrays,
+/* harmony export */   "__await": () => /* binding */ __await,
+/* harmony export */   "__asyncGenerator": () => /* binding */ __asyncGenerator,
+/* harmony export */   "__asyncDelegator": () => /* binding */ __asyncDelegator,
+/* harmony export */   "__asyncValues": () => /* binding */ __asyncValues,
+/* harmony export */   "__makeTemplateObject": () => /* binding */ __makeTemplateObject,
+/* harmony export */   "__importStar": () => /* binding */ __importStar,
+/* harmony export */   "__importDefault": () => /* binding */ __importDefault,
+/* harmony export */   "__classPrivateFieldGet": () => /* binding */ __classPrivateFieldGet,
+/* harmony export */   "__classPrivateFieldSet": () => /* binding */ __classPrivateFieldSet
+/* harmony export */ });
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
 
@@ -43445,284 +41984,219 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
-/* global global, define, System, Reflect, Promise */
-var __extends;
-var __assign;
-var __rest;
-var __decorate;
-var __param;
-var __metadata;
-var __awaiter;
-var __generator;
-var __exportStar;
-var __values;
-var __read;
-var __spread;
-var __spreadArrays;
-var __await;
-var __asyncGenerator;
-var __asyncDelegator;
-var __asyncValues;
-var __makeTemplateObject;
-var __importStar;
-var __importDefault;
-var __classPrivateFieldGet;
-var __classPrivateFieldSet;
-var __createBinding;
-(function (factory) {
-    var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
-    if (typeof define === "function" && define.amd) {
-        define("tslib", ["exports"], function (exports) { factory(createExporter(root, createExporter(exports))); });
-    }
-    else if ( true && typeof module.exports === "object") {
-        factory(createExporter(root, createExporter(module.exports)));
-    }
-    else {
-        factory(createExporter(root));
-    }
-    function createExporter(exports, previous) {
-        if (exports !== root) {
-            if (typeof Object.create === "function") {
-                Object.defineProperty(exports, "__esModule", { value: true });
-            }
-            else {
-                exports.__esModule = true;
-            }
-        }
-        return function (id, v) { return exports[id] = previous ? previous(id, v) : v; };
-    }
-})
-(function (exporter) {
-    var extendStatics = Object.setPrototypeOf ||
+/* global Reflect, Promise */
+
+var extendStatics = function(d, b) {
+    extendStatics = Object.setPrototypeOf ||
         ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
         function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+    return extendStatics(d, b);
+};
 
-    __extends = function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
+function __extends(d, b) {
+    extendStatics(d, b);
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+}
 
-    __assign = Object.assign || function (t) {
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
             s = arguments[i];
             for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
         }
         return t;
-    };
+    }
+    return __assign.apply(this, arguments);
+}
 
-    __rest = function (s, e) {
-        var t = {};
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-            t[p] = s[p];
-        if (s != null && typeof Object.getOwnPropertySymbols === "function")
-            for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-                if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                    t[p[i]] = s[p[i]];
-            }
-        return t;
-    };
-
-    __decorate = function (decorators, target, key, desc) {
-        var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-        if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-        else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-        return c > 3 && r && Object.defineProperty(target, key, r), r;
-    };
-
-    __param = function (paramIndex, decorator) {
-        return function (target, key) { decorator(target, key, paramIndex); }
-    };
-
-    __metadata = function (metadataKey, metadataValue) {
-        if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
-    };
-
-    __awaiter = function (thisArg, _arguments, P, generator) {
-        function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-        return new (P || (P = Promise))(function (resolve, reject) {
-            function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-            function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-            function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-            step((generator = generator.apply(thisArg, _arguments || [])).next());
-        });
-    };
-
-    __generator = function (thisArg, body) {
-        var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-        return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-        function verb(n) { return function (v) { return step([n, v]); }; }
-        function step(op) {
-            if (f) throw new TypeError("Generator is already executing.");
-            while (_) try {
-                if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-                if (y = 0, t) op = [op[0] & 2, t.value];
-                switch (op[0]) {
-                    case 0: case 1: t = op; break;
-                    case 4: _.label++; return { value: op[1], done: false };
-                    case 5: _.label++; y = op[1]; op = [0]; continue;
-                    case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                    default:
-                        if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                        if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                        if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                        if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                        if (t[2]) _.ops.pop();
-                        _.trys.pop(); continue;
-                }
-                op = body.call(thisArg, _);
-            } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-            if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+function __rest(s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
         }
-    };
+    return t;
+}
 
-    __exportStar = function(m, o) {
-        for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(o, p)) __createBinding(o, m, p);
-    };
+function __decorate(decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+}
 
-    __createBinding = Object.create ? (function(o, m, k, k2) {
-        if (k2 === undefined) k2 = k;
-        Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-    }) : (function(o, m, k, k2) {
-        if (k2 === undefined) k2 = k;
-        o[k2] = m[k];
+function __param(paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+}
+
+function __metadata(metadataKey, metadataValue) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
+}
+
+function __awaiter(thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
+}
 
-    __values = function (o) {
-        var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-        if (m) return m.call(o);
-        if (o && typeof o.length === "number") return {
-            next: function () {
-                if (o && i >= o.length) o = void 0;
-                return { value: o && o[i++], done: !o };
+function __generator(thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
             }
-        };
-        throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-    };
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+}
 
-    __read = function (o, n) {
-        var m = typeof Symbol === "function" && o[Symbol.iterator];
-        if (!m) return o;
-        var i = m.call(o), r, ar = [], e;
-        try {
-            while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-        }
-        catch (error) { e = { error: error }; }
-        finally {
-            try {
-                if (r && !r.done && (m = i["return"])) m.call(i);
-            }
-            finally { if (e) throw e.error; }
-        }
-        return ar;
-    };
-
-    __spread = function () {
-        for (var ar = [], i = 0; i < arguments.length; i++)
-            ar = ar.concat(__read(arguments[i]));
-        return ar;
-    };
-
-    __spreadArrays = function () {
-        for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-        for (var r = Array(s), k = 0, i = 0; i < il; i++)
-            for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-                r[k] = a[j];
-        return r;
-    };
-
-    __await = function (v) {
-        return this instanceof __await ? (this.v = v, this) : new __await(v);
-    };
-
-    __asyncGenerator = function (thisArg, _arguments, generator) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var g = generator.apply(thisArg, _arguments || []), i, q = [];
-        return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-        function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
-        function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
-        function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);  }
-        function fulfill(value) { resume("next", value); }
-        function reject(value) { resume("throw", value); }
-        function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
-    };
-
-    __asyncDelegator = function (o) {
-        var i, p;
-        return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
-        function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
-    };
-
-    __asyncValues = function (o) {
-        if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-        var m = o[Symbol.asyncIterator], i;
-        return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
-        function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
-        function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
-    };
-
-    __makeTemplateObject = function (cooked, raw) {
-        if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
-        return cooked;
-    };
-
-    var __setModuleDefault = Object.create ? (function(o, v) {
-        Object.defineProperty(o, "default", { enumerable: true, value: v });
-    }) : function(o, v) {
-        o["default"] = v;
-    };
-
-    __importStar = function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-
-    __importDefault = function (mod) {
-        return (mod && mod.__esModule) ? mod : { "default": mod };
-    };
-
-    __classPrivateFieldGet = function (receiver, privateMap) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to get private field on non-instance");
-        }
-        return privateMap.get(receiver);
-    };
-
-    __classPrivateFieldSet = function (receiver, privateMap, value) {
-        if (!privateMap.has(receiver)) {
-            throw new TypeError("attempted to set private field on non-instance");
-        }
-        privateMap.set(receiver, value);
-        return value;
-    };
-
-    exporter("__extends", __extends);
-    exporter("__assign", __assign);
-    exporter("__rest", __rest);
-    exporter("__decorate", __decorate);
-    exporter("__param", __param);
-    exporter("__metadata", __metadata);
-    exporter("__awaiter", __awaiter);
-    exporter("__generator", __generator);
-    exporter("__exportStar", __exportStar);
-    exporter("__createBinding", __createBinding);
-    exporter("__values", __values);
-    exporter("__read", __read);
-    exporter("__spread", __spread);
-    exporter("__spreadArrays", __spreadArrays);
-    exporter("__await", __await);
-    exporter("__asyncGenerator", __asyncGenerator);
-    exporter("__asyncDelegator", __asyncDelegator);
-    exporter("__asyncValues", __asyncValues);
-    exporter("__makeTemplateObject", __makeTemplateObject);
-    exporter("__importStar", __importStar);
-    exporter("__importDefault", __importDefault);
-    exporter("__classPrivateFieldGet", __classPrivateFieldGet);
-    exporter("__classPrivateFieldSet", __classPrivateFieldSet);
+var __createBinding = Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
 });
+
+function __exportStar(m, o) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(o, p)) __createBinding(o, m, p);
+}
+
+function __values(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
+        }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+}
+
+function __read(o, n) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator];
+    if (!m) return o;
+    var i = m.call(o), r, ar = [], e;
+    try {
+        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
+    }
+    catch (error) { e = { error: error }; }
+    finally {
+        try {
+            if (r && !r.done && (m = i["return"])) m.call(i);
+        }
+        finally { if (e) throw e.error; }
+    }
+    return ar;
+}
+
+function __spread() {
+    for (var ar = [], i = 0; i < arguments.length; i++)
+        ar = ar.concat(__read(arguments[i]));
+    return ar;
+}
+
+function __spreadArrays() {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
+
+function __await(v) {
+    return this instanceof __await ? (this.v = v, this) : new __await(v);
+}
+
+function __asyncGenerator(thisArg, _arguments, generator) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var g = generator.apply(thisArg, _arguments || []), i, q = [];
+    return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
+    function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
+    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
+    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
+    function fulfill(value) { resume("next", value); }
+    function reject(value) { resume("throw", value); }
+    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
+}
+
+function __asyncDelegator(o) {
+    var i, p;
+    return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
+    function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
+}
+
+function __asyncValues(o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+}
+
+function __makeTemplateObject(cooked, raw) {
+    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
+    return cooked;
+};
+
+var __setModuleDefault = Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+};
+
+function __importStar(mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+}
+
+function __importDefault(mod) {
+    return (mod && mod.__esModule) ? mod : { default: mod };
+}
+
+function __classPrivateFieldGet(receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+}
+
+function __classPrivateFieldSet(receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+}
 
 
 /***/ }),
@@ -44066,9 +42540,16 @@ var external_crypto_default = /*#__PURE__*/__webpack_require__.n(external_crypto
 
 // CONCATENATED MODULE: ./node_modules/uuid/dist/esm-node/rng.js
 
-const rnds8 = new Uint8Array(16);
+const rnds8Pool = new Uint8Array(256); // # of random values to pre-allocate
+
+let poolPtr = rnds8Pool.length;
 function rng() {
-  return external_crypto_default().randomFillSync(rnds8);
+  if (poolPtr > rnds8Pool.length - 16) {
+    external_crypto_default().randomFillSync(rnds8Pool);
+    poolPtr = 0;
+  }
+
+  return rnds8Pool.slice(poolPtr, poolPtr += 16);
 }
 // CONCATENATED MODULE: ./node_modules/uuid/dist/esm-node/regex.js
 /* harmony default export */ const regex = (/^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000)$/i);
@@ -49429,6 +47910,14 @@ module.exports = JSON.parse("[\"ac\",\"com.ac\",\"edu.ac\",\"gov.ac\",\"net.ac\"
 
 "use strict";
 module.exports = require("assert");
+
+/***/ }),
+
+/***/ 4293:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("buffer");
 
 /***/ }),
 
