@@ -9,31 +9,21 @@ This GitHub Action a simple and easy way to upload any files to any blob contain
 
 Below are the action's inputs that need to be defined in the Action's `with` block.
 
-| Input (☑️ = required) | Example | Summary |
-|--------|--------|--------|
-| connection_string ☑️ | `${{ secrets.MyCnnStr }}` | Azure blob conection string |
-| container_name ☑️ | `my-container` | Name of the Blob container |
-| source_folder ☑️ | `src\BuildOutput\` | Folder with the files to upload |
-| destination_folder | `MyTargetFolder/Subfolder` | Folder to upload to in the container (it will be created for you if it does not exist). |
-| clean_destination_folder |  **false** (default)| Delete all files in the desintation before uploading the new files. |
-| fail_if_source_empty | **false** (default)| Set to `true` if you want actio to fail if source folder empty. |
-| is_recursive | **true** (default)| Set to `false` if you want all subfolders ignored. |
-
-**Tip**: If you need to use a environment variable for a `with` input, use the `${{ env.xxx }}` syntax. See [Github Contexts](https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts) documentation for more help.
-
-For example:
-
-```yaml
-with:
-  source_folder: $env:MyVariable # Does NOT work in with assignments.
-  source_folder: ${{ env.MyVariable }} # Works.
-```
+| Required | Inputs | Example | Summary |
+|----------|--------|---------|---------|
+| ✔ | connection_string | `${{ secrets.MyCnnStr }}` | Azure blob conection string |
+| ✔ | container_name | `my-container` | Name of the Blob container |
+| ✔ | source_folder | `src\BuildOutput\` | Folder with the files to upload |
+|  | destination_folder | `MyTargetFolder/Subfolder` | Folder to upload to in the container (it will be created for you if it does not exist). |
+|  | clean_destination_folder |  `false` (default)| Delete all destination files before uploading new ones. |
+|  | fail_if_source_empty | `false` (default)| Set to `true` if you want actio to fail if source folder empty. |
+|  | is_recursive | `true` (default)| Set to `false` if you want all subfolders ignored. |
 
 ## Examples
 
-If you copy-paste from the examples below, don't forget to use a real version number at the end of action name: `LanceMcCarthy/Action-AzureBlobUpload@v1.3`.
+If you copy-paste from the examples below, don't forget to use a real version number at the end of action name: `LanceMcCarthy/Action-AzureBlobUpload@v1.8`.
 
-### Bare Minimum
+### Basic Use
 
 In the most basic form, the Action will upload everything in the `source_folder` to the root of that blob container.
 
@@ -48,7 +38,7 @@ In the most basic form, the Action will upload everything in the `source_folder`
 
 ### Set a Destination Folder (most common)
 
-If you want to upload the files to a folder in the blob container, you can set a `destination_folder`. If you would like to delete any files in the destination folder before the upload, use `clean_destination_folder`.
+If you want to upload the files to a folder in the blob container, you can set a `destination_folder`. 
 
 ```yaml
 - uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X
@@ -61,9 +51,11 @@ If you want to upload the files to a folder in the blob container, you can set a
     clean_destination_folder: true
 ```
 
+> If you would like to delete all the files in the destination folder before the upload, use `clean_destination_folder`.
+
 ### Advanced
 
-Here is an example that might represent a real-world Workflow.
+Here is an example that might represent a real-world Workflow that needs precise control over things.
 
 * The source folder uses an environment variable uses (see [Using Variables in Actions](https://docs.github.com/en/actions/configuring-and-managing-workflows/using-variables-and-secrets-in-a-workflow)).
 * The connection string uses a secrets variable.
@@ -81,3 +73,18 @@ Here is an example that might represent a real-world Workflow.
     clean_destination_folder: true
     fail_if_source_empty: true
 ```
+
+## Important Notes
+
+### Environment Variables
+
+If you need to use a environment variable for a `with` input, you must use the `${{ env.Name }}` syntax and **not** `$env:Name`. See [Github Contexts](https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts) documentation for more help.
+
+For example:
+
+```yaml
+with:
+  source_folder: $env:MyVariable # Does NOT work in with assignments.
+  source_folder: ${{ env.MyVariable }} # Works.
+```
+
