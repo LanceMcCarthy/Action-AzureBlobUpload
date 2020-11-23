@@ -39,7 +39,7 @@ jobs:
           $updatedExcelFileName = "Test_" + $date + ".xlsx"
           Rename-Item $excelFilePath $updatedExcelFileName
 
-      - name: Upload Excel file without Destination Folder
+      - name: Upload Excel file without DestinationFolder
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
@@ -47,11 +47,21 @@ jobs:
           source_folder: src\TestData\ExcelFileTestRoot\
           clean_destination_folder: true
 
-      - name: Upload Text Files with Destination Folder
+      - name: Upload Text Files with DestinationFolder
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
           source_folder: src\TestData\TextFileTestRoot\
-          destination_folder: MyTargetFolder
+          destination_folder: TextFilesTest
           clean_destination_folder: true
+      
+      - name: Upload Text Files Non-recursive
+        uses: ./
+        with:
+          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          container_name: ci-cd
+          source_folder: src\TestData\TextFileTestRoot\
+          destination_folder: NonRecursiveTest
+          clean_destination_folder: true
+          is_recursive: false

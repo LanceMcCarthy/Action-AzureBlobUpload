@@ -11,12 +11,13 @@ Below are the action's inputs that need to be defined in the Action's `with` blo
 
 | Input (☑️ = required) | Example | Summary |
 |--------|--------|--------|
-| ☑️ connection_string | `${{ secrets.MyCnnStr }}` | Azure blob conection string |
-| ☑️ container_name | `my-container` | Name of the Blob container |
-| ☑️ source_folder | `src\BuildOutput\` | Folder with the files to upload |
+| connection_string ☑️ | `${{ secrets.MyCnnStr }}` | Azure blob conection string |
+| container_name ☑️ | `my-container` | Name of the Blob container |
+| source_folder ☑️ | `src\BuildOutput\` | Folder with the files to upload |
 | destination_folder | `MyTargetFolder/Subfolder` | Folder to upload to in the container (it will be created for you if it does not exist). |
 | clean_destination_folder |  **false** (default)| Delete all files in the desintation before uploading the new files. |
-| fail_if_source_empty | **false** (default)| If you would prefer this Action to fail the workflow if there are no files to upload. |
+| fail_if_source_empty | **false** (default)| Set to `true` if you want actio to fail if source folder empty. |
+| is_recursive | **true** (default)| Set to `false` if you want all subfolders ignored. |
 
 **Tip**: If you need to use a environment variable for a `with` input, use the `${{ env.xxx }}` syntax. See [Github Contexts](https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts) documentation for more help.
 
@@ -65,7 +66,7 @@ If you want to upload the files to a folder in the blob container, you can set a
 Here is an example that might represent a real-world Workflow.
 
 * The source folder uses an environment variable uses (see [Using Variables in Actions](https://docs.github.com/en/actions/configuring-and-managing-workflows/using-variables-and-secrets-in-a-workflow)).
-* The connection string uses a secrets variable. 
+* The connection string uses a secrets variable.
 * The desination folder combines a name and the run number of the workflow (see [GitHub Context variables](https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#github-context)).
 * The action will fail and stop the Workflow if there are no files to upload.
 
