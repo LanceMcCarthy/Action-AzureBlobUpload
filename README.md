@@ -21,7 +21,7 @@ Below are the action's inputs that need to be defined in the Action's `with` blo
 
 ## Examples
 
-If you copy-paste from the examples below, don't forget to use a real version number at the end of action name: `LanceMcCarthy/Action-AzureBlobUpload@v1.8`.
+If you copy-paste from the examples below, don't forget to use a real version number at the end of action name: `LanceMcCarthy/Action-AzureBlobUpload@v1.8.0`.
 
 ### Basic Use
 
