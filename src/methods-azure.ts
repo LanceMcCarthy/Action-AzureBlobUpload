@@ -1,6 +1,6 @@
 import * as mime from 'mime-types';
 import * as core from '@actions/core';
-import {BlobServiceClient} from '@azure/storage-blob';
+import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
 
 export async function UploadToAzure(
@@ -35,7 +35,17 @@ export async function UploadToAzure(
     let blobCount = 0;
     for await (const blob of blobContainerClient.listBlobsFlat()) {
       if (blob.name.startsWith(destinationFolder)) {
-        blobContainerClient.getBlockBlobClient(blob.name).delete();
+
+        // To prevent a possible race condition where a blob isn't deleted before being replaced, 
+        // we should also delete the snapshots of the blob to delete and await the promise
+        let deleteSnapshotOptions: DeleteSnapshotsOptionType = "include";
+        let deleteOptions: BlobDeleteOptions = { 
+          deleteSnapshots: deleteSnapshotOptions
+        };
+
+        // Delete the blob
+        await blobContainerClient.getBlockBlobClient(blob.name).delete(deleteOptions);
+
         blobCount++;
       }
     }
@@ -125,4 +135,7 @@ export async function UploadToAzure(
 
     core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
   });
+
+
 }
+
