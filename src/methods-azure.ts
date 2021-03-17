@@ -135,7 +135,4 @@ export async function UploadToAzure(
 
     core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
   });
-
-
 }
-
