@@ -35,11 +35,10 @@ export async function UploadToAzure(
     let blobCount = 0;
     for await (const blob of blobContainerClient.listBlobsFlat()) {
       if (blob.name.startsWith(destinationFolder)) {
-
-        // To prevent a possible race condition where a blob isn't deleted before being replaced, 
+        // To prevent a possible race condition where a blob isn't deleted before being replaced,
         // we should also delete the snapshots of the blob to delete and await the promise
-        let deleteSnapshotOptions: DeleteSnapshotsOptionType = "include";
-        let deleteOptions: BlobDeleteOptions = { 
+        const deleteSnapshotOptions: DeleteSnapshotsOptionType = 'include';
+        const deleteOptions: BlobDeleteOptions = {
           deleteSnapshots: deleteSnapshotOptions
         };
 
