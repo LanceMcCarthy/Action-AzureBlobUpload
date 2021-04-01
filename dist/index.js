@@ -176,30 +176,48 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
             }
             return;
         }
+        // Replace backward slashes with forward slashes
+        let cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
+        // Remove leading slash
+        if (cleanedSourceFolderPath.startsWith('/')) {
+            cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
+        }
+        // Remove trailing slash
+        if (cleanedSourceFolderPath.endsWith('/')) {
+            cleanedSourceFolderPath = cleanedSourceFolderPath.slice(0, -1);
+        }
+        core.debug(`sourceFolder: ${sourceFolder}`);
+        core.debug(`--- cleaned: ${cleanedSourceFolderPath}`);
+        let cleanedDestinationFolder = '';
+        if (destinationFolder !== '') {
+            // Replace forward slashes with backward slashes
+            cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
+            // Remove leading slash
+            if (cleanedDestinationFolder.startsWith('/')) {
+                cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
+            }
+            // Remove trailing slash
+            if (cleanedDestinationFolder.endsWith('/')) {
+                cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
+            }
+            core.debug(`destinationFolder: ${destinationFolder}`);
+            core.debug(`-- cleaned: ${cleanedDestinationFolder}`);
+        }
         sourcePaths.forEach((localFilePath) => __awaiter(this, void 0, void 0, function* () {
             // Replace forward slashes with backward slashes
-            const cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
-            const cleanedFilePath = localFilePath.replace(/\\/g, '/');
-            let cleanedDestinationFolder = '';
-            core.debug(`sourceFolder: ${sourceFolder}`);
-            core.debug(`--- cleaned: ${cleanedSourceFolderPath}`);
+            let cleanedFilePath = localFilePath.replace(/\\/g, '/');
+            // Remove leading slash
+            if (cleanedFilePath.startsWith('/')) {
+                cleanedFilePath = cleanedFilePath.substr(1);
+            }
+            // Remove trailing slash
+            if (cleanedFilePath.endsWith('/')) {
+                cleanedFilePath = cleanedFilePath.slice(0, -1);
+            }
             core.debug(`localFilePath: ${localFilePath}`);
             core.debug(`--- cleaned: ${cleanedFilePath}`);
-            if (destinationFolder !== '') {
-                // Replace forward slashes with backward slashes
-                cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-                // Remove leading and leading slashes
-                cleanedDestinationFolder = cleanedDestinationFolder
-                    .split('/')
-                    .filter(x => x)
-                    .join('/');
-                core.debug(`destinationFolder: ${destinationFolder}`);
-                core.debug(`-- cleaned: ${cleanedDestinationFolder}`);
-            }
             // Determining the relative path by trimming the source path from the front of the string.
-            const trimStartPosition = cleanedSourceFolderPath.length - 1;
-            const trimLength = cleanedFilePath.length - cleanedSourceFolderPath.length + 1;
-            const trimmedPath = cleanedFilePath.substr(trimStartPosition, trimLength);
+            const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length + 1);
             let finalPath = '';
             if (cleanedDestinationFolder !== '') {
                 // If there is a DestinationFolder set, prefix it to the relative path.

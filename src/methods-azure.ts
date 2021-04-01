@@ -74,12 +74,12 @@ export async function UploadToAzure(
 
   // Replace backward slashes with forward slashes
   let cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
-  
+
   // Remove leading slash
   if (cleanedSourceFolderPath.startsWith('/')) {
     cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
   }
-  
+
   // Remove trailing slash
   if (cleanedSourceFolderPath.endsWith('/')) {
     cleanedSourceFolderPath = cleanedSourceFolderPath.slice(0, -1);
@@ -98,7 +98,7 @@ export async function UploadToAzure(
     if (cleanedDestinationFolder.startsWith('/')) {
       cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
     }
-  
+
     // Remove trailing slash
     if (cleanedDestinationFolder.endsWith('/')) {
       cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
@@ -116,7 +116,7 @@ export async function UploadToAzure(
     if (cleanedFilePath.startsWith('/')) {
       cleanedFilePath = cleanedFilePath.substr(1);
     }
-  
+
     // Remove trailing slash
     if (cleanedFilePath.endsWith('/')) {
       cleanedFilePath = cleanedFilePath.slice(0, -1);
