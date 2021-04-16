@@ -106,12 +106,16 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
     function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadToAzure = void 0;
 const mime = __importStar(__nccwpck_require__(3583));
 const core = __importStar(__nccwpck_require__(2186));
 const storage_blob_1 = __nccwpck_require__(4100);
 const helpers = __importStar(__nccwpck_require__(1088));
+const path_1 = __importDefault(__nccwpck_require__(5622));
 function UploadToAzure(connectionString, containerName, sourceFolder, destinationFolder, cleanDestinationPath, failIfSourceEmpty, isRecursive) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
@@ -191,48 +195,12 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
         let cleanedDestinationFolder = '';
         if (destinationFolder !== '') {
             // Replace forward slashes with backward slashes
-            cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-            // Remove leading slash
-            if (cleanedDestinationFolder.startsWith('/')) {
-                cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
-            }
-            // Remove trailing slash
-            if (cleanedDestinationFolder.endsWith('/')) {
-                cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
-            }
+            cleanedDestinationFolder = path_1.default.normalize(destinationFolder);
             core.debug(`destinationFolder: ${destinationFolder}`);
             core.debug(`-- cleaned: ${cleanedDestinationFolder}`);
         }
         sourcePaths.forEach((localFilePath) => __awaiter(this, void 0, void 0, function* () {
-            // Replace forward slashes with backward slashes
-            let cleanedFilePath = localFilePath.replace(/\\/g, '/');
-            // Remove leading slash
-            if (cleanedFilePath.startsWith('/')) {
-                cleanedFilePath = cleanedFilePath.substr(1);
-            }
-            // Remove trailing slash
-            if (cleanedFilePath.endsWith('/')) {
-                cleanedFilePath = cleanedFilePath.slice(0, -1);
-            }
-            core.debug(`localFilePath: ${localFilePath}`);
-            core.debug(`--- cleaned: ${cleanedFilePath}`);
-            // Determining the relative path by trimming the source path from the front of the string.
-            const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length + 1);
-            let finalPath = '';
-            if (cleanedDestinationFolder !== '') {
-                // If there is a DestinationFolder set, prefix it to the relative path.
-                finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
-            }
-            else {
-                // Otherwise, use the file's relative path (this will maintain all subfolders).
-                finalPath = trimmedPath;
-            }
-            // Trim leading slashes, the container is always the root
-            if (finalPath.startsWith('/')) {
-                finalPath = finalPath.substr(1);
-            }
-            // If there are any double slashes in the path, replace them now
-            finalPath = finalPath.replace('//', '/');
+            const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
             core.debug(`finalPath: ${finalPath}...`);
             // Prevent every file's ContentType from being marked as application/octet-stream.
             const mimeType = mime.lookup(localFilePath);
@@ -264,7 +232,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
+exports.getFinalPathForFileName = exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
 const fs_1 = __nccwpck_require__(5747);
 const path_1 = __nccwpck_require__(5622);
 function FindFilesFlat(directory) {
@@ -302,6 +270,21 @@ function FindFilesRecursive(directory) {
     });
 }
 exports.FindFilesRecursive = FindFilesRecursive;
+function getFinalPathForFileName(localFilePath, destinationDirectory) {
+    const fileName = path_1.basename(localFilePath);
+    let finalPath = fileName;
+    if (destinationDirectory !== '') {
+        // If there is a DestinationFolder set, prefix it to the relative path.
+        finalPath = [destinationDirectory, fileName].join('/');
+    }
+    // Trim leading slashes, the container is always the root
+    if (finalPath.startsWith('/')) {
+        finalPath = finalPath.substr(1);
+    }
+    finalPath = path_1.normalize(finalPath).replace(/\\/g, '/').replace(/\/\//g, '/');
+    return finalPath;
+}
+exports.getFinalPathForFileName = getFinalPathForFileName;
 
 
 /***/ }),
