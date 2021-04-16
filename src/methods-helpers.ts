@@ -1,6 +1,6 @@
 import {promises as fs} from 'fs';
-import {join} from 'path';
 
+import {join, basename, normalize} from 'path';
 export async function FindFilesFlat(directory: string) {
   const fileList: string[] = [];
 
@@ -37,4 +37,21 @@ export async function FindFilesRecursive(directory: string) {
   }
 
   return fileList;
+}
+
+export function getFinalPathForFileName(localFilePath: string, destinationDirectory?: string) {
+  const fileName = basename(localFilePath);
+  let finalPath = fileName;
+  if (destinationDirectory !== '') {
+    // If there is a DestinationFolder set, prefix it to the relative path.
+    finalPath = [destinationDirectory, fileName].join('/');
+  }
+
+  // Trim leading slashes, the container is always the root
+  if (finalPath.startsWith('/')) {
+    finalPath = finalPath.substr(1);
+  }
+
+  finalPath = normalize(finalPath).replace(/\\/g, '/').replace(/\/\//g, '/');
+  return finalPath;
 }

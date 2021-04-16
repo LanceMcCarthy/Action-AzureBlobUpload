@@ -2,6 +2,7 @@ import * as mime from 'mime-types';
 import * as core from '@actions/core';
 import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
+import path from 'path';
 
 export async function UploadToAzure(
   connectionString: string,
@@ -92,58 +93,14 @@ export async function UploadToAzure(
 
   if (destinationFolder !== '') {
     // Replace forward slashes with backward slashes
-    cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-
-    // Remove leading slash
-    if (cleanedDestinationFolder.startsWith('/')) {
-      cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
-    }
-
-    // Remove trailing slash
-    if (cleanedDestinationFolder.endsWith('/')) {
-      cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
-    }
+    cleanedDestinationFolder = path.normalize(destinationFolder);
 
     core.debug(`destinationFolder: ${destinationFolder}`);
     core.debug(`-- cleaned: ${cleanedDestinationFolder}`);
   }
 
   sourcePaths.forEach(async (localFilePath: string) => {
-    // Replace forward slashes with backward slashes
-    let cleanedFilePath = localFilePath.replace(/\\/g, '/');
-
-    // Remove leading slash
-    if (cleanedFilePath.startsWith('/')) {
-      cleanedFilePath = cleanedFilePath.substr(1);
-    }
-
-    // Remove trailing slash
-    if (cleanedFilePath.endsWith('/')) {
-      cleanedFilePath = cleanedFilePath.slice(0, -1);
-    }
-
-    core.debug(`localFilePath: ${localFilePath}`);
-    core.debug(`--- cleaned: ${cleanedFilePath}`);
-
-    // Determining the relative path by trimming the source path from the front of the string.
-    const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length + 1);
-    let finalPath = '';
-
-    if (cleanedDestinationFolder !== '') {
-      // If there is a DestinationFolder set, prefix it to the relative path.
-      finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
-    } else {
-      // Otherwise, use the file's relative path (this will maintain all subfolders).
-      finalPath = trimmedPath;
-    }
-
-    // Trim leading slashes, the container is always the root
-    if (finalPath.startsWith('/')) {
-      finalPath = finalPath.substr(1);
-    }
-
-    // If there are any double slashes in the path, replace them now
-    finalPath = finalPath.replace('//', '/');
+    const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
 
     core.debug(`finalPath: ${finalPath}...`);
 
@@ -153,9 +110,7 @@ export async function UploadToAzure(
 
     // Upload
     const client = blobContainerClient.getBlockBlobClient(finalPath);
-
     await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
-
     core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
   });
 }
