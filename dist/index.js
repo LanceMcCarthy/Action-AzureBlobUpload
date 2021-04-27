@@ -281,7 +281,7 @@ function getFinalPathForFileName(localFilePath, destinationDirectory) {
     if (finalPath.startsWith('/')) {
         finalPath = finalPath.substr(1);
     }
-    finalPath = path_1.normalize(finalPath).replace(/\\/g, '/').replace(/\/\//g, '/');
+    finalPath = path_1.normalize(finalPath); //.replace(/\\/g, '/').replace(/\/\//g, '/');
     return finalPath;
 }
 exports.getFinalPathForFileName = getFinalPathForFileName;
