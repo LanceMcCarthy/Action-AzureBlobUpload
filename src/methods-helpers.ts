@@ -1,5 +1,6 @@
 import {promises as fs} from 'fs';
-import {join, basename, normalize} from 'path';
+import {join, basename} from 'path';
+// import {join, basename, normalize} from 'path';
 
 export async function FindFilesFlat(directory: string) {
   const fileList: string[] = [];
@@ -51,7 +52,9 @@ export function getFinalPathForFileName(localFilePath: string, destinationDirect
     finalPath = finalPath.substr(1);
   }
 
-  finalPath = normalize(finalPath); //.replace(/\\/g, '/').replace(/\/\//g, '/');
+  // finalPath = normalize(finalPath);
+
+  finalPath = finalPath.replace(/\\/g, '/').replace(/\/\//g, '/');
 
   return finalPath;
 }

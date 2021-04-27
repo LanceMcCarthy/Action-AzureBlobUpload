@@ -235,6 +235,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getFinalPathForFileName = exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
 const fs_1 = __nccwpck_require__(5747);
 const path_1 = __nccwpck_require__(5622);
+// import {join, basename, normalize} from 'path';
 function FindFilesFlat(directory) {
     return __awaiter(this, void 0, void 0, function* () {
         const fileList = [];
@@ -281,7 +282,8 @@ function getFinalPathForFileName(localFilePath, destinationDirectory) {
     if (finalPath.startsWith('/')) {
         finalPath = finalPath.substr(1);
     }
-    finalPath = path_1.normalize(finalPath); //.replace(/\\/g, '/').replace(/\/\//g, '/');
+    // finalPath = normalize(finalPath);
+    finalPath = finalPath.replace(/\\/g, '/').replace(/\/\//g, '/');
     return finalPath;
 }
 exports.getFinalPathForFileName = getFinalPathForFileName;
