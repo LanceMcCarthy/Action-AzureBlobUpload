@@ -106,16 +106,14 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
     function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadToAzure = void 0;
 const mime = __importStar(__nccwpck_require__(3583));
 const core = __importStar(__nccwpck_require__(2186));
 const storage_blob_1 = __nccwpck_require__(4100);
 const helpers = __importStar(__nccwpck_require__(1088));
-const path_1 = __importDefault(__nccwpck_require__(5622));
+// *********** INVESTIGATING #124 ************** //
+// import path from 'path';
 function UploadToAzure(connectionString, containerName, sourceFolder, destinationFolder, cleanDestinationPath, failIfSourceEmpty, isRecursive) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
@@ -194,13 +192,70 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
         core.debug(`--- cleaned: ${cleanedSourceFolderPath}`);
         let cleanedDestinationFolder = '';
         if (destinationFolder !== '') {
+            cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
+            // Remove leading slash
+            if (cleanedDestinationFolder.startsWith('/')) {
+                cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
+            }
+            // Remove trailing slash
+            if (cleanedDestinationFolder.endsWith('/')) {
+                cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
+            }
+            // *********** INVESTIGATING #124 ************** //
+            // *** INTRODUCED in PR #123, possible breaking change *** //
+            // cleanedDestinationFolder = path.normalize(destinationFolder);
+            // *** ORIGINAL *** //
             // Replace forward slashes with backward slashes
-            cleanedDestinationFolder = path_1.default.normalize(destinationFolder);
+            cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
+            // Remove leading slash
+            if (cleanedDestinationFolder.startsWith('/')) {
+                cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
+            }
+            // Remove trailing slash
+            if (cleanedDestinationFolder.endsWith('/')) {
+                cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
+            }
+            // *** END ORIGINAL *** //
+            // ****************** END INVESTIGATION *************** //
             core.debug(`destinationFolder: ${destinationFolder}`);
             core.debug(`-- cleaned: ${cleanedDestinationFolder}`);
         }
         sourcePaths.forEach((localFilePath) => __awaiter(this, void 0, void 0, function* () {
-            const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
+            // *********** INVESTIGATING #124 ************** //
+            // *** INTRODUCED in PR #123, possible breaking change *** //
+            //const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
+            // *** ORIGINAL *** //
+            // Replace forward slashes with backward slashes
+            let cleanedFilePath = localFilePath.replace(/\\/g, '/');
+            // Remove leading slash
+            if (cleanedFilePath.startsWith('/')) {
+                cleanedFilePath = cleanedFilePath.substr(1);
+            }
+            // Remove trailing slash
+            if (cleanedFilePath.endsWith('/')) {
+                cleanedFilePath = cleanedFilePath.slice(0, -1);
+            }
+            core.debug(`localFilePath: ${localFilePath}`);
+            core.debug(`--- cleaned: ${cleanedFilePath}`);
+            // Determining the relative path by trimming the source path from the front of the string.
+            const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length + 1);
+            let finalPath = '';
+            if (cleanedDestinationFolder !== '') {
+                // If there is a DestinationFolder set, prefix it to the relative path.
+                finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
+            }
+            else {
+                // Otherwise, use the file's relative path (this will maintain all subfolders).
+                finalPath = trimmedPath;
+            }
+            // Trim leading slashes, the container is always the root
+            if (finalPath.startsWith('/')) {
+                finalPath = finalPath.substr(1);
+            }
+            // If there are any double slashes in the path, replace them now
+            finalPath = finalPath.replace('//', '/');
+            // *** END ORIGINAL *** //
+            // ****************** END INVESTIGATION *************** //
             core.debug(`finalPath: ${finalPath}...`);
             // Prevent every file's ContentType from being marked as application/octet-stream.
             const mimeType = mime.lookup(localFilePath);
@@ -235,7 +290,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getFinalPathForFileName = exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
 const fs_1 = __nccwpck_require__(5747);
 const path_1 = __nccwpck_require__(5622);
-// import {join, basename, normalize} from 'path';
 function FindFilesFlat(directory) {
     return __awaiter(this, void 0, void 0, function* () {
         const fileList = [];
@@ -271,6 +325,7 @@ function FindFilesRecursive(directory) {
     });
 }
 exports.FindFilesRecursive = FindFilesRecursive;
+// *********** INVESTIGATING #124 ************** //
 function getFinalPathForFileName(localFilePath, destinationDirectory) {
     const fileName = path_1.basename(localFilePath);
     let finalPath = fileName;
@@ -282,7 +337,9 @@ function getFinalPathForFileName(localFilePath, destinationDirectory) {
     if (finalPath.startsWith('/')) {
         finalPath = finalPath.substr(1);
     }
-    // finalPath = normalize(finalPath);
+    //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
+    finalPath = path_1.normalize(finalPath);
+    // change to all forwardslashes so that it is compatible with Blog Storage URL based paths
     finalPath = finalPath.replace(/\\/g, '/').replace(/\/\//g, '/');
     return finalPath;
 }
