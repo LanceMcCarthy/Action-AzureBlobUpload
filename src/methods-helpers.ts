@@ -1,6 +1,5 @@
 import {promises as fs} from 'fs';
 import {join, basename, normalize} from 'path';
-import * as core from '@actions/core';
 
 export async function FindFilesFlat(directory: string) {
   const fileList: string[] = [];
@@ -24,7 +23,6 @@ export async function FindFilesRecursive(directory: string) {
   const files = await fs.readdir(directory);
 
   for (const file of files) {
-    core.info(file);
     const path = join(directory, file);
     const status = await fs.stat(path);
     const isDirectory = status.isDirectory();
@@ -39,9 +37,35 @@ export async function FindFilesRecursive(directory: string) {
   return fileList;
 }
 
+export function CleanFolderPath(folderPath: string) {
+  let cleanedSourceFolderPath = folderPath.replace(/\\/g, '/');
+
+  // Remove any dot prefix
+  if (cleanedSourceFolderPath.startsWith('.')) {
+    cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
+  }
+
+  // Remove leading slash
+  if (cleanedSourceFolderPath.startsWith('/')) {
+    cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
+  }
+
+  // Remove trailing slash
+  if (cleanedSourceFolderPath.endsWith('/')) {
+    cleanedSourceFolderPath = cleanedSourceFolderPath.slice(0, -1);
+  }
+
+  return cleanedSourceFolderPath;
+}
+
 // *********** INVESTIGATING #124 ************** //
 export function getFinalPathForFileName(localFilePath: string, destinationDirectory?: string) {
+  // SUSPECT of #124 cause. The base name strips any preceding local path form root
   const fileName = basename(localFilePath);
+
+  // TODO break up the file path to the constituent parts for evaluation and recombination
+  //const parts = parse(localFilePath);
+
   let finalPath = fileName;
 
   if (destinationDirectory !== '') {
@@ -55,7 +79,7 @@ export function getFinalPathForFileName(localFilePath: string, destinationDirect
   }
 
   //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
-  finalPath = normalize(finalPath).replace(/\\/g, '/').replace(/\/\//g, '/');
+  finalPath = normalize(finalPath).replace(/\\/g, '/');
 
   return finalPath;
 }

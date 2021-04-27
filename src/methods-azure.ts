@@ -1,6 +1,7 @@
 import * as mime from 'mime-types';
 import * as core from '@actions/core';
-import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType} from '@azure/storage-blob';
+import {parse} from 'path';
+import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType, ContainerClient} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
 
 // *********** INVESTIGATING #124 ************** //
@@ -55,8 +56,18 @@ export async function UploadToAzure(
     core.info(`"Clean complete, ${blobCount} blobs deleted."`);
   }
 
-  // INTERVENE TO MAKE SURE SOURCE FOLDER/FILE IS CORRECT HERE
+  // **************************** SOURCE FOLDER IS A FILE PATH ********************* //
+  // Check if the developer used a file path instead of a folder path using path.parse (see https://www.educba.com/node-js-path/)
 
+  if (parse(sourceFolder).ext.length > 0) {
+    core.info(`"ALERT - source_folder is a single file's path, breaking to single file mode."`);
+
+    uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder);
+
+    return;
+  }
+
+  // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
   let sourcePaths: string[] = [];
 
   if (isRecursive) {
@@ -77,23 +88,7 @@ export async function UploadToAzure(
     return;
   }
 
-  // Replace backward slashes with forward slashes
-  let cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
-
-  // Remove any dot prefix
-  if (cleanedSourceFolderPath.startsWith('.')) {
-    cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
-  }
-
-  // Remove leading slash
-  if (cleanedSourceFolderPath.startsWith('/')) {
-    cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
-  }
-
-  // Remove trailing slash
-  if (cleanedSourceFolderPath.endsWith('/')) {
-    cleanedSourceFolderPath = cleanedSourceFolderPath.slice(0, -1);
-  }
+  const cleanedSourceFolderPath = helpers.CleanFolderPath(sourceFolder);
 
   core.debug(`sourceFolder: ${sourceFolder}`);
   core.debug(`--- cleaned: ${cleanedSourceFolderPath}`);
@@ -108,21 +103,23 @@ export async function UploadToAzure(
 
     // *** ORIGINAL *** //
 
-    // Replace forward slashes with backward slashes
-    cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
+    // // Replace forward slashes with backward slashes
+    // cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
 
-    // Remove leading slash
-    if (cleanedDestinationFolder.startsWith('/')) {
-      cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
-    }
+    // // Remove leading slash
+    // if (cleanedDestinationFolder.startsWith('/')) {
+    //   cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
+    // }
 
-    // Remove trailing slash
-    if (cleanedDestinationFolder.endsWith('/')) {
-      cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
-    }
+    // // Remove trailing slash
+    // if (cleanedDestinationFolder.endsWith('/')) {
+    //   cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
+    // }
     // *** END ORIGINAL *** //
 
     // ****************** END INVESTIGATION *************** //
+
+    cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
 
     core.debug(`destinationFolder: ${destinationFolder}`);
     core.debug(`-- cleaned: ${cleanedDestinationFolder}`);
@@ -186,4 +183,17 @@ export async function UploadToAzure(
     await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
     core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
   });
+}
+
+async function uploadSingleFile(blobContainerClient: ContainerClient, containerName: string, localFilePath: string, destinationFolder: string) {
+  const cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
+  const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
+
+  const mimeType = mime.lookup(localFilePath);
+  const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
+
+  // Upload
+  const client = blobContainerClient.getBlockBlobClient(finalPath);
+  await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
+  core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
 }

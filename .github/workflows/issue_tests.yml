@@ -66,12 +66,22 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
       
-      - name: Upload file with Dot Prefix
+      - name: Upload folder with dot Prefix
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
           source_folder: .\src\TestData\ExcelFileTestRoot\
-          destination_folder: DotPrefixTest
+          destination_folder: DotPrefixFolderTest
+          clean_destination_folder: true
+          is_recursive: false
+
+      - name: Upload file with dot Prefix
+        uses: ./
+        with:
+          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          container_name: ci-cd
+          source_folder: .\src\TestData\ExcelFileTestRoot\Test.xlsx
+          destination_folder: DotPrefixFileTest
           clean_destination_folder: true
           is_recursive: false
