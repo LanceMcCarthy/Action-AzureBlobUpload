@@ -94,18 +94,6 @@ export async function UploadToAzure(
   let cleanedDestinationFolder = '';
 
   if (destinationFolder !== '') {
-    cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-
-    // Remove leading slash
-    if (cleanedDestinationFolder.startsWith('/')) {
-      cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
-    }
-
-    // Remove trailing slash
-    if (cleanedDestinationFolder.endsWith('/')) {
-      cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
-    }
-
     // *********** INVESTIGATING #124 ************** //
 
     // *** INTRODUCED in PR #123, possible breaking change *** //

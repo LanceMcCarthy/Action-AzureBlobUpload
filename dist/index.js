@@ -192,15 +192,6 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
         core.debug(`--- cleaned: ${cleanedSourceFolderPath}`);
         let cleanedDestinationFolder = '';
         if (destinationFolder !== '') {
-            cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-            // Remove leading slash
-            if (cleanedDestinationFolder.startsWith('/')) {
-                cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
-            }
-            // Remove trailing slash
-            if (cleanedDestinationFolder.endsWith('/')) {
-                cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
-            }
             // *********** INVESTIGATING #124 ************** //
             // *** INTRODUCED in PR #123, possible breaking change *** //
             // cleanedDestinationFolder = path.normalize(destinationFolder);
@@ -338,9 +329,7 @@ function getFinalPathForFileName(localFilePath, destinationDirectory) {
         finalPath = finalPath.substr(1);
     }
     //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
-    finalPath = path_1.normalize(finalPath);
-    // change to all forwardslashes so that it is compatible with Blog Storage URL based paths
-    finalPath = finalPath.replace(/\\/g, '/').replace(/\/\//g, '/');
+    finalPath = path_1.normalize(finalPath).replace(/\\/g, '/').replace(/\/\//g, '/');
     return finalPath;
 }
 exports.getFinalPathForFileName = getFinalPathForFileName;
