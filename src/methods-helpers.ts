@@ -1,5 +1,6 @@
 import {promises as fs} from 'fs';
 import {join, basename, normalize} from 'path';
+import * as core from '@actions/core';
 
 export async function FindFilesFlat(directory: string) {
   const fileList: string[] = [];
@@ -23,6 +24,7 @@ export async function FindFilesRecursive(directory: string) {
   const files = await fs.readdir(directory);
 
   for (const file of files) {
+    core.info(file);
     const path = join(directory, file);
     const status = await fs.stat(path);
     const isDirectory = status.isDirectory();
