@@ -159,6 +159,7 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
             }
             core.info(`"Clean complete, ${blobCount} blobs deleted."`);
         }
+        // INTERVENE TO MAKE SURE SOURCE FOLDER/FILE IS CORRECT HERE
         let sourcePaths = [];
         if (isRecursive) {
             // Get an array of all the file paths and subfolder file paths in the source folder

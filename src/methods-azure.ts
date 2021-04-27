@@ -55,6 +55,8 @@ export async function UploadToAzure(
     core.info(`"Clean complete, ${blobCount} blobs deleted."`);
   }
 
+  // INTERVENE TO MAKE SURE SOURCE FOLDER/FILE IS CORRECT HERE
+
   let sourcePaths: string[] = [];
 
   if (isRecursive) {
