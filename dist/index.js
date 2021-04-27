@@ -180,6 +180,10 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
         }
         // Replace backward slashes with forward slashes
         let cleanedSourceFolderPath = sourceFolder.replace(/\\/g, '/');
+        // Remove any dot prefix
+        if (cleanedSourceFolderPath.startsWith('.')) {
+            cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
+        }
         // Remove leading slash
         if (cleanedSourceFolderPath.startsWith('/')) {
             cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
