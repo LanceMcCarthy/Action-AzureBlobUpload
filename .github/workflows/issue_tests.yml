@@ -66,11 +66,11 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
       
-      - name: UUpload file with Dot Prefix
+      - name: Upload file with Dot Prefix
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: .\src\TestData\ExcelFileTestRoot\Test.xlsx
+          source_folder: \src\TestData\ExcelFileTestRoot\Test.xlsx
           destination_folder: DotPrefixTest
           clean_destination_folder: true
