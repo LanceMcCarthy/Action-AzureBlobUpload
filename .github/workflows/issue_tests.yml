@@ -39,7 +39,8 @@ jobs:
           $updatedExcelFileName = "Test_" + $date + ".xlsx"
           Rename-Item $excelFilePath $updatedExcelFileName
 
-      - name: Upload Excel file without DestinationFolder
+      # NOTE: this job also cleans the entire container to start over for this round of tests
+      - name: Upload without DestinationFolder Test
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
@@ -47,16 +48,16 @@ jobs:
           source_folder: src\TestData\ExcelFileTestRoot\
           clean_destination_folder: true
 
-      - name: Upload Text Files with DestinationFolder
+      - name: Recursive with DestinationFolder Test
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
           source_folder: src\TestData\TextFileTestRoot\
-          destination_folder: TextFilesTest
+          destination_folder: RecursiveTest
           clean_destination_folder: true
       
-      - name: Upload Text Files Non-recursive
+      - name: Non-recursive with Destination Folder Test
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
@@ -65,23 +66,33 @@ jobs:
           destination_folder: NonRecursiveTest
           clean_destination_folder: true
           is_recursive: false
-      
-      - name: Upload folder with dot Prefix
+        
+      - name: Non-recursive with Destination Folder (with . Prefix) Test
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
           source_folder: .\src\TestData\ExcelFileTestRoot\
-          destination_folder: DotPrefixFolderTest
+          destination_folder: DotPrefixTest
           clean_destination_folder: true
           is_recursive: false
 
-      - name: Upload file with dot Prefix
+      - name: Single File Path Test
+        uses: ./
+        with:
+          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          container_name: ci-cd
+          source_folder: src\TestData\ExcelFileTestRoot\Test.xlsx
+          destination_folder: SingleFileTest
+          clean_destination_folder: true
+          is_recursive: false
+      
+      - name: Single File Test (with . Prefix)
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
           source_folder: .\src\TestData\ExcelFileTestRoot\Test.xlsx
-          destination_folder: DotPrefixFileTest
+          destination_folder: SingleFileWithPrefixTest
           clean_destination_folder: true
           is_recursive: false

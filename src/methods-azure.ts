@@ -1,7 +1,7 @@
 import * as mime from 'mime-types';
 import * as core from '@actions/core';
 import {parse} from 'path';
-import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType, ContainerClient} from '@azure/storage-blob';
+import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
 
 // *********** INVESTIGATING #124 ************** //
@@ -62,8 +62,21 @@ export async function UploadToAzure(
   if (parse(sourceFolder).ext.length > 0) {
     core.info(`"ALERT - source_folder is a single file's path, breaking to single file mode."`);
 
-    uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder);
+    const localFilePath = sourceFolder;
 
+    const cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
+    const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
+
+    // Prevent every file's ContentType from being marked as application/octet-stream.
+    const mimeType = mime.lookup(localFilePath);
+    const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
+
+    // Upload
+    const client = blobContainerClient.getBlockBlobClient(finalPath);
+    await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
+    core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+
+    // We're done
     return;
   }
 
@@ -183,17 +196,4 @@ export async function UploadToAzure(
     await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
     core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
   });
-}
-
-async function uploadSingleFile(blobContainerClient: ContainerClient, containerName: string, localFilePath: string, destinationFolder: string) {
-  const cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
-  const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
-
-  const mimeType = mime.lookup(localFilePath);
-  const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
-
-  // Upload
-  const client = blobContainerClient.getBlockBlobClient(finalPath);
-  await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
-  core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
 }

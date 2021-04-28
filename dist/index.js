@@ -164,7 +164,17 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
         // Check if the developer used a file path instead of a folder path using path.parse (see https://www.educba.com/node-js-path/)
         if (path_1.parse(sourceFolder).ext.length > 0) {
             core.info(`"ALERT - source_folder is a single file's path, breaking to single file mode."`);
-            uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder);
+            const localFilePath = sourceFolder;
+            const cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
+            const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
+            // Prevent every file's ContentType from being marked as application/octet-stream.
+            const mimeType = mime.lookup(localFilePath);
+            const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
+            // Upload
+            const client = blobContainerClient.getBlockBlobClient(finalPath);
+            yield client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
+            core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+            // We're done
             return;
         }
         // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
@@ -260,18 +270,6 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
     });
 }
 exports.UploadToAzure = UploadToAzure;
-function uploadSingleFile(blobContainerClient, containerName, localFilePath, destinationFolder) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
-        const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
-        const mimeType = mime.lookup(localFilePath);
-        const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
-        // Upload
-        const client = blobContainerClient.getBlockBlobClient(finalPath);
-        yield client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
-        core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
-    });
-}
 
 
 /***/ }),
