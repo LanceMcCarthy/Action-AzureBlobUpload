@@ -21,14 +21,14 @@ Below are the action's inputs that need to be defined in the Action's `with` blo
 
 ## Examples
 
-If you copy-paste from the examples below, don't forget to use a real version number at the end of action name: `LanceMcCarthy/Action-AzureBlobUpload@v1.8.0`.
+If you copy-paste from the examples below, don't forget to use a real version number at the end of action name. For example, `LanceMcCarthy/Action-AzureBlobUpload@v1.8.x`.
 
 ### Basic Use
 
 In the most basic form, the Action will upload everything in the `source_folder` to the root of that blob container.
 
 ```yaml
-- uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X
+- uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X.X
   name: Uploading to Azure storage...
   with:
     connection_string: ${{ secrets.YourAzureBlobConnectionString }}
@@ -38,10 +38,10 @@ In the most basic form, the Action will upload everything in the `source_folder`
 
 ### Set a Destination Folder (most common)
 
-If you want to upload the files to a folder in the blob container, you can set a `destination_folder`. 
+If you want to upload the files to a folder in the blob container, you can set a `destination_folder`.
 
 ```yaml
-- uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X
+- uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X.X
   name: Azure Blob Upload with Destination folder defined
   with:
     connection_string: ${{ secrets.YourAzureBlobConnectionString }}
@@ -53,6 +53,22 @@ If you want to upload the files to a folder in the blob container, you can set a
 
 > If you would like to delete all the files in the destination folder before the upload, use `clean_destination_folder`.
 
+### Skip subfolder
+
+If you want to upload *only* files in the `source_folder` and skip subfolders and subfolder files, set `is_recursive` to `false`.
+
+```yaml
+      - name: Upload Text Files Non-recursive
+        uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X.X
+        with:
+          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          container_name: your-container-name
+          source_folder: src\LocalFolderName\
+          destination_folder: FolderNameInBlob
+          clean_destination_folder: true
+          is_recursive: false
+```
+
 ### Advanced
 
 Here is an example that might represent a real-world Workflow that needs precise control over things.
@@ -63,7 +79,7 @@ Here is an example that might represent a real-world Workflow that needs precise
 * The action will fail and stop the Workflow if there are no files to upload.
 
 ```yaml
-- uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X
+- uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X.X
   name: Azure Blob Upload with Destination folder defined
   with:
     connection_string: ${{ secrets.DeploymentsBlobConnectionString }}
@@ -87,4 +103,3 @@ with:
   source_folder: $env:MyVariable # Does NOT work in with assignments.
   source_folder: ${{ env.MyVariable }} # Works.
 ```
-
