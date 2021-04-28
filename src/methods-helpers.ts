@@ -37,34 +37,30 @@ export async function FindFilesRecursive(directory: string) {
   return fileList;
 }
 
-export function CleanFolderPath(folderPath: string) {
-  let cleanedSourceFolderPath = folderPath.replace(/\\/g, '/');
+export function CleanPath(folderPath: string) {
+  // Ensure all path separators are forward slashes
+  folderPath = folderPath.replace(/\\/g, '/');
 
   // Remove any dot prefix
-  if (cleanedSourceFolderPath.startsWith('.')) {
-    cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
+  if (folderPath.startsWith('.')) {
+    folderPath = folderPath.substr(1);
   }
 
   // Remove leading slash
-  if (cleanedSourceFolderPath.startsWith('/')) {
-    cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
+  if (folderPath.startsWith('/')) {
+    folderPath = folderPath.substr(1);
   }
 
   // Remove trailing slash
-  if (cleanedSourceFolderPath.endsWith('/')) {
-    cleanedSourceFolderPath = cleanedSourceFolderPath.slice(0, -1);
+  if (folderPath.endsWith('/')) {
+    folderPath = folderPath.slice(0, -1);
   }
 
-  return cleanedSourceFolderPath;
+  return folderPath;
 }
 
-// *********** INVESTIGATING #124 ************** //
 export function getFinalPathForFileName(localFilePath: string, destinationDirectory?: string) {
-  // SUSPECT of #124 cause. The base name strips any preceding local path form root
   const fileName = basename(localFilePath);
-
-  // TODO break up the file path to the constituent parts for evaluation and recombination
-  //const parts = parse(localFilePath);
 
   let finalPath = fileName;
 

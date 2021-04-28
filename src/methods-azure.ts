@@ -1,7 +1,7 @@
 import * as mime from 'mime-types';
 import * as core from '@actions/core';
-import {parse} from 'path';
-import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType} from '@azure/storage-blob';
+import {normalize, parse} from 'path';
+import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType, ContainerClient} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
 
 // *********** INVESTIGATING #124 ************** //
@@ -60,27 +60,49 @@ export async function UploadToAzure(
   // Check if the developer used a file path instead of a folder path using path.parse (see https://www.educba.com/node-js-path/)
 
   if (parse(sourceFolder).ext.length > 0) {
-    core.info(`"ALERT - source_folder is a single file's path, breaking to single file mode."`);
+    core.info(`"ALERT - source_folder is a single file path, using single file mode."`);
 
-    const localFilePath = sourceFolder;
-
-    const cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
-    const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
-
-    // Prevent every file's ContentType from being marked as application/octet-stream.
-    const mimeType = mime.lookup(localFilePath);
-    const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
-
-    // Upload
-    const client = blobContainerClient.getBlockBlobClient(finalPath);
-    await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
-    core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
-
-    // We're done
-    return;
+    // **************************** SOURCE FOLDER IS A SINGLE FILE PATH ********************* //
+    await uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder).catch(e => {
+      core.debug(e.stack);
+      core.error(e.message);
+      core.setFailed(e.message);
+    });
+  } else {
+    // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
+    await uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty).catch(e => {
+      core.debug(e.stack);
+      core.error(e.message);
+      core.setFailed(e.message);
+    });
   }
+}
 
-  // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
+async function uploadSingleFile(blobContainerClient: ContainerClient, containerName: string, localFilePath: string, destinationFolder: string) {
+  // Determine file path for file as input
+  const finalPath = helpers.getFinalPathForFileName(localFilePath, destinationFolder);
+
+  // Prevent every file's ContentType from being marked as application/octet-stream.
+  const mimeType = mime.lookup(finalPath);
+  const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
+
+  // Upload
+  const client = blobContainerClient.getBlockBlobClient(finalPath);
+  await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
+  core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+
+  // We're done with single file handling
+  return;
+}
+
+async function uploadFolderContent(
+  blobContainerClient: ContainerClient,
+  containerName: string,
+  sourceFolder: string,
+  destinationFolder: string,
+  isRecursive: boolean,
+  failIfSourceEmpty: boolean
+) {
   let sourcePaths: string[] = [];
 
   if (isRecursive) {
@@ -101,7 +123,7 @@ export async function UploadToAzure(
     return;
   }
 
-  const cleanedSourceFolderPath = helpers.CleanFolderPath(sourceFolder);
+  const cleanedSourceFolderPath = helpers.CleanPath(sourceFolder);
 
   core.debug(`sourceFolder: ${sourceFolder}`);
   core.debug(`--- cleaned: ${cleanedSourceFolderPath}`);
@@ -109,54 +131,14 @@ export async function UploadToAzure(
   let cleanedDestinationFolder = '';
 
   if (destinationFolder !== '') {
-    // *********** INVESTIGATING #124 ************** //
-
-    // *** INTRODUCED in PR #123, possible breaking change *** //
-    // cleanedDestinationFolder = path.normalize(destinationFolder);
-
-    // *** ORIGINAL *** //
-
-    // // Replace forward slashes with backward slashes
-    // cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-
-    // // Remove leading slash
-    // if (cleanedDestinationFolder.startsWith('/')) {
-    //   cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
-    // }
-
-    // // Remove trailing slash
-    // if (cleanedDestinationFolder.endsWith('/')) {
-    //   cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
-    // }
-    // *** END ORIGINAL *** //
-
-    // ****************** END INVESTIGATION *************** //
-
-    cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
+    cleanedDestinationFolder = helpers.CleanPath(destinationFolder);
 
     core.debug(`destinationFolder: ${destinationFolder}`);
     core.debug(`-- cleaned: ${cleanedDestinationFolder}`);
   }
 
   sourcePaths.forEach(async (localFilePath: string) => {
-    // *********** INVESTIGATING #124 ************** //
-
-    // *** INTRODUCED in PR #123, possible breaking change *** //
-    //const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
-
-    // *** ORIGINAL *** //
-    // Replace forward slashes with backward slashes
-    let cleanedFilePath = localFilePath.replace(/\\/g, '/');
-
-    // Remove leading slash
-    if (cleanedFilePath.startsWith('/')) {
-      cleanedFilePath = cleanedFilePath.substr(1);
-    }
-
-    // Remove trailing slash
-    if (cleanedFilePath.endsWith('/')) {
-      cleanedFilePath = cleanedFilePath.slice(0, -1);
-    }
+    const cleanedFilePath = helpers.CleanPath(localFilePath);
 
     core.debug(`localFilePath: ${localFilePath}`);
     core.debug(`--- cleaned: ${cleanedFilePath}`);
@@ -173,17 +155,13 @@ export async function UploadToAzure(
       finalPath = trimmedPath;
     }
 
-    // Trim leading slashes, the container is always the root
+    // Final check to trim any leading slashes that might have been added, the container is always the root
     if (finalPath.startsWith('/')) {
       finalPath = finalPath.substr(1);
     }
 
-    // If there are any double slashes in the path, replace them now
-    finalPath = finalPath.replace('//', '/');
-
-    // *** END ORIGINAL *** //
-
-    // ****************** END INVESTIGATION *************** //
+    //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
+    finalPath = normalize(finalPath);
 
     core.debug(`finalPath: ${finalPath}...`);
 

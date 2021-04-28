@@ -163,21 +163,42 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
         // **************************** SOURCE FOLDER IS A FILE PATH ********************* //
         // Check if the developer used a file path instead of a folder path using path.parse (see https://www.educba.com/node-js-path/)
         if (path_1.parse(sourceFolder).ext.length > 0) {
-            core.info(`"ALERT - source_folder is a single file's path, breaking to single file mode."`);
-            const localFilePath = sourceFolder;
-            const cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
-            const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
-            // Prevent every file's ContentType from being marked as application/octet-stream.
-            const mimeType = mime.lookup(localFilePath);
-            const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
-            // Upload
-            const client = blobContainerClient.getBlockBlobClient(finalPath);
-            yield client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
-            core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
-            // We're done
-            return;
+            core.info(`"ALERT - source_folder is a single file path, using single file mode."`);
+            // **************************** SOURCE FOLDER IS A SINGLE FILE PATH ********************* //
+            yield uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder).catch(e => {
+                core.debug(e.stack);
+                core.error(e.message);
+                core.setFailed(e.message);
+            });
         }
-        // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
+        else {
+            // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
+            yield uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty).catch(e => {
+                core.debug(e.stack);
+                core.error(e.message);
+                core.setFailed(e.message);
+            });
+        }
+    });
+}
+exports.UploadToAzure = UploadToAzure;
+function uploadSingleFile(blobContainerClient, containerName, localFilePath, destinationFolder) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Determine file path for file as input
+        const finalPath = helpers.getFinalPathForFileName(localFilePath, destinationFolder);
+        // Prevent every file's ContentType from being marked as application/octet-stream.
+        const mimeType = mime.lookup(finalPath);
+        const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
+        // Upload
+        const client = blobContainerClient.getBlockBlobClient(finalPath);
+        yield client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
+        core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+        // We're done with single file handling
+        return;
+    });
+}
+function uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty) {
+    return __awaiter(this, void 0, void 0, function* () {
         let sourcePaths = [];
         if (isRecursive) {
             // Get an array of all the file paths and subfolder file paths in the source folder
@@ -197,46 +218,17 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
             }
             return;
         }
-        const cleanedSourceFolderPath = helpers.CleanFolderPath(sourceFolder);
+        const cleanedSourceFolderPath = helpers.CleanPath(sourceFolder);
         core.debug(`sourceFolder: ${sourceFolder}`);
         core.debug(`--- cleaned: ${cleanedSourceFolderPath}`);
         let cleanedDestinationFolder = '';
         if (destinationFolder !== '') {
-            // *********** INVESTIGATING #124 ************** //
-            // *** INTRODUCED in PR #123, possible breaking change *** //
-            // cleanedDestinationFolder = path.normalize(destinationFolder);
-            // *** ORIGINAL *** //
-            // // Replace forward slashes with backward slashes
-            // cleanedDestinationFolder = destinationFolder.replace(/\\/g, '/');
-            // // Remove leading slash
-            // if (cleanedDestinationFolder.startsWith('/')) {
-            //   cleanedDestinationFolder = cleanedDestinationFolder.substr(1);
-            // }
-            // // Remove trailing slash
-            // if (cleanedDestinationFolder.endsWith('/')) {
-            //   cleanedDestinationFolder = cleanedDestinationFolder.slice(0, -1);
-            // }
-            // *** END ORIGINAL *** //
-            // ****************** END INVESTIGATION *************** //
-            cleanedDestinationFolder = helpers.CleanFolderPath(destinationFolder);
+            cleanedDestinationFolder = helpers.CleanPath(destinationFolder);
             core.debug(`destinationFolder: ${destinationFolder}`);
             core.debug(`-- cleaned: ${cleanedDestinationFolder}`);
         }
         sourcePaths.forEach((localFilePath) => __awaiter(this, void 0, void 0, function* () {
-            // *********** INVESTIGATING #124 ************** //
-            // *** INTRODUCED in PR #123, possible breaking change *** //
-            //const finalPath = helpers.getFinalPathForFileName(localFilePath, cleanedDestinationFolder);
-            // *** ORIGINAL *** //
-            // Replace forward slashes with backward slashes
-            let cleanedFilePath = localFilePath.replace(/\\/g, '/');
-            // Remove leading slash
-            if (cleanedFilePath.startsWith('/')) {
-                cleanedFilePath = cleanedFilePath.substr(1);
-            }
-            // Remove trailing slash
-            if (cleanedFilePath.endsWith('/')) {
-                cleanedFilePath = cleanedFilePath.slice(0, -1);
-            }
+            const cleanedFilePath = helpers.CleanPath(localFilePath);
             core.debug(`localFilePath: ${localFilePath}`);
             core.debug(`--- cleaned: ${cleanedFilePath}`);
             // Determining the relative path by trimming the source path from the front of the string.
@@ -250,14 +242,12 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
                 // Otherwise, use the file's relative path (this will maintain all subfolders).
                 finalPath = trimmedPath;
             }
-            // Trim leading slashes, the container is always the root
+            // Final check to trim any leading slashes that might have been added, the container is always the root
             if (finalPath.startsWith('/')) {
                 finalPath = finalPath.substr(1);
             }
-            // If there are any double slashes in the path, replace them now
-            finalPath = finalPath.replace('//', '/');
-            // *** END ORIGINAL *** //
-            // ****************** END INVESTIGATION *************** //
+            //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
+            finalPath = path_1.normalize(finalPath);
             core.debug(`finalPath: ${finalPath}...`);
             // Prevent every file's ContentType from being marked as application/octet-stream.
             const mimeType = mime.lookup(localFilePath);
@@ -269,7 +259,6 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
         }));
     });
 }
-exports.UploadToAzure = UploadToAzure;
 
 
 /***/ }),
@@ -289,7 +278,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getFinalPathForFileName = exports.CleanFolderPath = exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
+exports.getFinalPathForFileName = exports.CleanPath = exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
 const fs_1 = __nccwpck_require__(5747);
 const path_1 = __nccwpck_require__(5622);
 function FindFilesFlat(directory) {
@@ -327,29 +316,26 @@ function FindFilesRecursive(directory) {
     });
 }
 exports.FindFilesRecursive = FindFilesRecursive;
-function CleanFolderPath(folderPath) {
-    let cleanedSourceFolderPath = folderPath.replace(/\\/g, '/');
+function CleanPath(folderPath) {
+    // Ensure all path separators are forward slashes
+    folderPath = folderPath.replace(/\\/g, '/');
     // Remove any dot prefix
-    if (cleanedSourceFolderPath.startsWith('.')) {
-        cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
+    if (folderPath.startsWith('.')) {
+        folderPath = folderPath.substr(1);
     }
     // Remove leading slash
-    if (cleanedSourceFolderPath.startsWith('/')) {
-        cleanedSourceFolderPath = cleanedSourceFolderPath.substr(1);
+    if (folderPath.startsWith('/')) {
+        folderPath = folderPath.substr(1);
     }
     // Remove trailing slash
-    if (cleanedSourceFolderPath.endsWith('/')) {
-        cleanedSourceFolderPath = cleanedSourceFolderPath.slice(0, -1);
+    if (folderPath.endsWith('/')) {
+        folderPath = folderPath.slice(0, -1);
     }
-    return cleanedSourceFolderPath;
+    return folderPath;
 }
-exports.CleanFolderPath = CleanFolderPath;
-// *********** INVESTIGATING #124 ************** //
+exports.CleanPath = CleanPath;
 function getFinalPathForFileName(localFilePath, destinationDirectory) {
-    // SUSPECT of #124 cause. The base name strips any preceding local path form root
     const fileName = path_1.basename(localFilePath);
-    // TODO break up the file path to the constituent parts for evaluation and recombination
-    //const parts = parse(localFilePath);
     let finalPath = fileName;
     if (destinationDirectory !== '') {
         // If there is a DestinationFolder set, prefix it to the relative path.
