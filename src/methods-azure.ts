@@ -1,6 +1,6 @@
 import * as mime from 'mime-types';
 import * as core from '@actions/core';
-import {normalize, parse} from 'path';
+import * as path from 'path';
 import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType, ContainerClient} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
 
@@ -37,7 +37,7 @@ export async function UploadToAzure(
   // If clean_destination_folder = True, we need to delete all the blobs before uploading
   if (cleanDestinationPath) {
     core.info('clean_destination_path = true, deleting blobs from destination...');
-    
+
     for await (const blob of blobContainerClient.listBlobsFlat()) {
       if (blob.name.startsWith(destinationFolder)) {
         // To prevent a possible race condition where a blob isn't deleted before being replaced,
@@ -56,8 +56,8 @@ export async function UploadToAzure(
     core.info('All blobs successfully deleted.');
   }
 
-  if (parse(sourceFolder).ext.length > 0) {
-    core.info(`"ALERT - source_folder is a single file path, using single file mode."`);
+  if (path.parse(sourceFolder).ext.length > 0) {
+    core.info(`"ALERT - source_folder is a single file path, using single file upload mode."`);
 
     // **************************** SOURCE FOLDER IS A SINGLE FILE PATH ********************* //
     await uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder).catch(e => {
@@ -66,6 +66,8 @@ export async function UploadToAzure(
       core.setFailed(e.message);
     });
   } else {
+    core.info(`"ALERT - source_folder is a folder path, using directory upload mode."`);
+
     // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
     await uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty).catch(e => {
       core.debug(e.stack);
@@ -143,7 +145,8 @@ async function uploadFolderContent(
 
     if (cleanedDestinationFolder !== '') {
       // If there is a DestinationFolder set, prefix it to the relative path.
-      finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
+      //finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
+      finalPath = path.join(cleanedDestinationFolder, trimmedPath);
     } else {
       // Otherwise, use the file's relative path (this will maintain all subfolders).
       finalPath = trimmedPath;
@@ -155,7 +158,7 @@ async function uploadFolderContent(
     }
 
     //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
-    finalPath = normalize(finalPath);
+    finalPath = path.normalize(finalPath);
 
     core.debug(`finalPath: ${finalPath}...`);
 

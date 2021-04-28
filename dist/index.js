@@ -110,7 +110,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadToAzure = void 0;
 const mime = __importStar(__nccwpck_require__(3583));
 const core = __importStar(__nccwpck_require__(2186));
-const path_1 = __nccwpck_require__(5622);
+const path = __importStar(__nccwpck_require__(5622));
 const storage_blob_1 = __nccwpck_require__(4100);
 const helpers = __importStar(__nccwpck_require__(1088));
 // *********** INVESTIGATING #124 ************** //
@@ -134,7 +134,7 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
         }
         // If clean_destination_folder = True, we need to delete all the blobs before uploading
         if (cleanDestinationPath) {
-            let blobCount = 0;
+            core.info('clean_destination_path = true, deleting blobs from destination...');
             try {
                 for (var _b = __asyncValues(blobContainerClient.listBlobsFlat()), _c; _c = yield _b.next(), !_c.done;) {
                     const blob = _c.value;
@@ -147,7 +147,6 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
                         };
                         // Delete the blob
                         yield blobContainerClient.getBlockBlobClient(blob.name).delete(deleteOptions);
-                        ++blobCount;
                     }
                 }
             }
@@ -158,10 +157,10 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
                 }
                 finally { if (e_1) throw e_1.error; }
             }
-            core.info(`"Clean complete, ${blobCount} blobs deleted."`);
+            core.info('All blobs successfully deleted.');
         }
-        if (path_1.parse(sourceFolder).ext.length > 0) {
-            core.info(`"ALERT - source_folder is a single file path, using single file mode."`);
+        if (path.parse(sourceFolder).ext.length > 0) {
+            core.info(`"ALERT - source_folder is a single file path, using single file upload mode."`);
             // **************************** SOURCE FOLDER IS A SINGLE FILE PATH ********************* //
             yield uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder).catch(e => {
                 core.debug(e.stack);
@@ -170,6 +169,7 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
             });
         }
         else {
+            core.info(`"ALERT - source_folder is a folder path, using directory upload mode."`);
             // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
             yield uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty).catch(e => {
                 core.debug(e.stack);
@@ -232,7 +232,8 @@ function uploadFolderContent(blobContainerClient, containerName, sourceFolder, d
             let finalPath = '';
             if (cleanedDestinationFolder !== '') {
                 // If there is a DestinationFolder set, prefix it to the relative path.
-                finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
+                //finalPath = [cleanedDestinationFolder, trimmedPath].join('/');
+                finalPath = path.join(cleanedDestinationFolder, trimmedPath);
             }
             else {
                 // Otherwise, use the file's relative path (this will maintain all subfolders).
@@ -243,7 +244,7 @@ function uploadFolderContent(blobContainerClient, containerName, sourceFolder, d
                 finalPath = finalPath.substr(1);
             }
             //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
-            finalPath = path_1.normalize(finalPath);
+            finalPath = path.normalize(finalPath);
             core.debug(`finalPath: ${finalPath}...`);
             // Prevent every file's ContentType from being marked as application/octet-stream.
             const mimeType = mime.lookup(localFilePath);
@@ -295,18 +296,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getFinalPathForFileName = exports.CleanPath = exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
 const fs_1 = __nccwpck_require__(5747);
-const path_1 = __nccwpck_require__(5622);
+const path = __importStar(__nccwpck_require__(5622));
 const core = __importStar(__nccwpck_require__(2186));
 function FindFilesFlat(directory) {
     return __awaiter(this, void 0, void 0, function* () {
         const fileList = [];
         const files = yield fs_1.promises.readdir(directory);
         for (const file of files) {
-            const path = path_1.join(directory, file);
-            const status = yield fs_1.promises.stat(path);
+            const filePath = path.join(directory, file);
+            const status = yield fs_1.promises.stat(filePath);
             const isDirectory = status.isDirectory();
             if (!isDirectory) {
-                fileList.push(path);
+                fileList.push(filePath);
             }
         }
         return fileList;
@@ -318,14 +319,14 @@ function FindFilesRecursive(directory) {
         let fileList = [];
         const files = yield fs_1.promises.readdir(directory);
         for (const file of files) {
-            const path = path_1.join(directory, file);
-            const status = yield fs_1.promises.stat(path);
+            const filePath = path.join(directory, file);
+            const status = yield fs_1.promises.stat(filePath);
             const isDirectory = status.isDirectory();
             if (isDirectory) {
-                fileList = [...fileList, ...(yield FindFilesRecursive(path))];
+                fileList = [...fileList, ...(yield FindFilesRecursive(filePath))];
             }
             else {
-                fileList.push(path);
+                fileList.push(filePath);
             }
         }
         return fileList;
@@ -352,23 +353,23 @@ function CleanPath(folderPath) {
 exports.CleanPath = CleanPath;
 function getFinalPathForFileName(localFilePath, destinationDirectory) {
     core.info('EXECUTING getFinalPathForFileName...');
-    core.info(path_1.join('localFilePath: ', localFilePath));
-    const fileName = path_1.basename(localFilePath);
+    core.info(path.join('localFilePath: ', localFilePath));
+    const fileName = path.basename(localFilePath);
     let finalPath = fileName;
-    core.info(path_1.join('finalPath - after basename: ', finalPath));
+    core.info(path.join('finalPath - after basename: ', finalPath));
     if (destinationDirectory !== '') {
         // If there is a DestinationFolder set, prefix it to the relative path.
         finalPath = [destinationDirectory, fileName].join('/');
     }
-    core.info(path_1.join('finalPath - after join: ', finalPath));
+    core.info(path.join('finalPath - after join: ', finalPath));
     // Trim leading slashes, the container is always the root
     if (finalPath.startsWith('/') || finalPath.startsWith('\\')) {
         finalPath = finalPath.substr(1);
     }
-    core.info(path_1.join('finalPath - after trim slash at start: ', finalPath));
+    core.info(path.join('finalPath - after trim slash at start: ', finalPath));
     //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
-    finalPath = path_1.normalize(finalPath).replace(/\\/g, '/');
-    core.info(path_1.join('finalPath - after normalize: ', finalPath));
+    finalPath = path.normalize(finalPath).replace(/\\/g, '/');
+    core.info(path.join('finalPath - after normalize: ', finalPath));
     core.info('END getFinalPathForFileName.');
     return finalPath;
 }
