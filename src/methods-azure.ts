@@ -36,24 +36,24 @@ export async function UploadToAzure(
 
   // If clean_destination_folder = True, we need to delete all the blobs before uploading
   if (cleanDestinationPath) {
-    let blobCount = 0;
+    core.info('clean_destination_path = true, deleting blobs from destination...');
+    
     for await (const blob of blobContainerClient.listBlobsFlat()) {
       if (blob.name.startsWith(destinationFolder)) {
         // To prevent a possible race condition where a blob isn't deleted before being replaced,
         // we should also delete the snapshots of the blob to delete and await the promise
         const deleteSnapshotOptions: DeleteSnapshotsOptionType = 'include';
+
         const deleteOptions: BlobDeleteOptions = {
           deleteSnapshots: deleteSnapshotOptions
         };
 
         // Delete the blob
         await blobContainerClient.getBlockBlobClient(blob.name).delete(deleteOptions);
-
-        ++blobCount;
       }
     }
 
-    core.info(`"Clean complete, ${blobCount} blobs deleted."`);
+    core.info('All blobs successfully deleted.');
   }
 
   if (parse(sourceFolder).ext.length > 0) {
