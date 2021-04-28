@@ -14,7 +14,9 @@ jobs:
       - uses: actions/checkout@v2
       - run: |
           npm install
-          npm run build
+          npm run rebuild
+          npm run format
+          npm run lint
           npm run package
           npm test
 
@@ -83,7 +85,7 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: TestFiles\ExcelFiles\Test.xlsx
+          source_folder: TestFiles\build\bin\data-composer-0.0.0.exe
           destination_folder: SingleFileTest
           clean_destination_folder: true
           is_recursive: false
@@ -93,7 +95,7 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: TestFiles\ExcelFiles\Test.xlsx
+          source_folder: .\TestFiles\build\bin\data-composer-0.0.0.exe
           destination_folder: SingleFileWithPrefixTest
           clean_destination_folder: true
           is_recursive: false
