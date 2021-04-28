@@ -27,15 +27,15 @@ jobs:
         run: |
           $date = Get-Date -Format "yyyy.Mdd.hh.mm"
           
-          $parentFilePath = 'src\TestData\TextFileTestRoot\Parent.txt'
+          $parentFilePath = 'TestFiles\TxtFiles\Parent.txt'
           $updatedParentFileName = "Parent_" + $date + ".txt"
           Rename-Item $parentFilePath $updatedParentFileName
           
-          $childFilePath = 'src\TestData\TextFileTestRoot\Subfolder\Child.txt'
+          $childFilePath = 'TestFiles\TxtFiles\Subfolder\Child.txt'
           $updatedChildFileName = "Child_" + $date + ".txt"
           Rename-Item $childFilePath $updatedChildFileName
 
-          $excelFilePath = 'src\TestData\ExcelFileTestRoot\Test.xlsx'
+          $excelFilePath = 'TestFiles\ExcelFiles\Test.xlsx'
           $updatedExcelFileName = "Test_" + $date + ".xlsx"
           Rename-Item $excelFilePath $updatedExcelFileName
 
@@ -45,7 +45,7 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: src\TestData\ExcelFileTestRoot\
+          source_folder: TestFiles\ExcelFiles\
           clean_destination_folder: true
 
       - name: Recursive with DestinationFolder Test
@@ -53,7 +53,7 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: src\TestData\TextFileTestRoot\
+          source_folder: TestFiles\TxtFiles\
           destination_folder: RecursiveTest
           clean_destination_folder: true
       
@@ -62,7 +62,7 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: src\TestData\TextFileTestRoot\
+          source_folder: TestFiles\TxtFiles\
           destination_folder: NonRecursiveTest
           clean_destination_folder: true
           is_recursive: false
@@ -72,7 +72,7 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: .\src\TestData\ExcelFileTestRoot\
+          source_folder: .\TestFiles\ExcelFiles\
           destination_folder: DotPrefixTest
           clean_destination_folder: true
           is_recursive: false
@@ -82,7 +82,7 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: src\TestData\ExcelFileTestRoot\Test.xlsx
+          source_folder: TestFiles\ExcelFiles\Test.xlsx
           destination_folder: SingleFileTest
           clean_destination_folder: true
           is_recursive: false
@@ -92,7 +92,7 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: src\TestData\ExcelFileTestRoot\Test.xlsx
+          source_folder: TestFiles\ExcelFiles\Test.xlsx
           destination_folder: SingleFileWithPrefixTest
           clean_destination_folder: true
           is_recursive: false
