@@ -92,7 +92,7 @@ jobs:
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: ci-cd
-          source_folder: ..\TestFiles\build\bin\data-composer-0.0.0.exe
+          source_folder: .\TestFiles\build\bin\data-composer-0.0.0.exe
           destination_folder: SingleFileWithPrefixTest
           clean_destination_folder: true
           is_recursive: false

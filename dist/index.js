@@ -375,8 +375,16 @@ function getFinalPathForFileName(localFilePath, destinationDirectory) {
     }
     core.info(path.join('finalPath - after join: ', finalPath));
     // Trim leading slashes, the container is always the root
-    if (finalPath.startsWith('/') || finalPath.startsWith('\\')) {
+    if (finalPath.startsWith('/')) {
+        core.info(path.join('finalPath - before leading forward slash substring: ', finalPath));
         finalPath = finalPath.substr(1, finalPath.length - 1);
+        core.info(path.join('finalPath - after leading forward slash substring: ', finalPath));
+    }
+    // Trim leading slashes, the container is always the root
+    if (finalPath.startsWith('\\')) {
+        core.info(path.join('finalPath - before leading back slash substring: ', finalPath));
+        finalPath = finalPath.substr(1, finalPath.length - 1);
+        core.info(path.join('finalPath - after leading back slash substring: ', finalPath));
     }
     core.info(path.join('finalPath - after trim slash at start: ', finalPath));
     //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
