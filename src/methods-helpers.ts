@@ -2,7 +2,7 @@ import {promises as fs} from 'fs';
 import * as path from 'path';
 import * as core from '@actions/core';
 
-export async function FindFilesFlat(directory: string) {
+export async function FindFilesFlat(directory: string): Promise<string[]> {
   const fileList: string[] = [];
   const files = await fs.readdir(directory);
 
@@ -19,7 +19,7 @@ export async function FindFilesFlat(directory: string) {
   return fileList;
 }
 
-export async function FindFilesRecursive(directory: string) {
+export async function FindFilesRecursive(directory: string): Promise<string[]> {
   let fileList: string[] = [];
   const files = await fs.readdir(directory);
 
@@ -38,7 +38,7 @@ export async function FindFilesRecursive(directory: string) {
   return fileList;
 }
 
-export function CleanPath(folderPath: string) {
+export function CleanPath(folderPath: string): string {
   // Ensure all path separators are forward slashes
   folderPath = folderPath.replace(/\\/g, '/');
 
@@ -60,7 +60,7 @@ export function CleanPath(folderPath: string) {
   return folderPath;
 }
 
-export function getFinalPathForFileName(localFilePath: string, destinationDirectory?: string) {
+export function getFinalPathForFileName(localFilePath: string, destinationDirectory?: string): string {
   core.info('EXECUTING getFinalPathForFileName...');
 
   core.info(path.join('localFilePath: ', localFilePath));
@@ -80,7 +80,7 @@ export function getFinalPathForFileName(localFilePath: string, destinationDirect
 
   // Trim leading slashes, the container is always the root
   if (finalPath.startsWith('/') || finalPath.startsWith('\\')) {
-    finalPath = finalPath.substr(1);
+    finalPath = finalPath.substr(1, finalPath.length - 1);
   }
 
   core.info(path.join('finalPath - after trim slash at start: ', finalPath));

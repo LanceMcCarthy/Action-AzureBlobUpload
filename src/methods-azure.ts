@@ -3,6 +3,7 @@ import * as core from '@actions/core';
 import * as path from 'path';
 import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType, ContainerClient} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
+import * as mitigations from './methods-mitigations';
 
 // *********** INVESTIGATING #124 ************** //
 // import path from 'path';
@@ -24,7 +25,18 @@ export async function UploadToAzure(
     throw new Error('The source_folder was not a valid value.');
   }
 
-  // Azure Blob examples for guidance https://docs.microsoft.com/en-us/samples/azure/azure-sdk-for-js/storage-blob-typescript/
+  // Normalize paths (removes dot prefixes)
+  if (sourceFolder !== '') {
+    sourceFolder = path.normalize(sourceFolder);
+    core.info(`"Normalized source_folder: ${sourceFolder}"`);
+  }
+
+  if (destinationFolder !== '') {
+    destinationFolder = path.normalize(destinationFolder);
+    core.info(`"Normalized destination_folder: ${destinationFolder}"`);
+  }
+
+  // Setup Azure Blob Service Client
   const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
   const blobContainerClient = blobServiceClient.getContainerClient(containerName);
 
@@ -57,7 +69,7 @@ export async function UploadToAzure(
   }
 
   if (path.parse(sourceFolder).ext.length > 0) {
-    core.info(`"ALERT - source_folder is a single file path, using single file upload mode."`);
+    core.info(`"INFO - source_folder is a single file path, using single file upload mode."`);
 
     // **************************** SOURCE FOLDER IS A SINGLE FILE PATH ********************* //
     await uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder).catch(e => {
@@ -66,7 +78,7 @@ export async function UploadToAzure(
       core.setFailed(e.message);
     });
   } else {
-    core.info(`"ALERT - source_folder is a folder path, using directory upload mode."`);
+    core.info(`"INFO - source_folder is a folder path, using directory upload mode."`);
 
     // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
     await uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty).catch(e => {
@@ -79,7 +91,11 @@ export async function UploadToAzure(
 
 async function uploadSingleFile(blobContainerClient: ContainerClient, containerName: string, localFilePath: string, destinationFolder: string) {
   // Determine file path for file as input
-  const finalPath = helpers.getFinalPathForFileName(localFilePath, destinationFolder);
+  let finalPath = helpers.getFinalPathForFileName(localFilePath, destinationFolder);
+
+  core.info(`"FinalPathForFileName result: ${finalPath}"`);
+
+  finalPath = mitigations.checkForFirstDuplicateInPath(finalPath);
 
   // Prevent every file's ContentType from being marked as application/octet-stream.
   const mimeType = mime.lookup(finalPath);
