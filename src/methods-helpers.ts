@@ -79,7 +79,7 @@ export function getFinalPathForFileName(localFilePath: string, destinationDirect
   core.info(join('finalPath - after join: ', finalPath));
 
   // Trim leading slashes, the container is always the root
-  if (finalPath.startsWith('/')) {
+  if (finalPath.startsWith('/') || finalPath.startsWith('\\')) {
     finalPath = finalPath.substr(1);
   }
 

@@ -362,7 +362,7 @@ function getFinalPathForFileName(localFilePath, destinationDirectory) {
     }
     core.info(path_1.join('finalPath - after join: ', finalPath));
     // Trim leading slashes, the container is always the root
-    if (finalPath.startsWith('/')) {
+    if (finalPath.startsWith('/') || finalPath.startsWith('\\')) {
         finalPath = finalPath.substr(1);
     }
     core.info(path_1.join('finalPath - after trim slash at start: ', finalPath));
