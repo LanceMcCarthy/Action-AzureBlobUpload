@@ -147,7 +147,7 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
                         };
                         // Delete the blob
                         yield blobContainerClient.getBlockBlobClient(blob.name).delete(deleteOptions);
-                        blobCount++;
+                        ++blobCount;
                     }
                 }
             }
@@ -160,8 +160,6 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
             }
             core.info(`"Clean complete, ${blobCount} blobs deleted."`);
         }
-        // **************************** SOURCE FOLDER IS A FILE PATH ********************* //
-        // Check if the developer used a file path instead of a folder path using path.parse (see https://www.educba.com/node-js-path/)
         if (path_1.parse(sourceFolder).ext.length > 0) {
             core.info(`"ALERT - source_folder is a single file path, using single file mode."`);
             // **************************** SOURCE FOLDER IS A SINGLE FILE PATH ********************* //
@@ -268,6 +266,25 @@ function uploadFolderContent(blobContainerClient, containerName, sourceFolder, d
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -281,6 +298,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getFinalPathForFileName = exports.CleanPath = exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
 const fs_1 = __nccwpck_require__(5747);
 const path_1 = __nccwpck_require__(5622);
+const core = __importStar(__nccwpck_require__(2186));
 function FindFilesFlat(directory) {
     return __awaiter(this, void 0, void 0, function* () {
         const fileList = [];
@@ -335,18 +353,26 @@ function CleanPath(folderPath) {
 }
 exports.CleanPath = CleanPath;
 function getFinalPathForFileName(localFilePath, destinationDirectory) {
+    core.info('EXECUTING getFinalPathForFileName...');
+    core.info('"destinationDirectory: ${destinationDirectory}"');
+    core.info('"localFilePath: ${localFilePath}"');
     const fileName = path_1.basename(localFilePath);
     let finalPath = fileName;
+    core.info('"finalPath - after basename: ${finalPath}"');
     if (destinationDirectory !== '') {
         // If there is a DestinationFolder set, prefix it to the relative path.
         finalPath = [destinationDirectory, fileName].join('/');
     }
+    core.info('"finalPath - after join: ${finalPath}"');
     // Trim leading slashes, the container is always the root
     if (finalPath.startsWith('/')) {
         finalPath = finalPath.substr(1);
     }
+    core.info('"finalPath - after trim slash at start: ${finalPath}"');
     //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
     finalPath = path_1.normalize(finalPath).replace(/\\/g, '/');
+    core.info('"finalPath - after normalize: ${finalPath}"');
+    core.info('END getFinalPathForFileName.');
     return finalPath;
 }
 exports.getFinalPathForFileName = getFinalPathForFileName;

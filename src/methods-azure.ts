@@ -1,6 +1,6 @@
 import * as mime from 'mime-types';
 import * as core from '@actions/core';
-import {normalize, parse} from 'path';
+import {basename, normalize, parse} from 'path';
 import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType, ContainerClient} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
 
@@ -49,15 +49,12 @@ export async function UploadToAzure(
         // Delete the blob
         await blobContainerClient.getBlockBlobClient(blob.name).delete(deleteOptions);
 
-        blobCount++;
+        ++blobCount;
       }
     }
 
     core.info(`"Clean complete, ${blobCount} blobs deleted."`);
   }
-
-  // **************************** SOURCE FOLDER IS A FILE PATH ********************* //
-  // Check if the developer used a file path instead of a folder path using path.parse (see https://www.educba.com/node-js-path/)
 
   if (parse(sourceFolder).ext.length > 0) {
     core.info(`"ALERT - source_folder is a single file path, using single file mode."`);
@@ -90,9 +87,6 @@ async function uploadSingleFile(blobContainerClient: ContainerClient, containerN
   const client = blobContainerClient.getBlockBlobClient(finalPath);
   await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
   core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
-
-  // We're done with single file handling
-  return;
 }
 
 async function uploadFolderContent(

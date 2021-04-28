@@ -63,33 +63,33 @@ export function CleanPath(folderPath: string) {
 export function getFinalPathForFileName(localFilePath: string, destinationDirectory?: string) {
   core.info('EXECUTING getFinalPathForFileName...');
 
-  core.info('"destinationDirectory: ${destinationDirectory}"');
-  core.info('"localFilePath: ${localFilePath}"');
+  core.info(`"destinationDirectory: ${destinationDirectory}"`);
+  core.info(`"localFilePath: ${localFilePath}"`);
 
   const fileName = basename(localFilePath);
 
   let finalPath = fileName;
 
-  core.info('"finalPath - after basename: ${finalPath}"');
+  core.info(`"finalPath - after basename: ${finalPath}"`);
 
   if (destinationDirectory !== '') {
     // If there is a DestinationFolder set, prefix it to the relative path.
     finalPath = [destinationDirectory, fileName].join('/');
   }
 
-  core.info('"finalPath - after join: ${finalPath}"');
+  core.info(`"finalPath - after join: ${finalPath}"`);
 
   // Trim leading slashes, the container is always the root
   if (finalPath.startsWith('/')) {
     finalPath = finalPath.substr(1);
   }
 
-  core.info('"finalPath - after trim slash at start: ${finalPath}"');
+  core.info(`"finalPath - after trim slash at start: ${finalPath}"`);
 
   //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
   finalPath = normalize(finalPath).replace(/\\/g, '/');
 
-  core.info('"finalPath - after normalize: ${finalPath}"');
+  core.info(`"finalPath - after normalize: ${finalPath}"`);
 
   core.info('END getFinalPathForFileName.');
 
