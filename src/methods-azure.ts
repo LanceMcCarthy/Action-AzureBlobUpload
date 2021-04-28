@@ -1,6 +1,6 @@
 import * as mime from 'mime-types';
 import * as core from '@actions/core';
-import {basename, normalize, parse} from 'path';
+import {normalize, parse} from 'path';
 import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType, ContainerClient} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
 
