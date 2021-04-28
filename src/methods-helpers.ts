@@ -60,7 +60,7 @@ export function CleanPath(folderPath: string) {
   return folderPath;
 }
 
-export function getFinalPathForFileName(localFilePath: string, destinationDirectory: string) {
+export function getFinalPathForFileName(localFilePath: string, destinationDirectory?: string) {
   core.info('EXECUTING getFinalPathForFileName...');
 
   core.info(path.join('localFilePath: ', localFilePath));
