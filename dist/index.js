@@ -108,14 +108,12 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.UploadToAzure = void 0;
-const mime = __importStar(__nccwpck_require__(3583));
 const core = __importStar(__nccwpck_require__(2186));
+const helpers = __importStar(__nccwpck_require__(1088));
+const mime = __importStar(__nccwpck_require__(3583));
+const mitigations = __importStar(__nccwpck_require__(1266));
 const path = __importStar(__nccwpck_require__(5622));
 const storage_blob_1 = __nccwpck_require__(4100);
-const helpers = __importStar(__nccwpck_require__(1088));
-const mitigations = __importStar(__nccwpck_require__(1266));
-// *********** INVESTIGATING #124 ************** //
-// import path from 'path';
 function UploadToAzure(connectionString, containerName, sourceFolder, destinationFolder, cleanDestinationPath, failIfSourceEmpty, isRecursive) {
     var e_1, _a;
     return __awaiter(this, void 0, void 0, function* () {
@@ -169,9 +167,10 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
             }
             core.info('All blobs successfully deleted.');
         }
+        // Check if the source_folder value is filename or a folder path
         if (path.parse(sourceFolder).ext.length > 0) {
-            core.info(`"INFO - source_folder is a single file path, using single file upload mode."`);
-            // **************************** SOURCE FOLDER IS A SINGLE FILE PATH ********************* //
+            // **************************** SINGLE FILE UPLOAD MODE ********************* //
+            core.info(`"INFO - source_folder is a single file path... using single file upload mode."`);
             yield uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder).catch(e => {
                 core.debug(e.stack);
                 core.error(e.message);
@@ -179,8 +178,8 @@ function UploadToAzure(connectionString, containerName, sourceFolder, destinatio
             });
         }
         else {
-            core.info(`"INFO - source_folder is a folder path, using directory upload mode."`);
-            // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
+            // **************************** STANDARD DIRECTORY CONTENT UPLOAD MODE ********************* //
+            core.info(`"INFO - source_folder is a folder path... using normal directory content upload mode."`);
             yield uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty).catch(e => {
                 core.debug(e.stack);
                 core.error(e.message);
@@ -194,7 +193,7 @@ function uploadSingleFile(blobContainerClient, containerName, localFilePath, des
     return __awaiter(this, void 0, void 0, function* () {
         // Determine file path for file as input
         let finalPath = helpers.getFinalPathForFileName(localFilePath, destinationFolder);
-        core.info(`"FinalPathForFileName result: ${finalPath}"`);
+        // MITIGATION - This is to handle situations where an extra repository name is in the file path
         finalPath = mitigations.checkForFirstDuplicateInPath(finalPath);
         // Prevent every file's ContentType from being marked as application/octet-stream.
         const mimeType = mime.lookup(finalPath);
@@ -217,12 +216,9 @@ function uploadFolderContent(blobContainerClient, containerName, sourceFolder, d
             sourcePaths = yield helpers.FindFilesFlat(sourceFolder);
         }
         if (sourcePaths.length < 1) {
+            core.error('There are no files in the source_folder, please double check your folder path (confirm it is correct and has content).');
             if (failIfSourceEmpty) {
-                core.error('There are no files in the source_folder.');
                 core.setFailed('Source_Folder is empty or does not exist.');
-            }
-            else {
-                core.error('Nothing to Upload. There are no files in the source_folder.');
             }
             return;
         }
@@ -309,7 +305,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getFinalPathForFileName = exports.CleanPath = exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
 const fs_1 = __nccwpck_require__(5747);
 const path = __importStar(__nccwpck_require__(5622));
-const core = __importStar(__nccwpck_require__(2186));
 function FindFilesFlat(directory) {
     return __awaiter(this, void 0, void 0, function* () {
         const fileList = [];
@@ -364,33 +359,22 @@ function CleanPath(folderPath) {
 }
 exports.CleanPath = CleanPath;
 function getFinalPathForFileName(localFilePath, destinationDirectory) {
-    core.info('EXECUTING getFinalPathForFileName...');
-    core.info(path.join('localFilePath: ', localFilePath));
     const fileName = path.basename(localFilePath);
     let finalPath = fileName;
-    core.info(path.join('finalPath - after basename: ', finalPath));
     if (destinationDirectory !== '') {
         // If there is a DestinationFolder set, prefix it to the relative path.
         finalPath = [destinationDirectory, fileName].join('/');
     }
-    core.info(path.join('finalPath - after join: ', finalPath));
     // Trim leading slashes, the container is always the root
     if (finalPath.startsWith('/')) {
-        core.info(path.join('finalPath - before leading forward slash substring: ', finalPath));
         finalPath = finalPath.substr(1, finalPath.length - 1);
-        core.info(path.join('finalPath - after leading forward slash substring: ', finalPath));
     }
     // Trim leading slashes, the container is always the root
     if (finalPath.startsWith('\\')) {
-        core.info(path.join('finalPath - before leading back slash substring: ', finalPath));
         finalPath = finalPath.substr(1, finalPath.length - 1);
-        core.info(path.join('finalPath - after leading back slash substring: ', finalPath));
     }
-    core.info(path.join('finalPath - after trim slash at start: ', finalPath));
     //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
     finalPath = path.normalize(finalPath).replace(/\\/g, '/');
-    core.info(path.join('finalPath - after normalize: ', finalPath));
-    core.info('END getFinalPathForFileName.');
     return finalPath;
 }
 exports.getFinalPathForFileName = getFinalPathForFileName;
@@ -426,63 +410,67 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.checkForMultipleDuplicatesInPath = exports.checkForFirstDuplicateInPath = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const path = __importStar(__nccwpck_require__(5622));
-// Mitigation for side effect from fixing 122
+// Mitigation
 // This function finds any erroneous duplicate names in path and removes it
-// e.g. this input 'D:/a/Action-AzureBlobUpload/Action-AzureBlobUpload/src/TestData/ExcelFileTestRoot/Test.xlsx'
-// is returned as 'D:/a/Action-AzureBlobUpload/src/TestData/ExcelFileTestRoot/Test.xlsx'
+// e.g.
+// error input 'D:/a/Action-AzureBlobUpload/Action-AzureBlobUpload/TestFiles/ExcelFiles/Test.xlsx'
+// corrected output 'D:/a/Action-AzureBlobUpload/TestFiles/ExcelFiles/Test.xlsx'
 function checkForFirstDuplicateInPath(filePath) {
     const norm = path.normalize(filePath);
     // break the path up into segments
     const pathSegments = norm.split(path.sep);
-    let duplicateDetected = false;
     let lastSegment = '';
     pathSegments.forEach(segment => {
+        // If the last segment and the next segment are the same, we found a consequitive duplicate
         if (segment !== '' && lastSegment === segment) {
-            duplicateDetected = true;
+            core.info(`"START - DUPLICATE PATH AUTO-FIX`);
+            core.info(`"A consecutive duplicate folder name has been detected in the file path. This can happen when the fetch-depth is too low, which results in an invalid file path. An automatic fix is being implemented now...`);
             // If we found a duplicate, splice out the duplicated folder name
             const index = pathSegments.indexOf(segment);
             pathSegments.splice(index, 1);
-            core.info(`"WARNING - Duplicate folder name found in path. Removing the extra '${segment}"' value and recombining path.`);
+            core.info(`"- Removed duplicate segment '${segment}"'...`);
+            core.info(`"The file path(s) have been successfully repaired.`);
+            core.info(`"END - DUPLICATE PATH AUTO-FIX`);
         }
         lastSegment = segment;
     });
     const fixedPath = pathSegments.join('/');
-    if (duplicateDetected) {
-        core.info(`"FinalPathForFileName after 'double-folder name' mitigation: ${fixedPath}"`);
-    }
     return fixedPath;
 }
 exports.checkForFirstDuplicateInPath = checkForFirstDuplicateInPath;
-// This function finds any erroneous multiple duplicate names in path and removes them
-// e.g. this input 'D:/a/Action-AzureBlobUpload/Action-AzureBlobUpload/src/TestData/TestData/ExcelFileTestRoot/Test.xlsx'
-// is returned as 'D:/a/Action-AzureBlobUpload/src/TestData/ExcelFileTestRoot/Test.xlsx'
+// Mitigation
+// This function finds any erroneous duplicate names in path and removes them
+// e.g.
+// error input 'D:/a/Action-AzureBlobUpload/Action-AzureBlobUpload/TestFiles/ExcelFiles/ExcelFiles/Test.xlsx'
+// corrected output 'D:/a/Action-AzureBlobUpload/TestFiles/ExcelFiles/Test.xlsx'
 function checkForMultipleDuplicatesInPath(filePath) {
     const norm = path.normalize(filePath);
     // break the path up into segments
     const pathSegments = norm.split(path.sep);
     let lastSegment = '';
-    let duplicateDetected = false;
     const consecutiveDuplicates = [];
     // Find the erroneous duplicate folder names
     pathSegments.forEach(segment => {
+        // If the last segment and the next segment are the same, we found a consequitive duplicate
         if (segment !== '' && lastSegment === segment) {
-            duplicateDetected = true;
+            // Add the duplciate segemnt to the list of segments to remove
             consecutiveDuplicates.push(segment);
-            core.info(`"WARNING - Duplicate folder name found in path. Removing the extra '${segment}"' value and recombining path.`);
+            core.info(`"START - DUPLICATE PATH AUTO-FIX`);
+            core.info(`"A consecutive duplicate folder name has been detected in the file path. This can happen when the fetch-depth is too low, which results in an invalid file path. An automatic fix is being implemented now...`);
         }
         lastSegment = segment;
     });
-    // remove the duplicate segements
+    // Remove the duplicate segements
     if (consecutiveDuplicates.length > 0) {
-        consecutiveDuplicates.forEach(duplicate => {
-            const index = pathSegments.indexOf(duplicate);
+        consecutiveDuplicates.forEach(duplicateSegment => {
+            const index = pathSegments.indexOf(duplicateSegment);
             pathSegments.splice(index, 1);
+            core.info(`"- Removed duplicate segment '${duplicateSegment}"'...`);
         });
+        core.info(`"The file path(s) have been successfully repaired.`);
+        core.info(`"END - DUPLICATE PATH AUTO-FIX`);
     }
     const fixedPath = pathSegments.join('/');
-    if (duplicateDetected) {
-        core.info(`"FinalPathForFileName after 'double-folder name' mitigation: ${fixedPath}"`);
-    }
     return fixedPath;
 }
 exports.checkForMultipleDuplicatesInPath = checkForMultipleDuplicatesInPath;

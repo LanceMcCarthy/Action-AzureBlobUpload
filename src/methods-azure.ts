@@ -1,12 +1,9 @@
-import * as mime from 'mime-types';
 import * as core from '@actions/core';
-import * as path from 'path';
-import {BlobServiceClient, BlobDeleteOptions, DeleteSnapshotsOptionType, ContainerClient} from '@azure/storage-blob';
 import * as helpers from './methods-helpers';
+import * as mime from 'mime-types';
 import * as mitigations from './methods-mitigations';
-
-// *********** INVESTIGATING #124 ************** //
-// import path from 'path';
+import * as path from 'path';
+import {BlobDeleteOptions, BlobServiceClient, ContainerClient, DeleteSnapshotsOptionType} from '@azure/storage-blob';
 
 export async function UploadToAzure(
   connectionString: string,
@@ -68,19 +65,20 @@ export async function UploadToAzure(
     core.info('All blobs successfully deleted.');
   }
 
+  // Check if the source_folder value is filename or a folder path
   if (path.parse(sourceFolder).ext.length > 0) {
-    core.info(`"INFO - source_folder is a single file path, using single file upload mode."`);
+    // **************************** SINGLE FILE UPLOAD MODE ********************* //
+    core.info(`"INFO - source_folder is a single file path... using single file upload mode."`);
 
-    // **************************** SOURCE FOLDER IS A SINGLE FILE PATH ********************* //
     await uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder).catch(e => {
       core.debug(e.stack);
       core.error(e.message);
       core.setFailed(e.message);
     });
   } else {
-    core.info(`"INFO - source_folder is a folder path, using directory upload mode."`);
+    // **************************** STANDARD DIRECTORY CONTENT UPLOAD MODE ********************* //
+    core.info(`"INFO - source_folder is a folder path... using normal directory content upload mode."`);
 
-    // **************************** SOURCE FOLDER IS A FOLDER PATH ********************* //
     await uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty).catch(e => {
       core.debug(e.stack);
       core.error(e.message);
@@ -93,8 +91,7 @@ async function uploadSingleFile(blobContainerClient: ContainerClient, containerN
   // Determine file path for file as input
   let finalPath = helpers.getFinalPathForFileName(localFilePath, destinationFolder);
 
-  core.info(`"FinalPathForFileName result: ${finalPath}"`);
-
+  // MITIGATION - This is to handle situations where an extra repository name is in the file path
   finalPath = mitigations.checkForFirstDuplicateInPath(finalPath);
 
   // Prevent every file's ContentType from being marked as application/octet-stream.
@@ -126,11 +123,10 @@ async function uploadFolderContent(
   }
 
   if (sourcePaths.length < 1) {
+    core.error('There are no files in the source_folder, please double check your folder path (confirm it is correct and has content).');
+
     if (failIfSourceEmpty) {
-      core.error('There are no files in the source_folder.');
       core.setFailed('Source_Folder is empty or does not exist.');
-    } else {
-      core.error('Nothing to Upload. There are no files in the source_folder.');
     }
     return;
   }
@@ -185,6 +181,7 @@ async function uploadFolderContent(
     // Upload
     const client = blobContainerClient.getBlockBlobClient(finalPath);
     await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
+
     core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
   });
 }

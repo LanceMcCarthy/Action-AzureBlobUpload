@@ -70,7 +70,7 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
         
-      - name: Non-recursive with Destination Folder (with . Prefix) Test
+      - name: Non-recursive with Destination Folder Test (with '.' Prefix)
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}
@@ -90,7 +90,7 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
       
-      - name: Single File Test (with . Prefix)
+      - name: Single File Test (with '.' Prefix)
         uses: ./
         with:
           connection_string: ${{ secrets.AzureBlobConnectionString }}

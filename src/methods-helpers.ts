@@ -1,6 +1,5 @@
 import {promises as fs} from 'fs';
 import * as path from 'path';
-import * as core from '@actions/core';
 
 export async function FindFilesFlat(directory: string): Promise<string[]> {
   const fileList: string[] = [];
@@ -61,45 +60,27 @@ export function CleanPath(folderPath: string): string {
 }
 
 export function getFinalPathForFileName(localFilePath: string, destinationDirectory?: string): string {
-  core.info('EXECUTING getFinalPathForFileName...');
-
-  core.info(path.join('localFilePath: ', localFilePath));
-
   const fileName = path.basename(localFilePath);
 
   let finalPath = fileName;
-
-  core.info(path.join('finalPath - after basename: ', finalPath));
 
   if (destinationDirectory !== '') {
     // If there is a DestinationFolder set, prefix it to the relative path.
     finalPath = [destinationDirectory, fileName].join('/');
   }
 
-  core.info(path.join('finalPath - after join: ', finalPath));
-
   // Trim leading slashes, the container is always the root
   if (finalPath.startsWith('/')) {
-    core.info(path.join('finalPath - before leading forward slash substring: ', finalPath));
     finalPath = finalPath.substr(1, finalPath.length - 1);
-    core.info(path.join('finalPath - after leading forward slash substring: ', finalPath));
   }
 
   // Trim leading slashes, the container is always the root
   if (finalPath.startsWith('\\')) {
-    core.info(path.join('finalPath - before leading back slash substring: ', finalPath));
     finalPath = finalPath.substr(1, finalPath.length - 1);
-    core.info(path.join('finalPath - after leading back slash substring: ', finalPath));
   }
-
-  core.info(path.join('finalPath - after trim slash at start: ', finalPath));
 
   //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
   finalPath = path.normalize(finalPath).replace(/\\/g, '/');
-
-  core.info(path.join('finalPath - after normalize: ', finalPath));
-
-  core.info('END getFinalPathForFileName.');
 
   return finalPath;
 }
