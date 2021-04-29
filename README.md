@@ -3,7 +3,8 @@
 This GitHub Action a simple and easy way to upload any files to any blob container.
 
 * There are a few samples below to help you get started (under the Examples section).
-* To see a real-world production application using this Action, visit [Media File Manager](https://github.com/LanceMcCarthy/MediaFileManager) repository and review [workflow folder's](https://github.com/LanceMcCarthy/MediaFileManager/tree/main/.github/workflows) cd.yml (on [lines 113-120](https://github.com/LanceMcCarthy/MediaFileManager/blob/227d9383cc5761707c8736bd5cbfd3c6bd402ea4/.github/workflows/cd.yml#L113-L120)).
+* Visit this repo's [main_release.yml workflow](https://github.com/LanceMcCarthy/Action-AzureBlobUpload/blob/main/.github/workflows/main_release.yml) to see the working tests for examples of different use cases.
+* To see a production app using this Action, visit [Media File Manager](https://github.com/LanceMcCarthy/MediaFileManager) repo's [cd_release_sideload.yml](https://github.com/LanceMcCarthy/MediaFileManager/blob/main/.github/workflows/cd_release_sideload.yml) workflow.
 
 ## Inputs
 
@@ -11,21 +12,21 @@ Below are the action's inputs that need to be defined in the Action's `with` blo
 
 | Required | Inputs | Example | Summary |
 |----------|--------|---------|---------|
-| ✔ | connection_string | `${{ secrets.MyCnnStr }}` | Azure blob conection string |
+| ✔ | connection_string | `${{ secrets.MyCnnStr }}` | Azure Blob Storage conection string (for help, visit [View Account Access Keys](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage#view-account-access-keys)) |
 | ✔ | container_name | `my-container` | Name of the Blob container |
-| ✔ | source_folder | `src\BuildOutput\` | Folder with the files to upload |
-|  | destination_folder | `MyTargetFolder/Subfolder` | Folder to upload to in the container (it will be created for you if it does not exist). |
+| ✔ | source_folder | `src\LocalFolderName\` | Folder with the files to upload. Note that the path separators will be automatically be normalized for you |
+|  | destination_folder | `MyTargetFolder/Subfolder` | Folder to upload to (it will be created for you if it does not exist). |
 |  | clean_destination_folder |  `false` (default)| Delete all destination files before uploading new ones. |
-|  | fail_if_source_empty | `false` (default)| Set to `true` if you want actio to fail if source folder empty. |
+|  | fail_if_source_empty | `false` (default)| Set to `true` if you want action to fail if source folder has no files. |
 |  | is_recursive | `true` (default)| Set to `false` if you want all subfolders ignored. |
 
 ## Examples
 
-If you copy-paste from the examples below, don't forget to use a real version number at the end of action name. For example, `LanceMcCarthy/Action-AzureBlobUpload@v1.8.x`.
+If you copy-paste from the examples below, **don't forget to use a real version number** at the end of action name. For example, `LanceMcCarthy/Action-AzureBlobUpload@v1.9.0`.
 
 ### Basic Use
 
-In the most basic form, the Action will upload everything in the `source_folder` to the root of that blob container.
+In the most basic form, the Action will upload all the files in the `source_folder` to the root of that blob container.
 
 ```yaml
 - uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X.X
@@ -47,13 +48,13 @@ If you want to upload the files to a folder in the blob container, you can set a
     connection_string: ${{ secrets.YourAzureBlobConnectionString }}
     container_name: your-container-name
     source_folder: src\LocalFolderName\
-    destination_folder: FolderNameInBlob
+    destination_folder: FolderNameInAzureStorage
     clean_destination_folder: true
 ```
 
 > If you would like to delete all the files in the destination folder before the upload, use `clean_destination_folder`.
 
-### Skip subfolder
+### Ignore Subfolder
 
 If you want to upload *only* files in the `source_folder` and skip subfolders and subfolder files, set `is_recursive` to `false`.
 
@@ -64,12 +65,26 @@ If you want to upload *only* files in the `source_folder` and skip subfolders an
           connection_string: ${{ secrets.AzureBlobConnectionString }}
           container_name: your-container-name
           source_folder: src\LocalFolderName\
-          destination_folder: FolderNameInBlob
+          destination_folder: FolderNameInAzureStorage
           clean_destination_folder: true
           is_recursive: false
 ```
 
-### Advanced
+### Single File Mode
+
+As of v1.9.0, you can set the `source_folder` to a single file path to upload only one file. For example, this one uploads *MySingleFileApplication.exe*.
+
+```yaml
+- uses: LanceMcCarthy/Action-AzureBlobUpload@vX.X.X
+  name: Azure Blob Upload with Destination folder defined
+  with:
+    connection_string: ${{ secrets.YourAzureBlobConnectionString }}
+    container_name: your-container-name
+    source_folder: src\LocalFolderName\MySingleFileApplication.exe
+    destination_folder: FolderNameInAzureStorage
+```
+
+### Advanced - Full Control
 
 Here is an example that might represent a real-world Workflow that needs precise control over things.
 
