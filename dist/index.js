@@ -1250,8 +1250,8 @@ var coreAuth = __nccwpck_require__(9645);
 var logger$1 = __nccwpck_require__(3233);
 var xml2js = __nccwpck_require__(6189);
 var os = __nccwpck_require__(2087);
-var coreTracing = __nccwpck_require__(4175);
-var api = __nccwpck_require__(5163);
+var coreTracing = __nccwpck_require__(1754);
+var api = __nccwpck_require__(6865);
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
@@ -6502,6 +6502,3174 @@ exports.tracingPolicy = tracingPolicy;
 exports.userAgentPolicy = userAgentPolicy;
 //# sourceMappingURL=index.js.map
 
+
+/***/ }),
+
+/***/ 1754:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+var api = __nccwpck_require__(6865);
+var tslib = __nccwpck_require__(5636);
+
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+/**
+ * A no-op implementation of Span that can safely be used without side-effects.
+ */
+var NoOpSpan = /** @class */ (function () {
+    function NoOpSpan() {
+    }
+    /**
+     * Returns the SpanContext associated with this Span.
+     */
+    NoOpSpan.prototype.context = function () {
+        return {
+            spanId: "",
+            traceId: "",
+            traceFlags: 0 /* NONE */
+        };
+    };
+    /**
+     * Marks the end of Span execution.
+     * @param _endTime - The time to use as the Span's end time. Defaults to
+     * the current time.
+     */
+    NoOpSpan.prototype.end = function (_endTime) {
+        /* Noop */
+    };
+    /**
+     * Sets an attribute on the Span
+     * @param _key - The attribute key
+     * @param _value - The attribute value
+     */
+    NoOpSpan.prototype.setAttribute = function (_key, _value) {
+        return this;
+    };
+    /**
+     * Sets attributes on the Span
+     * @param _attributes - The attributes to add
+     */
+    NoOpSpan.prototype.setAttributes = function (_attributes) {
+        return this;
+    };
+    /**
+     * Adds an event to the Span
+     * @param _name - The name of the event
+     * @param _attributes - The associated attributes to add for this event
+     */
+    NoOpSpan.prototype.addEvent = function (_name, _attributes) {
+        return this;
+    };
+    /**
+     * Sets a status on the span. Overrides the default of SpanStatusCode.OK.
+     * @param _status - The status to set.
+     */
+    NoOpSpan.prototype.setStatus = function (_status) {
+        return this;
+    };
+    /**
+     * Updates the name of the Span
+     * @param _name - the new Span name
+     */
+    NoOpSpan.prototype.updateName = function (_name) {
+        return this;
+    };
+    /**
+     * Returns whether this span will be recorded
+     */
+    NoOpSpan.prototype.isRecording = function () {
+        return false;
+    };
+    /**
+     * Sets exception as a span event
+     * @param exception - the exception the only accepted values are string or Error
+     * @param time - the time to set as Span's event time. If not provided,
+     *     use the current time.
+     */
+    NoOpSpan.prototype.recordException = function (_exception, _time) {
+        /* do nothing */
+    };
+    return NoOpSpan;
+}());
+
+// Copyright (c) Microsoft Corporation.
+/**
+ * A no-op implementation of Tracer that can be used when tracing
+ * is disabled.
+ */
+var NoOpTracer = /** @class */ (function () {
+    function NoOpTracer() {
+    }
+    /**
+     * Starts a new Span.
+     * @param _name - The name of the span.
+     * @param _options - The SpanOptions used during Span creation.
+     */
+    NoOpTracer.prototype.startSpan = function (_name, _options) {
+        return new NoOpSpan();
+    };
+    /**
+     * Returns the current Span from the current context, if available.
+     */
+    NoOpTracer.prototype.getCurrentSpan = function () {
+        return new NoOpSpan();
+    };
+    /**
+     * Executes the given function within the context provided by a Span.
+     * @param _span - The span that provides the context.
+     * @param fn - The function to be executed.
+     */
+    NoOpTracer.prototype.withSpan = function (_span, fn) {
+        return fn();
+    };
+    /**
+     * Bind a Span as the target's scope
+     * @param target - An object to bind the scope.
+     * @param _span - A specific Span to use. Otherwise, use the current one.
+     */
+    NoOpTracer.prototype.bind = function (target, _span) {
+        return target;
+    };
+    return NoOpTracer;
+}());
+
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+function getGlobalObject() {
+    return global;
+}
+
+// Copyright (c) Microsoft Corporation.
+// V1 = OpenTelemetry 0.1
+// V2 = OpenTelemetry 0.2
+// V3 = OpenTelemetry 0.6.1
+// V4 = OpenTelemetry 1.0.0-rc.0
+var GLOBAL_TRACER_VERSION = 4;
+// preview5 shipped with @azure/core-tracing.tracerCache
+// and didn't have smart detection for collisions
+var GLOBAL_TRACER_SYMBOL = Symbol.for("@azure/core-tracing.tracerCache3");
+var cache;
+function loadTracerCache() {
+    var globalObj = getGlobalObject();
+    var existingCache = globalObj[GLOBAL_TRACER_SYMBOL];
+    var setGlobalCache = true;
+    if (existingCache) {
+        if (existingCache.version === GLOBAL_TRACER_VERSION) {
+            cache = existingCache;
+        }
+        else {
+            setGlobalCache = false;
+            if (existingCache.tracer) {
+                throw new Error("Two incompatible versions of @azure/core-tracing have been loaded.\n          This library is " + GLOBAL_TRACER_VERSION + ", existing is " + existingCache.version + ".");
+            }
+        }
+    }
+    if (!cache) {
+        cache = {
+            tracer: undefined,
+            version: GLOBAL_TRACER_VERSION
+        };
+    }
+    if (setGlobalCache) {
+        globalObj[GLOBAL_TRACER_SYMBOL] = cache;
+    }
+}
+function getCache() {
+    if (!cache) {
+        loadTracerCache();
+    }
+    return cache;
+}
+
+// Copyright (c) Microsoft Corporation.
+var defaultTracer;
+function getDefaultTracer() {
+    if (!defaultTracer) {
+        defaultTracer = new NoOpTracer();
+    }
+    return defaultTracer;
+}
+/**
+ * Sets the global tracer, enabling tracing for the Azure SDK.
+ * @param tracer - An OpenTelemetry Tracer instance.
+ */
+function setTracer(tracer) {
+    var cache = getCache();
+    cache.tracer = tracer;
+}
+/**
+ * Retrieves the active tracer, or returns a
+ * no-op implementation if one is not set.
+ */
+function getTracer() {
+    var cache = getCache();
+    if (!cache.tracer) {
+        return getDefaultTracer();
+    }
+    return cache.tracer;
+}
+
+// Copyright (c) Microsoft Corporation.
+(function (SpanKind) {
+    /** Default value. Indicates that the span is used internally. */
+    SpanKind[SpanKind["INTERNAL"] = 0] = "INTERNAL";
+    /**
+     * Indicates that the span covers server-side handling of an RPC or other
+     * remote request.
+     */
+    SpanKind[SpanKind["SERVER"] = 1] = "SERVER";
+    /**
+     * Indicates that the span covers the client-side wrapper around an RPC or
+     * other remote request.
+     */
+    SpanKind[SpanKind["CLIENT"] = 2] = "CLIENT";
+    /**
+     * Indicates that the span describes producer sending a message to a
+     * broker. Unlike client and server, there is no direct critical path latency
+     * relationship between producer and consumer spans.
+     */
+    SpanKind[SpanKind["PRODUCER"] = 3] = "PRODUCER";
+    /**
+     * Indicates that the span describes consumer receiving a message from a
+     * broker. Unlike client and server, there is no direct critical path latency
+     * relationship between producer and consumer spans.
+     */
+    SpanKind[SpanKind["CONSUMER"] = 4] = "CONSUMER";
+})(exports.SpanKind || (exports.SpanKind = {}));
+/**
+ * Return the span if one exists
+ *
+ * @param context - context to get span from
+ */
+function getSpan(context) {
+    return api.getSpan(context);
+}
+/**
+ * Set the span on a context
+ *
+ * @param context - context to use as parent
+ * @param span - span to set active
+ */
+function setSpan(context, span) {
+    return api.setSpan(context, span);
+}
+/**
+ * Wrap span context in a NoopSpan and set as span in a new
+ * context
+ *
+ * @param context - context to set active span on
+ * @param spanContext - span context to be wrapped
+ */
+function setSpanContext(context, spanContext) {
+    return api.setSpanContext(context, spanContext);
+}
+/**
+ * Get the span context of the span if it exists.
+ *
+ * @param context - context to get values from
+ */
+function getSpanContext(context) {
+    return api.getSpanContext(context);
+}
+/** Entrypoint for context API */
+var context = api.context;
+(function (SpanStatusCode) {
+    /**
+     * The default status.
+     */
+    SpanStatusCode[SpanStatusCode["UNSET"] = 0] = "UNSET";
+    /**
+     * The operation has been validated by an Application developer or
+     * Operator to have completed successfully.
+     */
+    SpanStatusCode[SpanStatusCode["OK"] = 1] = "OK";
+    /**
+     * The operation contains an error.
+     */
+    SpanStatusCode[SpanStatusCode["ERROR"] = 2] = "ERROR";
+})(exports.SpanStatusCode || (exports.SpanStatusCode = {}));
+
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+/**
+ * @internal
+ */
+var OpenCensusTraceStateWrapper = /** @class */ (function () {
+    function OpenCensusTraceStateWrapper(state) {
+        this._state = state;
+    }
+    OpenCensusTraceStateWrapper.prototype.get = function (_key) {
+        throw new Error("Method not implemented.");
+    };
+    OpenCensusTraceStateWrapper.prototype.set = function (_key, _value) {
+        throw new Error("Method not implemented.");
+    };
+    OpenCensusTraceStateWrapper.prototype.unset = function (_key) {
+        throw new Error("Method not implemented");
+    };
+    OpenCensusTraceStateWrapper.prototype.serialize = function () {
+        return this._state || "";
+    };
+    return OpenCensusTraceStateWrapper;
+}());
+
+// Copyright (c) Microsoft Corporation.
+/** An enumeration of canonical status codes. */
+var CanonicalCode;
+(function (CanonicalCode) {
+    /**
+     * Not an error; returned on success
+     */
+    CanonicalCode[CanonicalCode["OK"] = 0] = "OK";
+    /**
+     * Internal errors.  Means some invariants expected by underlying
+     * system has been broken.  If you see one of these errors,
+     * something is very broken.
+     */
+    CanonicalCode[CanonicalCode["INTERNAL"] = 13] = "INTERNAL";
+})(CanonicalCode || (CanonicalCode = {}));
+function isWrappedSpan(span) {
+    return !!span && span.getWrappedSpan !== undefined;
+}
+function isTracer(tracerOrSpan) {
+    return tracerOrSpan.getWrappedTracer !== undefined;
+}
+/**
+ * An implementation of OpenTelemetry Span that wraps an OpenCensus Span.
+ */
+var OpenCensusSpanWrapper = /** @class */ (function () {
+    function OpenCensusSpanWrapper(tracerOrSpan, name, options, context$1) {
+        if (name === void 0) { name = ""; }
+        if (options === void 0) { options = {}; }
+        if (isTracer(tracerOrSpan)) {
+            var span = getSpan(context$1 !== null && context$1 !== void 0 ? context$1 : context.active());
+            var parent = isWrappedSpan(span) ? span.getWrappedSpan() : undefined;
+            this._span = tracerOrSpan.getWrappedTracer().startChildSpan({
+                name: name,
+                childOf: parent
+            });
+            this._span.start();
+            if (options.links) {
+                for (var _i = 0, _a = options.links; _i < _a.length; _i++) {
+                    var link = _a[_i];
+                    // Since there is no way to set the link relationship, leave it as Unspecified.
+                    this._span.addLink(link.context.traceId, link.context.spanId, 0 /* LinkType.UNSPECIFIED */, link.attributes);
+                }
+            }
+        }
+        else {
+            this._span = tracerOrSpan;
+        }
+    }
+    /**
+     * The underlying OpenCensus Span
+     */
+    OpenCensusSpanWrapper.prototype.getWrappedSpan = function () {
+        return this._span;
+    };
+    /**
+     * Marks the end of Span execution.
+     * @param endTime - The time to use as the Span's end time. Defaults to
+     * the current time.
+     */
+    OpenCensusSpanWrapper.prototype.end = function (_endTime) {
+        this._span.end();
+    };
+    /**
+     * Returns the SpanContext associated with this Span.
+     */
+    OpenCensusSpanWrapper.prototype.context = function () {
+        var openCensusSpanContext = this._span.spanContext;
+        return {
+            spanId: openCensusSpanContext.spanId,
+            traceId: openCensusSpanContext.traceId,
+            traceFlags: openCensusSpanContext.options,
+            traceState: new OpenCensusTraceStateWrapper(openCensusSpanContext.traceState)
+        };
+    };
+    /**
+     * Sets an attribute on the Span
+     * @param key - The attribute key
+     * @param value - The attribute value
+     */
+    OpenCensusSpanWrapper.prototype.setAttribute = function (key, value) {
+        this._span.addAttribute(key, value);
+        return this;
+    };
+    /**
+     * Sets attributes on the Span
+     * @param attributes - The attributes to add
+     */
+    OpenCensusSpanWrapper.prototype.setAttributes = function (attributes) {
+        this._span.attributes = attributes;
+        return this;
+    };
+    /**
+     * Adds an event to the Span
+     * @param name - The name of the event
+     * @param attributes - The associated attributes to add for this event
+     */
+    OpenCensusSpanWrapper.prototype.addEvent = function (_name, _attributes) {
+        throw new Error("Method not implemented.");
+    };
+    /**
+     * Sets a status on the span. Overrides the default of SpanStatusCode.OK.
+     * @param status - The status to set.
+     */
+    OpenCensusSpanWrapper.prototype.setStatus = function (status) {
+        switch (status.code) {
+            case exports.SpanStatusCode.ERROR: {
+                this._span.setStatus(CanonicalCode.INTERNAL, status.message);
+                break;
+            }
+            case exports.SpanStatusCode.OK: {
+                this._span.setStatus(CanonicalCode.OK, status.message);
+                break;
+            }
+            case exports.SpanStatusCode.UNSET: {
+                break;
+            }
+        }
+        return this;
+    };
+    /**
+     * Updates the name of the Span
+     * @param name - The new Span name
+     */
+    OpenCensusSpanWrapper.prototype.updateName = function (name) {
+        this._span.name = name;
+        return this;
+    };
+    /**
+     * Returns whether this span will be recorded
+     */
+    OpenCensusSpanWrapper.prototype.isRecording = function () {
+        // NoRecordSpans have an empty traceId
+        return !!this._span.traceId;
+    };
+    /**
+     * Sets exception as a span event
+     * @param exception - the exception the only accepted values are string or Error
+     * @param time - the time to set as Span's event time. If not provided,
+     *     use the current time.
+     */
+    OpenCensusSpanWrapper.prototype.recordException = function (_exception, _time) {
+        throw new Error("Method not implemented");
+    };
+    return OpenCensusSpanWrapper;
+}());
+
+// Copyright (c) Microsoft Corporation.
+/**
+ * An implementation of OpenTelemetry Tracer that wraps an OpenCensus Tracer.
+ */
+var OpenCensusTracerWrapper = /** @class */ (function () {
+    /**
+     * Create a new wrapper around a given OpenCensus Tracer.
+     * @param tracer - The OpenCensus Tracer to wrap.
+     */
+    function OpenCensusTracerWrapper(tracer) {
+        this._tracer = tracer;
+    }
+    /**
+     * The wrapped OpenCensus Tracer
+     */
+    OpenCensusTracerWrapper.prototype.getWrappedTracer = function () {
+        return this._tracer;
+    };
+    /**
+     * Starts a new Span.
+     * @param name - The name of the span.
+     * @param options - The SpanOptions used during Span creation.
+     */
+    OpenCensusTracerWrapper.prototype.startSpan = function (name, options) {
+        return new OpenCensusSpanWrapper(this, name, options);
+    };
+    /**
+     * Returns the current Span from the current context, if available.
+     */
+    OpenCensusTracerWrapper.prototype.getCurrentSpan = function () {
+        return undefined;
+    };
+    /**
+     * Executes the given function within the context provided by a Span.
+     * @param _span - The span that provides the context.
+     * @param _fn - The function to be executed.
+     */
+    OpenCensusTracerWrapper.prototype.withSpan = function (_span, _fn) {
+        throw new Error("Method not implemented.");
+    };
+    /**
+     * Bind a Span as the target's scope
+     * @param target - An object to bind the scope.
+     * @param _span - A specific Span to use. Otherwise, use the current one.
+     */
+    OpenCensusTracerWrapper.prototype.bind = function (_target, _span) {
+        throw new Error("Method not implemented.");
+    };
+    return OpenCensusTracerWrapper;
+}());
+
+// Copyright (c) Microsoft Corporation.
+/**
+ * A mock span useful for testing.
+ */
+var TestSpan = /** @class */ (function (_super) {
+    tslib.__extends(TestSpan, _super);
+    /**
+     * Starts a new Span.
+     * @param parentTracer-  The tracer that created this Span
+     * @param name - The name of the span.
+     * @param context - The SpanContext this span belongs to
+     * @param kind - The SpanKind of this Span
+     * @param parentSpanId - The identifier of the parent Span
+     * @param startTime - The startTime of the event (defaults to now)
+     */
+    function TestSpan(parentTracer, name, context, kind, parentSpanId, startTime) {
+        if (startTime === void 0) { startTime = Date.now(); }
+        var _this = _super.call(this) || this;
+        _this._tracer = parentTracer;
+        _this.name = name;
+        _this.kind = kind;
+        _this.startTime = startTime;
+        _this.parentSpanId = parentSpanId;
+        _this.status = {
+            code: exports.SpanStatusCode.OK
+        };
+        _this.endCalled = false;
+        _this._context = context;
+        _this.attributes = {};
+        return _this;
+    }
+    /**
+     * Returns the Tracer that created this Span
+     */
+    TestSpan.prototype.tracer = function () {
+        return this._tracer;
+    };
+    /**
+     * Returns the SpanContext associated with this Span.
+     */
+    TestSpan.prototype.context = function () {
+        return this._context;
+    };
+    /**
+     * Marks the end of Span execution.
+     * @param _endTime - The time to use as the Span's end time. Defaults to
+     * the current time.
+     */
+    TestSpan.prototype.end = function (_endTime) {
+        this.endCalled = true;
+    };
+    /**
+     * Sets a status on the span. Overrides the default of SpanStatusCode.OK.
+     * @param status - The status to set.
+     */
+    TestSpan.prototype.setStatus = function (status) {
+        this.status = status;
+        return this;
+    };
+    /**
+     * Returns whether this span will be recorded
+     */
+    TestSpan.prototype.isRecording = function () {
+        return true;
+    };
+    /**
+     * Sets an attribute on the Span
+     * @param key - The attribute key
+     * @param value - The attribute value
+     */
+    TestSpan.prototype.setAttribute = function (key, value) {
+        this.attributes[key] = value;
+        return this;
+    };
+    /**
+     * Sets attributes on the Span
+     * @param attributes - The attributes to add
+     */
+    TestSpan.prototype.setAttributes = function (attributes) {
+        for (var _i = 0, _a = Object.keys(attributes); _i < _a.length; _i++) {
+            var key = _a[_i];
+            this.attributes[key] = attributes[key];
+        }
+        return this;
+    };
+    return TestSpan;
+}(NoOpSpan));
+
+// Copyright (c) Microsoft Corporation.
+/**
+ * A mock tracer useful for testing
+ */
+var TestTracer = /** @class */ (function (_super) {
+    tslib.__extends(TestTracer, _super);
+    function TestTracer() {
+        var _this = _super !== null && _super.apply(this, arguments) || this;
+        _this.traceIdCounter = 0;
+        _this.spanIdCounter = 0;
+        _this.rootSpans = [];
+        _this.knownSpans = [];
+        return _this;
+    }
+    TestTracer.prototype.getNextTraceId = function () {
+        this.traceIdCounter++;
+        return String(this.traceIdCounter);
+    };
+    TestTracer.prototype.getNextSpanId = function () {
+        this.spanIdCounter++;
+        return String(this.spanIdCounter);
+    };
+    /**
+     * Returns all Spans that were created without a parent
+     */
+    TestTracer.prototype.getRootSpans = function () {
+        return this.rootSpans;
+    };
+    /**
+     * Returns all Spans this Tracer knows about
+     */
+    TestTracer.prototype.getKnownSpans = function () {
+        return this.knownSpans;
+    };
+    /**
+     * Returns all Spans where end() has not been called
+     */
+    TestTracer.prototype.getActiveSpans = function () {
+        return this.knownSpans.filter(function (span) {
+            return !span.endCalled;
+        });
+    };
+    /**
+     * Return all Spans for a particular trace, grouped by their
+     * parent Span in a tree-like structure
+     * @param traceId - The traceId to return the graph for
+     */
+    TestTracer.prototype.getSpanGraph = function (traceId) {
+        var traceSpans = this.knownSpans.filter(function (span) {
+            return span.context().traceId === traceId;
+        });
+        var roots = [];
+        var nodeMap = new Map();
+        for (var _i = 0, traceSpans_1 = traceSpans; _i < traceSpans_1.length; _i++) {
+            var span = traceSpans_1[_i];
+            var spanId = span.context().spanId;
+            var node = {
+                name: span.name,
+                children: []
+            };
+            nodeMap.set(spanId, node);
+            if (span.parentSpanId) {
+                var parent = nodeMap.get(span.parentSpanId);
+                if (!parent) {
+                    throw new Error("Span with name " + node.name + " has an unknown parentSpan with id " + span.parentSpanId);
+                }
+                parent.children.push(node);
+            }
+            else {
+                roots.push(node);
+            }
+        }
+        return {
+            roots: roots
+        };
+    };
+    /**
+     * Starts a new Span.
+     * @param name - The name of the span.
+     * @param options - The SpanOptions used during Span creation.
+     */
+    TestTracer.prototype.startSpan = function (name, options, context$1) {
+        var parentContext = getSpanContext(context$1 || context.active());
+        var traceId;
+        var isRootSpan = false;
+        if (parentContext && parentContext.traceId) {
+            traceId = parentContext.traceId;
+        }
+        else {
+            traceId = this.getNextTraceId();
+            isRootSpan = true;
+        }
+        var spanContext = {
+            traceId: traceId,
+            spanId: this.getNextSpanId(),
+            traceFlags: 0 /* NONE */
+        };
+        var span = new TestSpan(this, name, spanContext, (options === null || options === void 0 ? void 0 : options.kind) || exports.SpanKind.INTERNAL, parentContext ? parentContext.spanId : undefined, options === null || options === void 0 ? void 0 : options.startTime);
+        this.knownSpans.push(span);
+        if (isRootSpan) {
+            this.rootSpans.push(span);
+        }
+        return span;
+    };
+    return TestTracer;
+}(NoOpTracer));
+
+// Copyright (c) Microsoft Corporation.
+/**
+ * Creates a function that can be used to create spans using the global tracer.
+ *
+ * Usage:
+ *
+ * ```typescript
+ * // once
+ * const createSpan = createSpanFunction({ packagePrefix: "Azure.Data.AppConfiguration", namespace: "Microsoft.AppConfiguration" });
+ *
+ * // in each operation
+ * const span = createSpan("deleteConfigurationSetting", operationOptions);
+ *    // code...
+ * span.end();
+ * ```
+ *
+ * @hidden
+ * @param args - allows configuration of the prefix for each span as well as the az.namespace field.
+ */
+function createSpanFunction(args) {
+    return function (operationName, operationOptions) {
+        var tracer = getTracer();
+        var tracingOptions = (operationOptions === null || operationOptions === void 0 ? void 0 : operationOptions.tracingOptions) || {};
+        var spanOptions = tslib.__assign({ kind: exports.SpanKind.INTERNAL }, tracingOptions.spanOptions);
+        var spanName = args.packagePrefix ? args.packagePrefix + "." + operationName : operationName;
+        var span = tracer.startSpan(spanName, spanOptions, tracingOptions.tracingContext);
+        if (args.namespace) {
+            span.setAttribute("az.namespace", args.namespace);
+        }
+        var newSpanOptions = tracingOptions.spanOptions || {};
+        if (span.isRecording() && args.namespace) {
+            newSpanOptions = tslib.__assign(tslib.__assign({}, tracingOptions.spanOptions), { attributes: tslib.__assign(tslib.__assign({}, spanOptions.attributes), { "az.namespace": args.namespace }) });
+        }
+        var newTracingOptions = tslib.__assign(tslib.__assign({}, tracingOptions), { spanOptions: newSpanOptions, tracingContext: setSpan(tracingOptions.tracingContext || context.active(), span) });
+        var newOperationOptions = tslib.__assign(tslib.__assign({}, operationOptions), { tracingOptions: newTracingOptions });
+        return {
+            span: span,
+            updatedOptions: newOperationOptions
+        };
+    };
+}
+
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+var VERSION = "00";
+/**
+ * Generates a `SpanContext` given a `traceparent` header value.
+ * @param traceParent - Serialized span context data as a `traceparent` header value.
+ * @returns The `SpanContext` generated from the `traceparent` value.
+ */
+function extractSpanContextFromTraceParentHeader(traceParentHeader) {
+    var parts = traceParentHeader.split("-");
+    if (parts.length !== 4) {
+        return;
+    }
+    var version = parts[0], traceId = parts[1], spanId = parts[2], traceOptions = parts[3];
+    if (version !== VERSION) {
+        return;
+    }
+    var traceFlags = parseInt(traceOptions, 16);
+    var spanContext = {
+        spanId: spanId,
+        traceId: traceId,
+        traceFlags: traceFlags
+    };
+    return spanContext;
+}
+/**
+ * Generates a `traceparent` value given a span context.
+ * @param spanContext - Contains context for a specific span.
+ * @returns The `spanContext` represented as a `traceparent` value.
+ */
+function getTraceParentHeader(spanContext) {
+    var missingFields = [];
+    if (!spanContext.traceId) {
+        missingFields.push("traceId");
+    }
+    if (!spanContext.spanId) {
+        missingFields.push("spanId");
+    }
+    if (missingFields.length) {
+        return;
+    }
+    var flags = spanContext.traceFlags || 0 /* NONE */;
+    var hexFlags = flags.toString(16);
+    var traceFlags = hexFlags.length === 1 ? "0" + hexFlags : hexFlags;
+    // https://www.w3.org/TR/trace-context/#traceparent-header-field-values
+    return VERSION + "-" + spanContext.traceId + "-" + spanContext.spanId + "-" + traceFlags;
+}
+
+exports.NoOpSpan = NoOpSpan;
+exports.NoOpTracer = NoOpTracer;
+exports.OpenCensusSpanWrapper = OpenCensusSpanWrapper;
+exports.OpenCensusTracerWrapper = OpenCensusTracerWrapper;
+exports.TestSpan = TestSpan;
+exports.TestTracer = TestTracer;
+exports.context = context;
+exports.createSpanFunction = createSpanFunction;
+exports.extractSpanContextFromTraceParentHeader = extractSpanContextFromTraceParentHeader;
+exports.getSpan = getSpan;
+exports.getSpanContext = getSpanContext;
+exports.getTraceParentHeader = getTraceParentHeader;
+exports.getTracer = getTracer;
+exports.setSpan = setSpan;
+exports.setSpanContext = setSpanContext;
+exports.setTracer = setTracer;
+//# sourceMappingURL=index.js.map
+
+
+/***/ }),
+
+/***/ 7407:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ContextAPI = void 0;
+var NoopContextManager_1 = __nccwpck_require__(469);
+var global_utils_1 = __nccwpck_require__(6965);
+var API_NAME = 'context';
+var NOOP_CONTEXT_MANAGER = new NoopContextManager_1.NoopContextManager();
+/**
+ * Singleton object which represents the entry point to the OpenTelemetry Context API
+ */
+var ContextAPI = /** @class */ (function () {
+    /** Empty private constructor prevents end users from constructing a new instance of the API */
+    function ContextAPI() {
+    }
+    /** Get the singleton instance of the Context API */
+    ContextAPI.getInstance = function () {
+        if (!this._instance) {
+            this._instance = new ContextAPI();
+        }
+        return this._instance;
+    };
+    /**
+     * Set the current context manager. Returns the initialized context manager
+     */
+    ContextAPI.prototype.setGlobalContextManager = function (contextManager) {
+        global_utils_1.registerGlobal(API_NAME, contextManager);
+        return contextManager;
+    };
+    /**
+     * Get the currently active context
+     */
+    ContextAPI.prototype.active = function () {
+        return this._getContextManager().active();
+    };
+    /**
+     * Execute a function with an active context
+     *
+     * @param context context to be active during function execution
+     * @param fn function to execute in a context
+     * @param thisArg optional receiver to be used for calling fn
+     * @param args optional arguments forwarded to fn
+     */
+    ContextAPI.prototype.with = function (context, fn, thisArg) {
+        var _a;
+        var args = [];
+        for (var _i = 3; _i < arguments.length; _i++) {
+            args[_i - 3] = arguments[_i];
+        }
+        return (_a = this._getContextManager()).with.apply(_a, __spreadArrays([context, fn, thisArg], args));
+    };
+    /**
+     * Bind a context to a target function or event emitter
+     *
+     * @param target function or event emitter to bind
+     * @param context context to bind to the event emitter or function. Defaults to the currently active context
+     */
+    ContextAPI.prototype.bind = function (target, context) {
+        if (context === void 0) { context = this.active(); }
+        return this._getContextManager().bind(target, context);
+    };
+    ContextAPI.prototype._getContextManager = function () {
+        return global_utils_1.getGlobal(API_NAME) || NOOP_CONTEXT_MANAGER;
+    };
+    /** Disable and remove the global context manager */
+    ContextAPI.prototype.disable = function () {
+        this._getContextManager().disable();
+        global_utils_1.unregisterGlobal(API_NAME);
+    };
+    return ContextAPI;
+}());
+exports.ContextAPI = ContextAPI;
+//# sourceMappingURL=context.js.map
+
+/***/ }),
+
+/***/ 4658:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DiagAPI = void 0;
+var logLevelLogger_1 = __nccwpck_require__(6430);
+var types_1 = __nccwpck_require__(2339);
+var global_utils_1 = __nccwpck_require__(6965);
+var API_NAME = 'diag';
+/**
+ * Singleton object which represents the entry point to the OpenTelemetry internal
+ * diagnostic API
+ */
+var DiagAPI = /** @class */ (function () {
+    /**
+     * Private internal constructor
+     * @private
+     */
+    function DiagAPI() {
+        function _logProxy(funcName) {
+            return function () {
+                var logger = global_utils_1.getGlobal('diag');
+                // shortcut if logger not set
+                if (!logger)
+                    return;
+                return logger[funcName].apply(logger, 
+                // work around Function.prototype.apply types
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                arguments);
+            };
+        }
+        // Using self local variable for minification purposes as 'this' cannot be minified
+        var self = this;
+        // DiagAPI specific functions
+        self.setLogger = function (logger, logLevel) {
+            var _a;
+            if (logLevel === void 0) { logLevel = types_1.DiagLogLevel.INFO; }
+            if (logger === self) {
+                // There isn't much we can do here.
+                // Logging to the console might break the user application.
+                // Try to log to self. If a logger was previously registered it will receive the log.
+                var err = new Error('Cannot use diag as the logger for itself. Please use a DiagLogger implementation like ConsoleDiagLogger or a custom implementation');
+                self.error((_a = err.stack) !== null && _a !== void 0 ? _a : err.message);
+                return;
+            }
+            global_utils_1.registerGlobal('diag', logLevelLogger_1.createLogLevelDiagLogger(logLevel, logger), true);
+        };
+        self.disable = function () {
+            global_utils_1.unregisterGlobal(API_NAME);
+        };
+        self.verbose = _logProxy('verbose');
+        self.debug = _logProxy('debug');
+        self.info = _logProxy('info');
+        self.warn = _logProxy('warn');
+        self.error = _logProxy('error');
+    }
+    /** Get the singleton instance of the DiagAPI API */
+    DiagAPI.instance = function () {
+        if (!this._instance) {
+            this._instance = new DiagAPI();
+        }
+        return this._instance;
+    };
+    return DiagAPI;
+}());
+exports.DiagAPI = DiagAPI;
+//# sourceMappingURL=diag.js.map
+
+/***/ }),
+
+/***/ 9362:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PropagationAPI = void 0;
+var NoopTextMapPropagator_1 = __nccwpck_require__(3848);
+var TextMapPropagator_1 = __nccwpck_require__(9017);
+var global_utils_1 = __nccwpck_require__(6965);
+var API_NAME = 'propagation';
+/**
+ * Singleton object which represents the entry point to the OpenTelemetry Propagation API
+ */
+var PropagationAPI = /** @class */ (function () {
+    /** Empty private constructor prevents end users from constructing a new instance of the API */
+    function PropagationAPI() {
+    }
+    /** Get the singleton instance of the Propagator API */
+    PropagationAPI.getInstance = function () {
+        if (!this._instance) {
+            this._instance = new PropagationAPI();
+        }
+        return this._instance;
+    };
+    /**
+     * Set the current propagator. Returns the initialized propagator
+     */
+    PropagationAPI.prototype.setGlobalPropagator = function (propagator) {
+        global_utils_1.registerGlobal(API_NAME, propagator);
+        return propagator;
+    };
+    /**
+     * Inject context into a carrier to be propagated inter-process
+     *
+     * @param context Context carrying tracing data to inject
+     * @param carrier carrier to inject context into
+     * @param setter Function used to set values on the carrier
+     */
+    PropagationAPI.prototype.inject = function (context, carrier, setter) {
+        if (setter === void 0) { setter = TextMapPropagator_1.defaultTextMapSetter; }
+        return this._getGlobalPropagator().inject(context, carrier, setter);
+    };
+    /**
+     * Extract context from a carrier
+     *
+     * @param context Context which the newly created context will inherit from
+     * @param carrier Carrier to extract context from
+     * @param getter Function used to extract keys from a carrier
+     */
+    PropagationAPI.prototype.extract = function (context, carrier, getter) {
+        if (getter === void 0) { getter = TextMapPropagator_1.defaultTextMapGetter; }
+        return this._getGlobalPropagator().extract(context, carrier, getter);
+    };
+    /**
+     * Return a list of all fields which may be used by the propagator.
+     */
+    PropagationAPI.prototype.fields = function () {
+        return this._getGlobalPropagator().fields();
+    };
+    /** Remove the global propagator */
+    PropagationAPI.prototype.disable = function () {
+        global_utils_1.unregisterGlobal(API_NAME);
+    };
+    PropagationAPI.prototype._getGlobalPropagator = function () {
+        return global_utils_1.getGlobal(API_NAME) || NoopTextMapPropagator_1.NOOP_TEXT_MAP_PROPAGATOR;
+    };
+    return PropagationAPI;
+}());
+exports.PropagationAPI = PropagationAPI;
+//# sourceMappingURL=propagation.js.map
+
+/***/ }),
+
+/***/ 9857:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TraceAPI = void 0;
+var ProxyTracerProvider_1 = __nccwpck_require__(9483);
+var spancontext_utils_1 = __nccwpck_require__(541);
+var global_utils_1 = __nccwpck_require__(6965);
+var API_NAME = 'trace';
+/**
+ * Singleton object which represents the entry point to the OpenTelemetry Tracing API
+ */
+var TraceAPI = /** @class */ (function () {
+    /** Empty private constructor prevents end users from constructing a new instance of the API */
+    function TraceAPI() {
+        this._proxyTracerProvider = new ProxyTracerProvider_1.ProxyTracerProvider();
+        this.isSpanContextValid = spancontext_utils_1.isSpanContextValid;
+    }
+    /** Get the singleton instance of the Trace API */
+    TraceAPI.getInstance = function () {
+        if (!this._instance) {
+            this._instance = new TraceAPI();
+        }
+        return this._instance;
+    };
+    /**
+     * Set the current global tracer. Returns the initialized global tracer provider
+     */
+    TraceAPI.prototype.setGlobalTracerProvider = function (provider) {
+        this._proxyTracerProvider.setDelegate(provider);
+        global_utils_1.registerGlobal(API_NAME, this._proxyTracerProvider);
+        return this._proxyTracerProvider;
+    };
+    /**
+     * Returns the global tracer provider.
+     */
+    TraceAPI.prototype.getTracerProvider = function () {
+        return global_utils_1.getGlobal(API_NAME) || this._proxyTracerProvider;
+    };
+    /**
+     * Returns a tracer from the global tracer provider.
+     */
+    TraceAPI.prototype.getTracer = function (name, version) {
+        return this.getTracerProvider().getTracer(name, version);
+    };
+    /** Remove the global tracer provider */
+    TraceAPI.prototype.disable = function () {
+        global_utils_1.unregisterGlobal(API_NAME);
+        this._proxyTracerProvider = new ProxyTracerProvider_1.ProxyTracerProvider();
+    };
+    return TraceAPI;
+}());
+exports.TraceAPI = TraceAPI;
+//# sourceMappingURL=trace.js.map
+
+/***/ }),
+
+/***/ 1301:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Baggage.js.map
+
+/***/ }),
+
+/***/ 100:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Entry.js.map
+
+/***/ }),
+
+/***/ 6196:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.baggageEntryMetadataFromString = exports.createBaggage = void 0;
+var baggage_1 = __nccwpck_require__(6393);
+var symbol_1 = __nccwpck_require__(8256);
+__exportStar(__nccwpck_require__(1301), exports);
+__exportStar(__nccwpck_require__(100), exports);
+/**
+ * Create a new Baggage with optional entries
+ *
+ * @param entries An array of baggage entries the new baggage should contain
+ */
+function createBaggage(entries) {
+    if (entries === void 0) { entries = {}; }
+    return new baggage_1.BaggageImpl(new Map(Object.entries(entries)));
+}
+exports.createBaggage = createBaggage;
+/**
+ * Create a serializable BaggageEntryMetadata object from a string.
+ *
+ * @param str string metadata. Format is currently not defined by the spec and has no special meaning.
+ *
+ */
+function baggageEntryMetadataFromString(str) {
+    if (typeof str !== 'string') {
+        // @TODO log diagnostic
+        str = '';
+    }
+    return {
+        __TYPE__: symbol_1.baggageEntryMetadataSymbol,
+        toString: function () {
+            return str;
+        },
+    };
+}
+exports.baggageEntryMetadataFromString = baggageEntryMetadataFromString;
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 6393:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BaggageImpl = void 0;
+var BaggageImpl = /** @class */ (function () {
+    function BaggageImpl(entries) {
+        this._entries = entries ? new Map(entries) : new Map();
+    }
+    BaggageImpl.prototype.getEntry = function (key) {
+        var entry = this._entries.get(key);
+        if (!entry) {
+            return undefined;
+        }
+        return Object.assign({}, entry);
+    };
+    BaggageImpl.prototype.getAllEntries = function () {
+        return Array.from(this._entries.entries()).map(function (_a) {
+            var k = _a[0], v = _a[1];
+            return [k, v];
+        });
+    };
+    BaggageImpl.prototype.setEntry = function (key, entry) {
+        var newBaggage = new BaggageImpl(this._entries);
+        newBaggage._entries.set(key, entry);
+        return newBaggage;
+    };
+    BaggageImpl.prototype.removeEntry = function (key) {
+        var newBaggage = new BaggageImpl(this._entries);
+        newBaggage._entries.delete(key);
+        return newBaggage;
+    };
+    BaggageImpl.prototype.removeEntries = function () {
+        var keys = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            keys[_i] = arguments[_i];
+        }
+        var newBaggage = new BaggageImpl(this._entries);
+        for (var _a = 0, keys_1 = keys; _a < keys_1.length; _a++) {
+            var key = keys_1[_a];
+            newBaggage._entries.delete(key);
+        }
+        return newBaggage;
+    };
+    BaggageImpl.prototype.clear = function () {
+        return new BaggageImpl();
+    };
+    return BaggageImpl;
+}());
+exports.BaggageImpl = BaggageImpl;
+//# sourceMappingURL=baggage.js.map
+
+/***/ }),
+
+/***/ 8256:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.baggageEntryMetadataSymbol = void 0;
+/**
+ * Symbol used to make BaggageEntryMetadata an opaque type
+ */
+exports.baggageEntryMetadataSymbol = Symbol('BaggageEntryMetadata');
+//# sourceMappingURL=symbol.js.map
+
+/***/ }),
+
+/***/ 9777:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Exception.js.map
+
+/***/ }),
+
+/***/ 7413:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Time.js.map
+
+/***/ }),
+
+/***/ 469:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NoopContextManager = void 0;
+var context_1 = __nccwpck_require__(7135);
+var NoopContextManager = /** @class */ (function () {
+    function NoopContextManager() {
+    }
+    NoopContextManager.prototype.active = function () {
+        return context_1.ROOT_CONTEXT;
+    };
+    NoopContextManager.prototype.with = function (_context, fn, thisArg) {
+        var args = [];
+        for (var _i = 3; _i < arguments.length; _i++) {
+            args[_i - 3] = arguments[_i];
+        }
+        return fn.call.apply(fn, __spreadArrays([thisArg], args));
+    };
+    NoopContextManager.prototype.bind = function (target, _context) {
+        return target;
+    };
+    NoopContextManager.prototype.enable = function () {
+        return this;
+    };
+    NoopContextManager.prototype.disable = function () {
+        return this;
+    };
+    return NoopContextManager;
+}());
+exports.NoopContextManager = NoopContextManager;
+//# sourceMappingURL=NoopContextManager.js.map
+
+/***/ }),
+
+/***/ 7135:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ROOT_CONTEXT = exports.createContextKey = exports.setBaggage = exports.getBaggage = exports.isInstrumentationSuppressed = exports.unsuppressInstrumentation = exports.suppressInstrumentation = exports.getSpanContext = exports.setSpanContext = exports.setSpan = exports.getSpan = void 0;
+var NoopSpan_1 = __nccwpck_require__(3116);
+/**
+ * span key
+ */
+var SPAN_KEY = createContextKey('OpenTelemetry Context Key SPAN');
+/**
+ * Shared key for indicating if instrumentation should be suppressed beyond
+ * this current scope.
+ */
+var SUPPRESS_INSTRUMENTATION_KEY = createContextKey('OpenTelemetry Context Key SUPPRESS_INSTRUMENTATION');
+/**
+ * Baggage key
+ */
+var BAGGAGE_KEY = createContextKey('OpenTelemetry Baggage Key');
+/**
+ * Return the span if one exists
+ *
+ * @param context context to get span from
+ */
+function getSpan(context) {
+    return context.getValue(SPAN_KEY) || undefined;
+}
+exports.getSpan = getSpan;
+/**
+ * Set the span on a context
+ *
+ * @param context context to use as parent
+ * @param span span to set active
+ */
+function setSpan(context, span) {
+    return context.setValue(SPAN_KEY, span);
+}
+exports.setSpan = setSpan;
+/**
+ * Wrap span context in a NoopSpan and set as span in a new
+ * context
+ *
+ * @param context context to set active span on
+ * @param spanContext span context to be wrapped
+ */
+function setSpanContext(context, spanContext) {
+    return setSpan(context, new NoopSpan_1.NoopSpan(spanContext));
+}
+exports.setSpanContext = setSpanContext;
+/**
+ * Get the span context of the span if it exists.
+ *
+ * @param context context to get values from
+ */
+function getSpanContext(context) {
+    var _a;
+    return (_a = getSpan(context)) === null || _a === void 0 ? void 0 : _a.context();
+}
+exports.getSpanContext = getSpanContext;
+/**
+ * Sets value on context to indicate that instrumentation should
+ * be suppressed beyond this current scope.
+ *
+ * @param context context to set the suppress instrumentation value on.
+ */
+function suppressInstrumentation(context) {
+    return context.setValue(SUPPRESS_INSTRUMENTATION_KEY, true);
+}
+exports.suppressInstrumentation = suppressInstrumentation;
+/**
+ * Sets value on context to indicate that instrumentation should
+ * no-longer be suppressed beyond this current scope.
+ *
+ * @param context context to set the suppress instrumentation value on.
+ */
+function unsuppressInstrumentation(context) {
+    return context.setValue(SUPPRESS_INSTRUMENTATION_KEY, false);
+}
+exports.unsuppressInstrumentation = unsuppressInstrumentation;
+/**
+ * Return current suppress instrumentation value for the given context,
+ * if it exists.
+ *
+ * @param context context check for the suppress instrumentation value.
+ */
+function isInstrumentationSuppressed(context) {
+    return Boolean(context.getValue(SUPPRESS_INSTRUMENTATION_KEY));
+}
+exports.isInstrumentationSuppressed = isInstrumentationSuppressed;
+/**
+ * @param {Context} Context that manage all context values
+ * @returns {Baggage} Extracted baggage from the context
+ */
+function getBaggage(context) {
+    return context.getValue(BAGGAGE_KEY) || undefined;
+}
+exports.getBaggage = getBaggage;
+/**
+ * @param {Context} Context that manage all context values
+ * @param {Baggage} baggage that will be set in the actual context
+ */
+function setBaggage(context, baggage) {
+    return context.setValue(BAGGAGE_KEY, baggage);
+}
+exports.setBaggage = setBaggage;
+/** Get a key to uniquely identify a context value */
+function createContextKey(description) {
+    return Symbol.for(description);
+}
+exports.createContextKey = createContextKey;
+var BaseContext = /** @class */ (function () {
+    /**
+     * Construct a new context which inherits values from an optional parent context.
+     *
+     * @param parentContext a context from which to inherit values
+     */
+    function BaseContext(parentContext) {
+        // for minification
+        var self = this;
+        self._currentContext = parentContext ? new Map(parentContext) : new Map();
+        self.getValue = function (key) { return self._currentContext.get(key); };
+        self.setValue = function (key, value) {
+            var context = new BaseContext(self._currentContext);
+            context._currentContext.set(key, value);
+            return context;
+        };
+        self.deleteValue = function (key) {
+            var context = new BaseContext(self._currentContext);
+            context._currentContext.delete(key);
+            return context;
+        };
+    }
+    return BaseContext;
+}());
+/** The root context is used as the default parent context when there is no active context */
+exports.ROOT_CONTEXT = new BaseContext();
+//# sourceMappingURL=context.js.map
+
+/***/ }),
+
+/***/ 5658:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=types.js.map
+
+/***/ }),
+
+/***/ 7171:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DiagConsoleLogger = void 0;
+var consoleMap = [
+    { n: 'error', c: 'error' },
+    { n: 'warn', c: 'warn' },
+    { n: 'info', c: 'info' },
+    { n: 'debug', c: 'debug' },
+    { n: 'verbose', c: 'trace' },
+];
+/**
+ * A simple Immutable Console based diagnostic logger which will output any messages to the Console.
+ * If you want to limit the amount of logging to a specific level or lower use the
+ * {@link createLogLevelDiagLogger}
+ */
+var DiagConsoleLogger = /** @class */ (function () {
+    function DiagConsoleLogger() {
+        function _consoleFunc(funcName) {
+            return function () {
+                var orgArguments = arguments;
+                if (console) {
+                    // Some environments only expose the console when the F12 developer console is open
+                    var theFunc = console[funcName];
+                    if (typeof theFunc !== 'function') {
+                        // Not all environments support all functions
+                        theFunc = console.log;
+                    }
+                    // One last final check
+                    if (typeof theFunc === 'function') {
+                        return theFunc.apply(console, orgArguments);
+                    }
+                }
+            };
+        }
+        for (var i = 0; i < consoleMap.length; i++) {
+            this[consoleMap[i].n] = _consoleFunc(consoleMap[i].c);
+        }
+    }
+    return DiagConsoleLogger;
+}());
+exports.DiagConsoleLogger = DiagConsoleLogger;
+//# sourceMappingURL=consoleLogger.js.map
+
+/***/ }),
+
+/***/ 8266:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__nccwpck_require__(7171), exports);
+__exportStar(__nccwpck_require__(2339), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 6430:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createLogLevelDiagLogger = void 0;
+var types_1 = __nccwpck_require__(2339);
+function createLogLevelDiagLogger(maxLevel, logger) {
+    if (maxLevel < types_1.DiagLogLevel.NONE) {
+        maxLevel = types_1.DiagLogLevel.NONE;
+    }
+    else if (maxLevel > types_1.DiagLogLevel.ALL) {
+        maxLevel = types_1.DiagLogLevel.ALL;
+    }
+    // In case the logger is null or undefined
+    logger = logger || {};
+    function _filterFunc(funcName, theLevel) {
+        var theFunc = logger[funcName];
+        if (typeof theFunc === 'function' && maxLevel >= theLevel) {
+            return theFunc.bind(logger);
+        }
+        return function () { };
+    }
+    return {
+        error: _filterFunc('error', types_1.DiagLogLevel.ERROR),
+        warn: _filterFunc('warn', types_1.DiagLogLevel.WARN),
+        info: _filterFunc('info', types_1.DiagLogLevel.INFO),
+        debug: _filterFunc('debug', types_1.DiagLogLevel.DEBUG),
+        verbose: _filterFunc('verbose', types_1.DiagLogLevel.VERBOSE),
+    };
+}
+exports.createLogLevelDiagLogger = createLogLevelDiagLogger;
+//# sourceMappingURL=logLevelLogger.js.map
+
+/***/ }),
+
+/***/ 2339:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DiagLogLevel = void 0;
+/**
+ * Defines the available internal logging levels for the diagnostic logger, the numeric values
+ * of the levels are defined to match the original values from the initial LogLevel to avoid
+ * compatibility/migration issues for any implementation that assume the numeric ordering.
+ */
+var DiagLogLevel;
+(function (DiagLogLevel) {
+    /** Diagnostic Logging level setting to disable all logging (except and forced logs) */
+    DiagLogLevel[DiagLogLevel["NONE"] = 0] = "NONE";
+    /** Identifies an error scenario */
+    DiagLogLevel[DiagLogLevel["ERROR"] = 30] = "ERROR";
+    /** Identifies a warning scenario */
+    DiagLogLevel[DiagLogLevel["WARN"] = 50] = "WARN";
+    /** General informational log message */
+    DiagLogLevel[DiagLogLevel["INFO"] = 60] = "INFO";
+    /** General debug log message */
+    DiagLogLevel[DiagLogLevel["DEBUG"] = 70] = "DEBUG";
+    /**
+     * Detailed trace level logging should only be used for development, should only be set
+     * in a development environment.
+     */
+    DiagLogLevel[DiagLogLevel["VERBOSE"] = 80] = "VERBOSE";
+    /** Used to set the logging level to include all logging */
+    DiagLogLevel[DiagLogLevel["ALL"] = 9999] = "ALL";
+})(DiagLogLevel = exports.DiagLogLevel || (exports.DiagLogLevel = {}));
+//# sourceMappingURL=types.js.map
+
+/***/ }),
+
+/***/ 6865:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.diag = exports.propagation = exports.trace = exports.context = exports.isValidSpanId = exports.isValidTraceId = exports.isSpanContextValid = exports.INVALID_SPAN_CONTEXT = exports.INVALID_TRACEID = exports.INVALID_SPANID = void 0;
+__exportStar(__nccwpck_require__(6196), exports);
+__exportStar(__nccwpck_require__(9777), exports);
+__exportStar(__nccwpck_require__(7413), exports);
+__exportStar(__nccwpck_require__(8266), exports);
+__exportStar(__nccwpck_require__(3848), exports);
+__exportStar(__nccwpck_require__(9017), exports);
+__exportStar(__nccwpck_require__(761), exports);
+__exportStar(__nccwpck_require__(9217), exports);
+__exportStar(__nccwpck_require__(8984), exports);
+__exportStar(__nccwpck_require__(9067), exports);
+__exportStar(__nccwpck_require__(913), exports);
+__exportStar(__nccwpck_require__(2793), exports);
+__exportStar(__nccwpck_require__(5159), exports);
+__exportStar(__nccwpck_require__(9483), exports);
+__exportStar(__nccwpck_require__(1569), exports);
+__exportStar(__nccwpck_require__(7502), exports);
+__exportStar(__nccwpck_require__(9955), exports);
+__exportStar(__nccwpck_require__(3107), exports);
+__exportStar(__nccwpck_require__(8052), exports);
+__exportStar(__nccwpck_require__(9618), exports);
+__exportStar(__nccwpck_require__(1997), exports);
+__exportStar(__nccwpck_require__(886), exports);
+__exportStar(__nccwpck_require__(8434), exports);
+__exportStar(__nccwpck_require__(2749), exports);
+__exportStar(__nccwpck_require__(9824), exports);
+__exportStar(__nccwpck_require__(3833), exports);
+var spancontext_utils_1 = __nccwpck_require__(541);
+Object.defineProperty(exports, "INVALID_SPANID", ({ enumerable: true, get: function () { return spancontext_utils_1.INVALID_SPANID; } }));
+Object.defineProperty(exports, "INVALID_TRACEID", ({ enumerable: true, get: function () { return spancontext_utils_1.INVALID_TRACEID; } }));
+Object.defineProperty(exports, "INVALID_SPAN_CONTEXT", ({ enumerable: true, get: function () { return spancontext_utils_1.INVALID_SPAN_CONTEXT; } }));
+Object.defineProperty(exports, "isSpanContextValid", ({ enumerable: true, get: function () { return spancontext_utils_1.isSpanContextValid; } }));
+Object.defineProperty(exports, "isValidTraceId", ({ enumerable: true, get: function () { return spancontext_utils_1.isValidTraceId; } }));
+Object.defineProperty(exports, "isValidSpanId", ({ enumerable: true, get: function () { return spancontext_utils_1.isValidSpanId; } }));
+__exportStar(__nccwpck_require__(7135), exports);
+__exportStar(__nccwpck_require__(469), exports);
+__exportStar(__nccwpck_require__(5658), exports);
+var context_1 = __nccwpck_require__(7407);
+/** Entrypoint for context API */
+exports.context = context_1.ContextAPI.getInstance();
+var trace_1 = __nccwpck_require__(9857);
+/** Entrypoint for trace API */
+exports.trace = trace_1.TraceAPI.getInstance();
+var propagation_1 = __nccwpck_require__(9362);
+/** Entrypoint for propagation API */
+exports.propagation = propagation_1.PropagationAPI.getInstance();
+var diag_1 = __nccwpck_require__(4658);
+/**
+ * Entrypoint for Diag API.
+ * Defines Diagnostic handler used for internal diagnostic logging operations.
+ * The default provides a Noop DiagLogger implementation which may be changed via the
+ * diag.setLogger(logger: DiagLogger) function.
+ */
+exports.diag = diag_1.DiagAPI.instance();
+exports.default = {
+    trace: exports.trace,
+    context: exports.context,
+    propagation: exports.propagation,
+    diag: exports.diag,
+};
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 6965:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.unregisterGlobal = exports.getGlobal = exports.registerGlobal = void 0;
+var __1 = __nccwpck_require__(6865);
+var platform_1 = __nccwpck_require__(4730);
+var version_1 = __nccwpck_require__(4044);
+var semver_1 = __nccwpck_require__(5149);
+var major = version_1.VERSION.split('.')[0];
+var GLOBAL_OPENTELEMETRY_API_KEY = Symbol.for("io.opentelemetry.js.api." + major);
+var _global = platform_1._globalThis;
+function registerGlobal(type, instance, allowOverride) {
+    var _a;
+    if (allowOverride === void 0) { allowOverride = false; }
+    _global[GLOBAL_OPENTELEMETRY_API_KEY] = (_a = _global[GLOBAL_OPENTELEMETRY_API_KEY]) !== null && _a !== void 0 ? _a : {
+        version: version_1.VERSION,
+    };
+    var api = _global[GLOBAL_OPENTELEMETRY_API_KEY];
+    if (!allowOverride && api[type]) {
+        // already registered an API of this type
+        var err = new Error("@opentelemetry/api: Attempted duplicate registration of API: " + type);
+        __1.diag.error(err.stack || err.message);
+        return;
+    }
+    if (api.version !== version_1.VERSION) {
+        // All registered APIs must be of the same version exactly
+        var err = new Error('@opentelemetry/api: All API registration versions must match');
+        __1.diag.error(err.stack || err.message);
+        return;
+    }
+    api[type] = instance;
+}
+exports.registerGlobal = registerGlobal;
+function getGlobal(type) {
+    var _a, _b;
+    var globalVersion = (_a = _global[GLOBAL_OPENTELEMETRY_API_KEY]) === null || _a === void 0 ? void 0 : _a.version;
+    if (!globalVersion || !semver_1.isCompatible(globalVersion)) {
+        return;
+    }
+    return (_b = _global[GLOBAL_OPENTELEMETRY_API_KEY]) === null || _b === void 0 ? void 0 : _b[type];
+}
+exports.getGlobal = getGlobal;
+function unregisterGlobal(type) {
+    var api = _global[GLOBAL_OPENTELEMETRY_API_KEY];
+    if (api) {
+        delete api[type];
+    }
+}
+exports.unregisterGlobal = unregisterGlobal;
+//# sourceMappingURL=global-utils.js.map
+
+/***/ }),
+
+/***/ 5149:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.isCompatible = exports._makeCompatibilityCheck = void 0;
+var version_1 = __nccwpck_require__(4044);
+var re = /^(\d+)\.(\d+)\.(\d+)(?:-(.*))?$/;
+/**
+ * Create a function to test an API version to see if it is compatible with the provided ownVersion.
+ *
+ * The returned function has the following semantics:
+ * - Exact match is always compatible
+ * - Major versions must match exactly
+ *    - 1.x package cannot use global 2.x package
+ *    - 2.x package cannot use global 1.x package
+ * - The minor version of the API module requesting access to the global API must be less than or equal to the minor version of this API
+ *    - 1.3 package may use 1.4 global because the later global contains all functions 1.3 expects
+ *    - 1.4 package may NOT use 1.3 global because it may try to call functions which don't exist on 1.3
+ * - If the major version is 0, the minor version is treated as the major and the patch is treated as the minor
+ * - Patch and build tag differences are not considered at this time
+ *
+ * @param ownVersion version which should be checked against
+ */
+function _makeCompatibilityCheck(ownVersion) {
+    var acceptedVersions = new Set([ownVersion]);
+    var rejectedVersions = new Set();
+    var myVersionMatch = ownVersion.match(re);
+    if (!myVersionMatch) {
+        // we cannot guarantee compatibility so we always return noop
+        return function () { return false; };
+    }
+    var ownVersionParsed = {
+        major: +myVersionMatch[1],
+        minor: +myVersionMatch[2],
+        patch: +myVersionMatch[3],
+    };
+    function _reject(v) {
+        rejectedVersions.add(v);
+        return false;
+    }
+    function _accept(v) {
+        acceptedVersions.add(v);
+        return true;
+    }
+    return function isCompatible(globalVersion) {
+        if (acceptedVersions.has(globalVersion)) {
+            return true;
+        }
+        if (rejectedVersions.has(globalVersion)) {
+            return false;
+        }
+        var globalVersionMatch = globalVersion.match(re);
+        if (!globalVersionMatch) {
+            // cannot parse other version
+            // we cannot guarantee compatibility so we always noop
+            return _reject(globalVersion);
+        }
+        var globalVersionParsed = {
+            major: +globalVersionMatch[1],
+            minor: +globalVersionMatch[2],
+            patch: +globalVersionMatch[3],
+        };
+        // major versions must match
+        if (ownVersionParsed.major !== globalVersionParsed.major) {
+            return _reject(globalVersion);
+        }
+        if (ownVersionParsed.major === 0) {
+            if (ownVersionParsed.minor === globalVersionParsed.minor &&
+                ownVersionParsed.patch <= globalVersionParsed.patch) {
+                return _accept(globalVersion);
+            }
+            return _reject(globalVersion);
+        }
+        if (ownVersionParsed.minor <= globalVersionParsed.minor) {
+            return _accept(globalVersion);
+        }
+        return _reject(globalVersion);
+    };
+}
+exports._makeCompatibilityCheck = _makeCompatibilityCheck;
+/**
+ * Test an API version to see if it is compatible with this API.
+ *
+ * - Exact match is always compatible
+ * - Major versions must match exactly
+ *    - 1.x package cannot use global 2.x package
+ *    - 2.x package cannot use global 1.x package
+ * - The minor version of the API module requesting access to the global API must be less than or equal to the minor version of this API
+ *    - 1.3 package may use 1.4 global because the later global contains all functions 1.3 expects
+ *    - 1.4 package may NOT use 1.3 global because it may try to call functions which don't exist on 1.3
+ * - If the major version is 0, the minor version is treated as the major and the patch is treated as the minor
+ * - Patch and build tag differences are not considered at this time
+ *
+ * @param version version of the API requesting an instance of the global API
+ */
+exports.isCompatible = _makeCompatibilityCheck(version_1.VERSION);
+//# sourceMappingURL=semver.js.map
+
+/***/ }),
+
+/***/ 4730:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__nccwpck_require__(6819), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 9164:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports._globalThis = void 0;
+/** only globals that common to node and browsers are allowed */
+// eslint-disable-next-line node/no-unsupported-features/es-builtins
+exports._globalThis = typeof globalThis === 'object' ? globalThis : global;
+//# sourceMappingURL=globalThis.js.map
+
+/***/ }),
+
+/***/ 6819:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__nccwpck_require__(9164), exports);
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 3848:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NOOP_TEXT_MAP_PROPAGATOR = exports.NoopTextMapPropagator = void 0;
+/**
+ * No-op implementations of {@link TextMapPropagator}.
+ */
+var NoopTextMapPropagator = /** @class */ (function () {
+    function NoopTextMapPropagator() {
+    }
+    /** Noop inject function does nothing */
+    NoopTextMapPropagator.prototype.inject = function (_context, _carrier) { };
+    /** Noop extract function does nothing and returns the input context */
+    NoopTextMapPropagator.prototype.extract = function (context, _carrier) {
+        return context;
+    };
+    NoopTextMapPropagator.prototype.fields = function () {
+        return [];
+    };
+    return NoopTextMapPropagator;
+}());
+exports.NoopTextMapPropagator = NoopTextMapPropagator;
+exports.NOOP_TEXT_MAP_PROPAGATOR = new NoopTextMapPropagator();
+//# sourceMappingURL=NoopTextMapPropagator.js.map
+
+/***/ }),
+
+/***/ 9017:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.defaultTextMapSetter = exports.defaultTextMapGetter = void 0;
+exports.defaultTextMapGetter = {
+    get: function (carrier, key) {
+        if (carrier == null) {
+            return undefined;
+        }
+        return carrier[key];
+    },
+    keys: function (carrier) {
+        if (carrier == null) {
+            return [];
+        }
+        return Object.keys(carrier);
+    },
+};
+exports.defaultTextMapSetter = {
+    set: function (carrier, key, value) {
+        if (carrier == null) {
+            return;
+        }
+        carrier[key] = value;
+    },
+};
+//# sourceMappingURL=TextMapPropagator.js.map
+
+/***/ }),
+
+/***/ 9217:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Event.js.map
+
+/***/ }),
+
+/***/ 3116:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NoopSpan = void 0;
+var spancontext_utils_1 = __nccwpck_require__(541);
+/**
+ * The NoopSpan is the default {@link Span} that is used when no Span
+ * implementation is available. All operations are no-op including context
+ * propagation.
+ */
+var NoopSpan = /** @class */ (function () {
+    function NoopSpan(_spanContext) {
+        if (_spanContext === void 0) { _spanContext = spancontext_utils_1.INVALID_SPAN_CONTEXT; }
+        this._spanContext = _spanContext;
+    }
+    // Returns a SpanContext.
+    NoopSpan.prototype.context = function () {
+        return this._spanContext;
+    };
+    // By default does nothing
+    NoopSpan.prototype.setAttribute = function (_key, _value) {
+        return this;
+    };
+    // By default does nothing
+    NoopSpan.prototype.setAttributes = function (_attributes) {
+        return this;
+    };
+    // By default does nothing
+    NoopSpan.prototype.addEvent = function (_name, _attributes) {
+        return this;
+    };
+    // By default does nothing
+    NoopSpan.prototype.setStatus = function (_status) {
+        return this;
+    };
+    // By default does nothing
+    NoopSpan.prototype.updateName = function (_name) {
+        return this;
+    };
+    // By default does nothing
+    NoopSpan.prototype.end = function (_endTime) { };
+    // isRecording always returns false for noopSpan.
+    NoopSpan.prototype.isRecording = function () {
+        return false;
+    };
+    // By default does nothing
+    NoopSpan.prototype.recordException = function (_exception, _time) { };
+    return NoopSpan;
+}());
+exports.NoopSpan = NoopSpan;
+//# sourceMappingURL=NoopSpan.js.map
+
+/***/ }),
+
+/***/ 913:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NOOP_TRACER = exports.NoopTracer = void 0;
+var context_1 = __nccwpck_require__(7135);
+var NoopSpan_1 = __nccwpck_require__(3116);
+var spancontext_utils_1 = __nccwpck_require__(541);
+/**
+ * No-op implementations of {@link Tracer}.
+ */
+var NoopTracer = /** @class */ (function () {
+    function NoopTracer() {
+    }
+    // startSpan starts a noop span.
+    NoopTracer.prototype.startSpan = function (name, options, context) {
+        var root = Boolean(options === null || options === void 0 ? void 0 : options.root);
+        if (root) {
+            return new NoopSpan_1.NoopSpan();
+        }
+        var parentFromContext = context && context_1.getSpanContext(context);
+        if (isSpanContext(parentFromContext) &&
+            spancontext_utils_1.isSpanContextValid(parentFromContext)) {
+            return new NoopSpan_1.NoopSpan(parentFromContext);
+        }
+        else {
+            return new NoopSpan_1.NoopSpan();
+        }
+    };
+    return NoopTracer;
+}());
+exports.NoopTracer = NoopTracer;
+function isSpanContext(spanContext) {
+    return (typeof spanContext === 'object' &&
+        typeof spanContext['spanId'] === 'string' &&
+        typeof spanContext['traceId'] === 'string' &&
+        typeof spanContext['traceFlags'] === 'number');
+}
+exports.NOOP_TRACER = new NoopTracer();
+//# sourceMappingURL=NoopTracer.js.map
+
+/***/ }),
+
+/***/ 2793:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NOOP_TRACER_PROVIDER = exports.NoopTracerProvider = void 0;
+var NoopTracer_1 = __nccwpck_require__(913);
+/**
+ * An implementation of the {@link TracerProvider} which returns an impotent
+ * Tracer for all calls to `getTracer`.
+ *
+ * All operations are no-op.
+ */
+var NoopTracerProvider = /** @class */ (function () {
+    function NoopTracerProvider() {
+    }
+    NoopTracerProvider.prototype.getTracer = function (_name, _version) {
+        return NoopTracer_1.NOOP_TRACER;
+    };
+    return NoopTracerProvider;
+}());
+exports.NoopTracerProvider = NoopTracerProvider;
+exports.NOOP_TRACER_PROVIDER = new NoopTracerProvider();
+//# sourceMappingURL=NoopTracerProvider.js.map
+
+/***/ }),
+
+/***/ 5159:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ProxyTracer = void 0;
+var NoopTracer_1 = __nccwpck_require__(913);
+/**
+ * Proxy tracer provided by the proxy tracer provider
+ */
+var ProxyTracer = /** @class */ (function () {
+    function ProxyTracer(_provider, name, version) {
+        this._provider = _provider;
+        this.name = name;
+        this.version = version;
+    }
+    ProxyTracer.prototype.startSpan = function (name, options, context) {
+        return this._getTracer().startSpan(name, options, context);
+    };
+    /**
+     * Try to get a tracer from the proxy tracer provider.
+     * If the proxy tracer provider has no delegate, return a noop tracer.
+     */
+    ProxyTracer.prototype._getTracer = function () {
+        if (this._delegate) {
+            return this._delegate;
+        }
+        var tracer = this._provider.getDelegateTracer(this.name, this.version);
+        if (!tracer) {
+            return NoopTracer_1.NOOP_TRACER;
+        }
+        this._delegate = tracer;
+        return this._delegate;
+    };
+    return ProxyTracer;
+}());
+exports.ProxyTracer = ProxyTracer;
+//# sourceMappingURL=ProxyTracer.js.map
+
+/***/ }),
+
+/***/ 9483:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ProxyTracerProvider = void 0;
+var ProxyTracer_1 = __nccwpck_require__(5159);
+var NoopTracerProvider_1 = __nccwpck_require__(2793);
+/**
+ * Tracer provider which provides {@link ProxyTracer}s.
+ *
+ * Before a delegate is set, tracers provided are NoOp.
+ *   When a delegate is set, traces are provided from the delegate.
+ *   When a delegate is set after tracers have already been provided,
+ *   all tracers already provided will use the provided delegate implementation.
+ */
+var ProxyTracerProvider = /** @class */ (function () {
+    function ProxyTracerProvider() {
+    }
+    /**
+     * Get a {@link ProxyTracer}
+     */
+    ProxyTracerProvider.prototype.getTracer = function (name, version) {
+        var _a;
+        return ((_a = this.getDelegateTracer(name, version)) !== null && _a !== void 0 ? _a : new ProxyTracer_1.ProxyTracer(this, name, version));
+    };
+    ProxyTracerProvider.prototype.getDelegate = function () {
+        var _a;
+        return (_a = this._delegate) !== null && _a !== void 0 ? _a : NoopTracerProvider_1.NOOP_TRACER_PROVIDER;
+    };
+    /**
+     * Set the delegate tracer provider
+     */
+    ProxyTracerProvider.prototype.setDelegate = function (delegate) {
+        this._delegate = delegate;
+    };
+    ProxyTracerProvider.prototype.getDelegateTracer = function (name, version) {
+        var _a;
+        return (_a = this._delegate) === null || _a === void 0 ? void 0 : _a.getTracer(name, version);
+    };
+    return ProxyTracerProvider;
+}());
+exports.ProxyTracerProvider = ProxyTracerProvider;
+//# sourceMappingURL=ProxyTracerProvider.js.map
+
+/***/ }),
+
+/***/ 1569:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=Sampler.js.map
+
+/***/ }),
+
+/***/ 7502:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SamplingDecision = void 0;
+/**
+ * A sampling decision that determines how a {@link Span} will be recorded
+ * and collected.
+ */
+var SamplingDecision;
+(function (SamplingDecision) {
+    /**
+     * `Span.isRecording() === false`, span will not be recorded and all events
+     * and attributes will be dropped.
+     */
+    SamplingDecision[SamplingDecision["NOT_RECORD"] = 0] = "NOT_RECORD";
+    /**
+     * `Span.isRecording() === true`, but `Sampled` flag in {@link TraceFlags}
+     * MUST NOT be set.
+     */
+    SamplingDecision[SamplingDecision["RECORD"] = 1] = "RECORD";
+    /**
+     * `Span.isRecording() === true` AND `Sampled` flag in {@link TraceFlags}
+     * MUST be set.
+     */
+    SamplingDecision[SamplingDecision["RECORD_AND_SAMPLED"] = 2] = "RECORD_AND_SAMPLED";
+})(SamplingDecision = exports.SamplingDecision || (exports.SamplingDecision = {}));
+//# sourceMappingURL=SamplingResult.js.map
+
+/***/ }),
+
+/***/ 9618:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=SpanOptions.js.map
+
+/***/ }),
+
+/***/ 886:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=TimedEvent.js.map
+
+/***/ }),
+
+/***/ 761:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=attributes.js.map
+
+/***/ }),
+
+/***/ 9067:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=link.js.map
+
+/***/ }),
+
+/***/ 8984:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=link_context.js.map
+
+/***/ }),
+
+/***/ 8052:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=span.js.map
+
+/***/ }),
+
+/***/ 9955:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=span_context.js.map
+
+/***/ }),
+
+/***/ 3107:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SpanKind = void 0;
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var SpanKind;
+(function (SpanKind) {
+    /** Default value. Indicates that the span is used internally. */
+    SpanKind[SpanKind["INTERNAL"] = 0] = "INTERNAL";
+    /**
+     * Indicates that the span covers server-side handling of an RPC or other
+     * remote request.
+     */
+    SpanKind[SpanKind["SERVER"] = 1] = "SERVER";
+    /**
+     * Indicates that the span covers the client-side wrapper around an RPC or
+     * other remote request.
+     */
+    SpanKind[SpanKind["CLIENT"] = 2] = "CLIENT";
+    /**
+     * Indicates that the span describes producer sending a message to a
+     * broker. Unlike client and server, there is no direct critical path latency
+     * relationship between producer and consumer spans.
+     */
+    SpanKind[SpanKind["PRODUCER"] = 3] = "PRODUCER";
+    /**
+     * Indicates that the span describes consumer receiving a message from a
+     * broker. Unlike client and server, there is no direct critical path latency
+     * relationship between producer and consumer spans.
+     */
+    SpanKind[SpanKind["CONSUMER"] = 4] = "CONSUMER";
+})(SpanKind = exports.SpanKind || (exports.SpanKind = {}));
+//# sourceMappingURL=span_kind.js.map
+
+/***/ }),
+
+/***/ 541:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.isSpanContextValid = exports.isValidSpanId = exports.isValidTraceId = exports.INVALID_SPAN_CONTEXT = exports.INVALID_TRACEID = exports.INVALID_SPANID = void 0;
+var trace_flags_1 = __nccwpck_require__(8434);
+var VALID_TRACEID_REGEX = /^([0-9a-f]{32})$/i;
+var VALID_SPANID_REGEX = /^[0-9a-f]{16}$/i;
+exports.INVALID_SPANID = '0000000000000000';
+exports.INVALID_TRACEID = '00000000000000000000000000000000';
+exports.INVALID_SPAN_CONTEXT = {
+    traceId: exports.INVALID_TRACEID,
+    spanId: exports.INVALID_SPANID,
+    traceFlags: trace_flags_1.TraceFlags.NONE,
+};
+function isValidTraceId(traceId) {
+    return VALID_TRACEID_REGEX.test(traceId) && traceId !== exports.INVALID_TRACEID;
+}
+exports.isValidTraceId = isValidTraceId;
+function isValidSpanId(spanId) {
+    return VALID_SPANID_REGEX.test(spanId) && spanId !== exports.INVALID_SPANID;
+}
+exports.isValidSpanId = isValidSpanId;
+/**
+ * Returns true if this {@link SpanContext} is valid.
+ * @return true if this {@link SpanContext} is valid.
+ */
+function isSpanContextValid(spanContext) {
+    return (isValidTraceId(spanContext.traceId) && isValidSpanId(spanContext.spanId));
+}
+exports.isSpanContextValid = isSpanContextValid;
+//# sourceMappingURL=spancontext-utils.js.map
+
+/***/ }),
+
+/***/ 1997:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SpanStatusCode = void 0;
+/**
+ * An enumeration of status codes.
+ */
+var SpanStatusCode;
+(function (SpanStatusCode) {
+    /**
+     * The default status.
+     */
+    SpanStatusCode[SpanStatusCode["UNSET"] = 0] = "UNSET";
+    /**
+     * The operation has been validated by an Application developer or
+     * Operator to have completed successfully.
+     */
+    SpanStatusCode[SpanStatusCode["OK"] = 1] = "OK";
+    /**
+     * The operation contains an error.
+     */
+    SpanStatusCode[SpanStatusCode["ERROR"] = 2] = "ERROR";
+})(SpanStatusCode = exports.SpanStatusCode || (exports.SpanStatusCode = {}));
+//# sourceMappingURL=status.js.map
+
+/***/ }),
+
+/***/ 8434:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TraceFlags = void 0;
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+var TraceFlags;
+(function (TraceFlags) {
+    /** Represents no flag set. */
+    TraceFlags[TraceFlags["NONE"] = 0] = "NONE";
+    /** Bit to represent whether trace is sampled in trace flags. */
+    TraceFlags[TraceFlags["SAMPLED"] = 1] = "SAMPLED";
+})(TraceFlags = exports.TraceFlags || (exports.TraceFlags = {}));
+//# sourceMappingURL=trace_flags.js.map
+
+/***/ }),
+
+/***/ 2749:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=trace_state.js.map
+
+/***/ }),
+
+/***/ 3833:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=tracer.js.map
+
+/***/ }),
+
+/***/ 9824:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+//# sourceMappingURL=tracer_provider.js.map
+
+/***/ }),
+
+/***/ 4044:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/*
+ * Copyright The OpenTelemetry Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VERSION = void 0;
+// this is autogenerated file, see scripts/version-update.js
+exports.VERSION = '1.0.0-rc.0';
+//# sourceMappingURL=version.js.map
 
 /***/ }),
 
@@ -32970,7 +36138,7 @@ exports.newPipeline = newPipeline;
 
 /***/ }),
 
-/***/ 7171:
+/***/ 5560:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -33213,7 +36381,7 @@ exports.PropagationAPI = void 0;
 var getter_1 = __nccwpck_require__(3050);
 var NoopHttpTextPropagator_1 = __nccwpck_require__(9757);
 var setter_1 = __nccwpck_require__(4707);
-var context_1 = __nccwpck_require__(7171);
+var context_1 = __nccwpck_require__(5560);
 var global_utils_1 = __nccwpck_require__(3529);
 var contextApi = context_1.ContextAPI.getInstance();
 /**
@@ -33621,7 +36789,7 @@ __exportStar(__nccwpck_require__(808), exports);
 __exportStar(__nccwpck_require__(1809), exports);
 __exportStar(__nccwpck_require__(2500), exports);
 __exportStar(__nccwpck_require__(4931), exports);
-__exportStar(__nccwpck_require__(1754), exports);
+__exportStar(__nccwpck_require__(2111), exports);
 __exportStar(__nccwpck_require__(7507), exports);
 __exportStar(__nccwpck_require__(9999), exports);
 __exportStar(__nccwpck_require__(4837), exports);
@@ -33650,7 +36818,7 @@ __exportStar(__nccwpck_require__(891), exports);
 __exportStar(__nccwpck_require__(3168), exports);
 var context_base_1 = __nccwpck_require__(5664);
 Object.defineProperty(exports, "Context", ({ enumerable: true, get: function () { return context_base_1.Context; } }));
-var context_1 = __nccwpck_require__(7171);
+var context_1 = __nccwpck_require__(5560);
 /** Entrypoint for context API */
 exports.context = context_1.ContextAPI.getInstance();
 var trace_1 = __nccwpck_require__(1539);
@@ -33722,7 +36890,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 /***/ }),
 
-/***/ 1754:
+/***/ 2111:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
