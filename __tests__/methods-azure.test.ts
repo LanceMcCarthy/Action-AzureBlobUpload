@@ -1,4 +1,5 @@
 import * as azure from '../src/methods-azure';
+import {expect, describe, test, it} from '@jest/globals';
 
 describe('UploadToAzure', () => {
   it('Should fail if no connection string was provided', async () => {

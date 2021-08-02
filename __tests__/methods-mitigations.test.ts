@@ -1,4 +1,5 @@
 import * as mitigations from '../src/methods-mitigations';
+import {expect, describe, it} from '@jest/globals';
 
 describe('getFinalPathForFileName', () => {
   it('Should remove first consecutive duplicate from path', () => {
