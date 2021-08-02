@@ -39,7 +39,7 @@
     "@types/glob": "^7.1.4",
     "@types/mime-types": "^2.1.0",
     "glob": "^7.1.7",
-    "mime-types": "^2.1.30"
+    "mime-types": "^2.1.32"
   },
   "devDependencies": {
     "@types/jest": "^26.0.24",
