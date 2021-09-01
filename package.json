@@ -42,7 +42,7 @@
     "mime-types": "^2.1.32"
   },
   "devDependencies": {
-    "@types/node": "^16.4.10",
+    "@types/node": "^16.7.10",
     "@typescript-eslint/parser": "^4.30.0",
     "@vercel/ncc": "^0.29.0",
     "eslint": "^7.32.0",
