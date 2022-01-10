@@ -1,5 +1,5 @@
 {
-    "plugins": ["jest", "@typescript-eslint"],
+    "plugins": ["jest", "@typescript-eslint", "i18n-text"],
     "extends": ["plugin:github/recommended", "plugin:jest/recommended"],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
@@ -46,7 +46,8 @@
       "@typescript-eslint/type-annotation-spacing": "error",
       "@typescript-eslint/unbound-method": "error",
       "github/array-foreach": "off",
-      "github/no-then": "off"
+      "github/no-then": "off",
+      "i18n-text/no-en": 0
     },
     "env": {
       "node": true,

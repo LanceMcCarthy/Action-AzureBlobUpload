@@ -3,6 +3,7 @@ import * as helpers from './methods-helpers';
 import * as mime from 'mime-types';
 import * as mitigations from './methods-mitigations';
 import * as path from 'path';
+// eslint-disable-next-line import/named
 import {BlobDeleteOptions, BlobServiceClient, ContainerClient, DeleteSnapshotsOptionType} from '@azure/storage-blob';
 
 export async function UploadToAzure(

@@ -1,5 +1,5 @@
-import {promises as fs} from 'fs';
 import * as path from 'path';
+import {promises as fs} from 'fs';
 
 export async function FindFilesFlat(directory: string): Promise<string[]> {
   const fileList: string[] = [];

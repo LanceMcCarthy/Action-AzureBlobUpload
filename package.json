@@ -13,7 +13,7 @@
     "rebuild": "rimraf lib && tsc",
     "format": "prettier --write **/*.ts",
     "lint": "eslint src/**/*.ts",
-    "package": "ncc build --source-map --license licenses.txt",
+    "package": "set NODE_OPTIONS=--openssl-legacy-provider && ncc build --source-map --license licenses.txt",
     "test": "jest --coverage",
     "pre-commit": "npm run rebuild && npm run format && npm run lint && npm run package",
     "all": "npm run rebuild && npm run format && npm run lint && npm run package && npm test"
@@ -47,6 +47,7 @@
     "@vercel/ncc": "^0.33.1",
     "eslint": "^7.32.0",
     "eslint-plugin-github": "^4.3.5",
+    "eslint-plugin-i18n-text": "^1.0.1",
     "eslint-plugin-jest": "^25.3.4",
     "jest": "^27.4.7",
     "jest-preset-angular": "^11.0.1",
