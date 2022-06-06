@@ -34,7 +34,7 @@
   },
   "homepage": "https://github.com/LanceMcCarthy/Action-AzureBlobUpload#readme",
   "dependencies": {
-    "@actions/core": "^1.8.0",
+    "@actions/core": "^1.8.2",
     "@azure/storage-blob": "^12.9.0",
     "@types/glob": "^7.2.0",
     "@types/mime-types": "^2.1.1",
