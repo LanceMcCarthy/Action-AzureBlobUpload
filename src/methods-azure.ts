@@ -4,7 +4,7 @@ import * as mime from 'mime-types';
 import * as mitigations from './methods-mitigations';
 import * as path from 'path';
 // eslint-disable-next-line import/named
-import {BlobDeleteOptions, BlobServiceClient, ContainerClient, DeleteSnapshotsOptionType} from '@azure/storage-blob';
+import {BlobDeleteOptions, BlobServiceClient, ContainerClient, DeleteSnapshotsOptionType, BlockBlobParallelUploadOptions} from '@azure/storage-blob';
 
 export async function UploadToAzure(
   connectionString: string,
@@ -101,8 +101,21 @@ async function uploadSingleFile(blobContainerClient: ContainerClient, containerN
 
   // Upload
   const client = blobContainerClient.getBlockBlobClient(finalPath);
-  await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
-  core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+
+  const uploadOptions: BlockBlobParallelUploadOptions = {
+    blobHTTPHeaders: contentTypeHeaders,
+    onProgress: p => {
+      core.info(`${p.loadedBytes} bytes uploaded to ${containerName}/${finalPath}...`);
+    }
+  };
+
+  const result = await client.uploadFile(localFilePath, uploadOptions);
+
+  if (result.errorCode) {
+    core.error(`Error uploading file: ${result.errorCode}`);
+  } else {
+    core.info(`Successfully uploaded ${localFilePath} to ${containerName}/${finalPath}.`);
+  }
 }
 
 async function uploadFolderContent(
@@ -179,10 +192,22 @@ async function uploadFolderContent(
     const mimeType = mime.lookup(localFilePath);
     const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
 
+    const uploadOptions: BlockBlobParallelUploadOptions = {
+      blobHTTPHeaders: contentTypeHeaders,
+      onProgress: p => {
+        core.info(`${p.loadedBytes} bytes uploaded to ${containerName}/${finalPath}...`);
+      }
+    };
+
     // Upload
     const client = blobContainerClient.getBlockBlobClient(finalPath);
-    await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
 
-    core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+    const result = await client.uploadFile(localFilePath, uploadOptions);
+
+    if (result.errorCode) {
+      core.error(`Error uploading file: ${result.errorCode}`);
+    } else {
+      core.info(`Successfully uploaded ${localFilePath} to ${containerName}/${finalPath}.`);
+    }
   });
 }

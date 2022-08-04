@@ -185,8 +185,19 @@ async function uploadSingleFile(blobContainerClient, containerName, localFilePat
     const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
     // Upload
     const client = blobContainerClient.getBlockBlobClient(finalPath);
-    await client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
-    core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+    const uploadOptions = {
+        blobHTTPHeaders: contentTypeHeaders,
+        onProgress: p => {
+            core.info(`${p.loadedBytes} bytes uploaded to ${containerName}/${finalPath}...`);
+        }
+    };
+    const result = await client.uploadFile(localFilePath, uploadOptions);
+    if (result.errorCode) {
+        core.error(`Error uploading file: ${result.errorCode}`);
+    }
+    else {
+        core.info(`Successfully uploaded ${localFilePath} to ${containerName}/${finalPath}.`);
+    }
 }
 async function uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty) {
     let sourcePaths = [];
@@ -240,10 +251,21 @@ async function uploadFolderContent(blobContainerClient, containerName, sourceFol
         // Prevent every file's ContentType from being marked as application/octet-stream.
         const mimeType = mime.lookup(localFilePath);
         const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
+        const uploadOptions = {
+            blobHTTPHeaders: contentTypeHeaders,
+            onProgress: p => {
+                core.info(`${p.loadedBytes} bytes uploaded to ${containerName}/${finalPath}...`);
+            }
+        };
         // Upload
         const client = blobContainerClient.getBlockBlobClient(finalPath);
-        await client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
-        core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+        const result = await client.uploadFile(localFilePath, uploadOptions);
+        if (result.errorCode) {
+            core.error(`Error uploading file: ${result.errorCode}`);
+        }
+        else {
+            core.info(`Successfully uploaded ${localFilePath} to ${containerName}/${finalPath}.`);
+        }
     });
 }
 
