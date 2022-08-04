@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'issue-investigation/*'
+      - '[0-9]+-*'
 
 jobs:
   # Build, package and run Jest tests
