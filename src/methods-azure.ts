@@ -3,9 +3,11 @@ import * as helpers from './methods-helpers';
 import * as mime from 'mime-types';
 import * as mitigations from './methods-mitigations';
 import * as path from 'path';
-// eslint-disable-next-line import/named
-import {BlobDeleteOptions, BlobServiceClient, ContainerClient, DeleteSnapshotsOptionType} from '@azure/storage-blob';
+import * as azure from '@azure/storage-blob';
 
+/**
+ * Main function uploads the contents of a folder to Azure Blob Storage. See main.ts for parameter explainations.
+ */
 export async function UploadToAzure(
   connectionString: string,
   containerName: string,
@@ -13,7 +15,8 @@ export async function UploadToAzure(
   destinationFolder: string,
   cleanDestinationPath: boolean,
   failIfSourceEmpty: boolean,
-  isRecursive: boolean
+  isRecursive: boolean,
+  deleteIfExists: boolean
 ) {
   if (connectionString === '') {
     throw new Error('The connection_string cannot be empty.');
@@ -29,90 +32,101 @@ export async function UploadToAzure(
     core.info(`"Normalized source_folder: ${sourceFolder}"`);
   }
 
+  // Normalize destination paths
   if (destinationFolder !== '') {
     destinationFolder = path.normalize(destinationFolder);
     core.info(`"Normalized destination_folder: ${destinationFolder}"`);
   }
 
   // Setup Azure Blob Service Client
-  const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+  const blobServiceClient = azure.BlobServiceClient.fromConnectionString(connectionString);
   const blobContainerClient = blobServiceClient.getContainerClient(containerName);
 
-  // Create container if it is not in the Azure Storgae Account.
+  // Create container if it is not in the Azure Storage Account.
   if ((await blobContainerClient.exists()) === false) {
     core.info(`"Blob container '${containerName}"' does not exist, creating it now...`);
     await blobContainerClient.create();
   }
 
+  // ***************** SECTION: CLEAN DESTINATION ***************** //
+
   // If clean_destination_folder = True, we need to delete all the blobs before uploading
   if (cleanDestinationPath) {
     core.info('clean_destination_path = true, deleting blobs from destination...');
 
-    for await (const blob of blobContainerClient.listBlobsFlat()) {
-      if (blob.name.startsWith(destinationFolder)) {
-        // To prevent a possible race condition where a blob isn't deleted before being replaced,
-        // we should also delete the snapshots of the blob to delete and await the promise
-        const deleteSnapshotOptions: DeleteSnapshotsOptionType = 'include';
-
-        const deleteOptions: BlobDeleteOptions = {
-          deleteSnapshots: deleteSnapshotOptions
-        };
-
-        // Delete the blob
-        await blobContainerClient.getBlockBlobClient(blob.name).delete(deleteOptions);
-      }
-    }
+    await cleanDestination(blobContainerClient, destinationFolder);
 
     core.info('All blobs successfully deleted.');
   }
 
+  // *********************** SECTION: UPLOAD ******************** //
+
   // Check if the source_folder value is filename or a folder path
   if (path.parse(sourceFolder).ext.length > 0) {
-    // **************************** SINGLE FILE UPLOAD MODE ********************* //
-    core.info(`"INFO - source_folder is a single file path... using single file upload mode."`);
-
-    await uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder).catch(e => {
+    // SINGLE FILE UPLOAD MODE
+    await uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder, deleteIfExists).catch(e => {
       core.debug(e.stack);
       core.error(e.message);
       core.setFailed(e.message);
     });
   } else {
-    // **************************** STANDARD DIRECTORY CONTENT UPLOAD MODE ********************* //
-    core.info(`"INFO - source_folder is a folder path... using normal directory content upload mode."`);
-
-    await uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty).catch(e => {
+    // DIRECTORY CONTENTS UPLOAD MODE
+    await uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty, deleteIfExists).catch(e => {
       core.debug(e.stack);
       core.error(e.message);
       core.setFailed(e.message);
     });
   }
+
+  // ************************ END SECTION ************************ //
 }
 
-async function uploadSingleFile(blobContainerClient: ContainerClient, containerName: string, localFilePath: string, destinationFolder: string) {
+/**
+ * Uploads a single file to Azure Blob Storage
+ */
+async function uploadSingleFile(
+  blobContainerClient: azure.ContainerClient,
+  containerName: string,
+  localFilePath: string,
+  destinationFolder: string,
+  deleteIfExists: boolean
+) {
+  core.info(`"INFO - source_folder is a single file path... using single file upload mode."`);
+
   // Determine file path for file as input
   let finalPath = helpers.getFinalPathForFileName(localFilePath, destinationFolder);
 
   // MITIGATION - This is to handle situations where an extra repository name is in the file path
   finalPath = mitigations.checkForFirstDuplicateInPath(finalPath);
 
-  // Prevent every file's ContentType from being marked as application/octet-stream.
-  const mimeType = mime.lookup(finalPath);
-  const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
-
-  // Upload
+  // Get a blob client for the blob to be uploaded
   const client = blobContainerClient.getBlockBlobClient(finalPath);
-  await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
-  core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+
+  // Perform the upload
+  const result = await performUpload(client, localFilePath, deleteIfExists);
+
+  // Check result
+  if (result.errorCode) {
+    core.error(`Error uploading file: ${result.errorCode}`);
+  } else {
+    core.info(`Successfully uploaded ${localFilePath} to ${containerName}/${finalPath}.`);
+  }
 }
 
+/**
+ *  Function that uploads the contents of a folder to Azure Blob Storage
+ */
 async function uploadFolderContent(
-  blobContainerClient: ContainerClient,
+  blobContainerClient: azure.ContainerClient,
   containerName: string,
   sourceFolder: string,
   destinationFolder: string,
   isRecursive: boolean,
-  failIfSourceEmpty: boolean
+  failIfSourceEmpty: boolean,
+  deleteIfExists: boolean
 ) {
+  core.info(`"INFO - source_folder is a folder path... using normal directory content upload mode."`);
+
   let sourcePaths: string[] = [];
 
   if (isRecursive) {
@@ -175,14 +189,76 @@ async function uploadFolderContent(
 
     core.debug(`finalPath: ${finalPath}...`);
 
-    // Prevent every file's ContentType from being marked as application/octet-stream.
-    const mimeType = mime.lookup(localFilePath);
-    const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
-
-    // Upload
+    // Get a client reference for the blob file
     const client = blobContainerClient.getBlockBlobClient(finalPath);
-    await client.uploadFile(localFilePath, {blobHTTPHeaders: contentTypeHeaders});
 
-    core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+    // Perform the upload
+    const result = await performUpload(client, localFilePath, deleteIfExists);
+
+    // Check the results
+    if (result.errorCode) {
+      core.error(`Error uploading file: ${result.errorCode}`);
+    } else {
+      core.info(`Successfully uploaded ${localFilePath} to ${containerName}/${finalPath}.`);
+    }
   });
+}
+
+async function performUpload(client: azure.BlockBlobClient, localFilePath: string, deleteIfExists: boolean): Promise<azure.BlobUploadCommonResponse> {
+  // Delete the blob file if it exists
+  if (deleteIfExists) {
+    // To prevent a possible race condition where a blob isn't deleted before being replaced
+    //we should also delete the snapshots of the blob and await any promises
+    const deleteSnapshotOptions: azure.DeleteSnapshotsOptionType = 'include';
+    const deleteOptions: azure.BlobDeleteOptions = {
+      deleteSnapshots: deleteSnapshotOptions
+    };
+
+    client.deleteIfExists(deleteOptions);
+  }
+
+  // Check the local mime type of the file to prevent every file's ContentType from being marked as 'application/octet-stream'.
+  const mimeType = mime.lookup(localFilePath);
+  const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
+
+  // Put the mime type in the header, and track progress to help with large uploads
+  const uploadOptions: azure.BlockBlobParallelUploadOptions = {
+    blobHTTPHeaders: contentTypeHeaders,
+    onProgress: p => {
+      core.info(`${p.loadedBytes} bytes uploaded...`);
+    }
+  };
+
+  // Perform the upload
+  const result = await client.uploadFile(localFilePath, uploadOptions);
+
+  return result;
+}
+
+async function cleanDestination(containerClient: azure.ContainerClient, destinationFolder: string) {
+  core.info('clean_destination_path = true, deleting blobs from destination...');
+
+  for await (const blob of containerClient.listBlobsFlat()) {
+    if (blob.name.startsWith(destinationFolder)) {
+      // Get blob client
+      const client = containerClient.getBlockBlobClient(blob.name);
+
+      // To prevent a possible race condition where a blob isn't deleted before being replaced
+      //we should also delete the snapshots of the blob and await any promises
+      const deleteSnapshotOptions: azure.DeleteSnapshotsOptionType = 'include';
+      const deleteOptions: azure.BlobDeleteOptions = {
+        deleteSnapshots: deleteSnapshotOptions
+      };
+
+      // Delete the folder
+      const result = await client.delete(deleteOptions);
+
+      // check results
+      if (result.errorCode) {
+        core.error(`There was a problem deleting ${blob.name}. Error: ${result.errorCode}`);
+      } else {
+        core.info(`Successfully deleted ${blob.name}.`);
+      }
+    }
+  }
 }

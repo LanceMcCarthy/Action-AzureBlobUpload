@@ -29,6 +29,10 @@ inputs:
     description: 'Set to false if you want all subfolders ignored.'
     required: false
     default: true
+  delete_if_exists:
+    description: 'If the blob exists it will be skipped, unless this is set to true.'
+    required: false
+    default: false
 
 runs:
   using: 'node12'

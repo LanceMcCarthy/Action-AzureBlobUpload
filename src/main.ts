@@ -10,9 +10,10 @@ async function run(): Promise<void> {
   const cleanDst = core.getInput('clean_destination_folder').toLowerCase() === 'true';
   const fail = core.getInput('fail_if_source_empty').toLowerCase() === 'true';
   const isRecursive = core.getInput('is_recursive').toLowerCase() === 'true';
+  const deleteIfExists = core.getInput('delete_if_exists').toLowerCase() === 'false';
 
   // invoke this Action's main entry method
-  await UploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst, fail, isRecursive).catch(e => {
+  await UploadToAzure(cnnStr, contName, srcPath, dstPath, cleanDst, fail, isRecursive, deleteIfExists).catch(e => {
     core.debug(e.stack);
     core.error(e.message);
     core.setFailed(e.message);

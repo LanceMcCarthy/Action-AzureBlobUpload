@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'issue-investigation/*'
+      - '[0-9]+-*'
 
 jobs:
   # Build, package and run Jest tests
@@ -98,3 +99,16 @@ jobs:
           destination_folder: SingleFileWithPrefixTest
           clean_destination_folder: true
           is_recursive: false
+
+      # the previous job will have left a file in the container named 'data-composer-0.0.0.exe'
+      # This task will test single file overwrite
+      - name: Delete If Exists Test
+        uses: ./
+        with:
+          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          container_name: ci-cd
+          source_folder: .\TestFiles\build\bin\data-composer-0.0.0.exe
+          destination_folder: SingleFileWithPrefixTest
+          is_recursive: false
+          clean_destination_folder: false
+          delete_if_exists: true

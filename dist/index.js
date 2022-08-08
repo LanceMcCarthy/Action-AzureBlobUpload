@@ -41,8 +41,9 @@ async function run() {
     const cleanDst = core.getInput('clean_destination_folder').toLowerCase() === 'true';
     const fail = core.getInput('fail_if_source_empty').toLowerCase() === 'true';
     const isRecursive = core.getInput('is_recursive').toLowerCase() === 'true';
+    const deleteIfExists = core.getInput('delete_if_exists').toLowerCase() === 'false';
     // invoke this Action's main entry method
-    await (0, methods_azure_1.UploadToAzure)(cnnStr, contName, srcPath, dstPath, cleanDst, fail, isRecursive).catch(e => {
+    await (0, methods_azure_1.UploadToAzure)(cnnStr, contName, srcPath, dstPath, cleanDst, fail, isRecursive, deleteIfExists).catch(e => {
         core.debug(e.stack);
         core.error(e.message);
         core.setFailed(e.message);
@@ -100,10 +101,11 @@ const helpers = __importStar(__nccwpck_require__(1088));
 const mime = __importStar(__nccwpck_require__(3583));
 const mitigations = __importStar(__nccwpck_require__(1266));
 const path = __importStar(__nccwpck_require__(1017));
-// eslint-disable-next-line import/named
-const storage_blob_1 = __nccwpck_require__(4100);
-async function UploadToAzure(connectionString, containerName, sourceFolder, destinationFolder, cleanDestinationPath, failIfSourceEmpty, isRecursive) {
-    var e_1, _a;
+const azure = __importStar(__nccwpck_require__(4100));
+/**
+ * Main function uploads the contents of a folder to Azure Blob Storage. See main.ts for parameter explainations.
+ */
+async function UploadToAzure(connectionString, containerName, sourceFolder, destinationFolder, cleanDestinationPath, failIfSourceEmpty, isRecursive, deleteIfExists) {
     if (connectionString === '') {
         throw new Error('The connection_string cannot be empty.');
     }
@@ -115,80 +117,73 @@ async function UploadToAzure(connectionString, containerName, sourceFolder, dest
         sourceFolder = path.normalize(sourceFolder);
         core.info(`"Normalized source_folder: ${sourceFolder}"`);
     }
+    // Normalize destination paths
     if (destinationFolder !== '') {
         destinationFolder = path.normalize(destinationFolder);
         core.info(`"Normalized destination_folder: ${destinationFolder}"`);
     }
     // Setup Azure Blob Service Client
-    const blobServiceClient = storage_blob_1.BlobServiceClient.fromConnectionString(connectionString);
+    const blobServiceClient = azure.BlobServiceClient.fromConnectionString(connectionString);
     const blobContainerClient = blobServiceClient.getContainerClient(containerName);
-    // Create container if it is not in the Azure Storgae Account.
+    // Create container if it is not in the Azure Storage Account.
     if ((await blobContainerClient.exists()) === false) {
         core.info(`"Blob container '${containerName}"' does not exist, creating it now...`);
         await blobContainerClient.create();
     }
+    // ***************** SECTION: CLEAN DESTINATION ***************** //
     // If clean_destination_folder = True, we need to delete all the blobs before uploading
     if (cleanDestinationPath) {
         core.info('clean_destination_path = true, deleting blobs from destination...');
-        try {
-            for (var _b = __asyncValues(blobContainerClient.listBlobsFlat()), _c; _c = await _b.next(), !_c.done;) {
-                const blob = _c.value;
-                if (blob.name.startsWith(destinationFolder)) {
-                    // To prevent a possible race condition where a blob isn't deleted before being replaced,
-                    // we should also delete the snapshots of the blob to delete and await the promise
-                    const deleteSnapshotOptions = 'include';
-                    const deleteOptions = {
-                        deleteSnapshots: deleteSnapshotOptions
-                    };
-                    // Delete the blob
-                    await blobContainerClient.getBlockBlobClient(blob.name).delete(deleteOptions);
-                }
-            }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (_c && !_c.done && (_a = _b.return)) await _a.call(_b);
-            }
-            finally { if (e_1) throw e_1.error; }
-        }
+        await cleanDestination(blobContainerClient, destinationFolder);
         core.info('All blobs successfully deleted.');
     }
+    // *********************** SECTION: UPLOAD ******************** //
     // Check if the source_folder value is filename or a folder path
     if (path.parse(sourceFolder).ext.length > 0) {
-        // **************************** SINGLE FILE UPLOAD MODE ********************* //
-        core.info(`"INFO - source_folder is a single file path... using single file upload mode."`);
-        await uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder).catch(e => {
+        // SINGLE FILE UPLOAD MODE
+        await uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder, deleteIfExists).catch(e => {
             core.debug(e.stack);
             core.error(e.message);
             core.setFailed(e.message);
         });
     }
     else {
-        // **************************** STANDARD DIRECTORY CONTENT UPLOAD MODE ********************* //
-        core.info(`"INFO - source_folder is a folder path... using normal directory content upload mode."`);
-        await uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty).catch(e => {
+        // DIRECTORY CONTENTS UPLOAD MODE
+        await uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty, deleteIfExists).catch(e => {
             core.debug(e.stack);
             core.error(e.message);
             core.setFailed(e.message);
         });
     }
+    // ************************ END SECTION ************************ //
 }
 exports.UploadToAzure = UploadToAzure;
-async function uploadSingleFile(blobContainerClient, containerName, localFilePath, destinationFolder) {
+/**
+ * Uploads a single file to Azure Blob Storage
+ */
+async function uploadSingleFile(blobContainerClient, containerName, localFilePath, destinationFolder, deleteIfExists) {
+    core.info(`"INFO - source_folder is a single file path... using single file upload mode."`);
     // Determine file path for file as input
     let finalPath = helpers.getFinalPathForFileName(localFilePath, destinationFolder);
     // MITIGATION - This is to handle situations where an extra repository name is in the file path
     finalPath = mitigations.checkForFirstDuplicateInPath(finalPath);
-    // Prevent every file's ContentType from being marked as application/octet-stream.
-    const mimeType = mime.lookup(finalPath);
-    const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
-    // Upload
+    // Get a blob client for the blob to be uploaded
     const client = blobContainerClient.getBlockBlobClient(finalPath);
-    await client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
-    core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+    // Perform the upload
+    const result = await performUpload(client, localFilePath, deleteIfExists);
+    // Check result
+    if (result.errorCode) {
+        core.error(`Error uploading file: ${result.errorCode}`);
+    }
+    else {
+        core.info(`Successfully uploaded ${localFilePath} to ${containerName}/${finalPath}.`);
+    }
 }
-async function uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty) {
+/**
+ *  Function that uploads the contents of a folder to Azure Blob Storage
+ */
+async function uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty, deleteIfExists) {
+    core.info(`"INFO - source_folder is a folder path... using normal directory content upload mode."`);
     let sourcePaths = [];
     if (isRecursive) {
         // Get an array of all the file paths and subfolder file paths in the source folder
@@ -237,14 +232,78 @@ async function uploadFolderContent(blobContainerClient, containerName, sourceFol
         //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
         finalPath = path.normalize(finalPath);
         core.debug(`finalPath: ${finalPath}...`);
-        // Prevent every file's ContentType from being marked as application/octet-stream.
-        const mimeType = mime.lookup(localFilePath);
-        const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
-        // Upload
+        // Get a client reference for the blob file
         const client = blobContainerClient.getBlockBlobClient(finalPath);
-        await client.uploadFile(localFilePath, { blobHTTPHeaders: contentTypeHeaders });
-        core.info(`Uploaded ${localFilePath} to ${containerName}/${finalPath}...`);
+        // Perform the upload
+        const result = await performUpload(client, localFilePath, deleteIfExists);
+        // Check the results
+        if (result.errorCode) {
+            core.error(`Error uploading file: ${result.errorCode}`);
+        }
+        else {
+            core.info(`Successfully uploaded ${localFilePath} to ${containerName}/${finalPath}.`);
+        }
     });
+}
+async function performUpload(client, localFilePath, deleteIfExists) {
+    // Delete the blob file if it exists
+    if (deleteIfExists) {
+        // To prevent a possible race condition where a blob isn't deleted before being replaced
+        //we should also delete the snapshots of the blob and await any promises
+        const deleteSnapshotOptions = 'include';
+        const deleteOptions = {
+            deleteSnapshots: deleteSnapshotOptions
+        };
+        client.deleteIfExists(deleteOptions);
+    }
+    // Check the local mime type of the file to prevent every file's ContentType from being marked as 'application/octet-stream'.
+    const mimeType = mime.lookup(localFilePath);
+    const contentTypeHeaders = mimeType ? { blobContentType: mimeType } : {};
+    // Put the mime type in the header, and track progress to help with large uploads
+    const uploadOptions = {
+        blobHTTPHeaders: contentTypeHeaders,
+        onProgress: p => {
+            core.info(`${p.loadedBytes} bytes uploaded...`);
+        }
+    };
+    // Perform the upload
+    const result = await client.uploadFile(localFilePath, uploadOptions);
+    return result;
+}
+async function cleanDestination(containerClient, destinationFolder) {
+    var e_1, _a;
+    core.info('clean_destination_path = true, deleting blobs from destination...');
+    try {
+        for (var _b = __asyncValues(containerClient.listBlobsFlat()), _c; _c = await _b.next(), !_c.done;) {
+            const blob = _c.value;
+            if (blob.name.startsWith(destinationFolder)) {
+                // Get blob client
+                const client = containerClient.getBlockBlobClient(blob.name);
+                // To prevent a possible race condition where a blob isn't deleted before being replaced
+                //we should also delete the snapshots of the blob and await any promises
+                const deleteSnapshotOptions = 'include';
+                const deleteOptions = {
+                    deleteSnapshots: deleteSnapshotOptions
+                };
+                // Delete the folder
+                const result = await client.delete(deleteOptions);
+                // check results
+                if (result.errorCode) {
+                    core.error(`There was a problem deleting ${blob.name}. Error: ${result.errorCode}`);
+                }
+                else {
+                    core.info(`Successfully deleted ${blob.name}.`);
+                }
+            }
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) await _a.call(_b);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
 }
 
 
