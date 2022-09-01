@@ -653,6 +653,7 @@ const file_command_1 = __nccwpck_require__(717);
 const utils_1 = __nccwpck_require__(5278);
 const os = __importStar(__nccwpck_require__(2037));
 const path = __importStar(__nccwpck_require__(1017));
+const uuid_1 = __nccwpck_require__(5840);
 const oidc_utils_1 = __nccwpck_require__(8041);
 /**
  * The code to exit an action
@@ -682,7 +683,14 @@ function exportVariable(name, val) {
     process.env[name] = convertedVal;
     const filePath = process.env['GITHUB_ENV'] || '';
     if (filePath) {
-        const delimiter = '_GitHubActionsFileCommandDelimeter_';
+        const delimiter = `ghadelimiter_${uuid_1.v4()}`;
+        // These should realistically never happen, but just in case someone finds a way to exploit uuid generation let's not allow keys or values that contain the delimiter.
+        if (name.includes(delimiter)) {
+            throw new Error(`Unexpected input: name should not contain the delimiter "${delimiter}"`);
+        }
+        if (convertedVal.includes(delimiter)) {
+            throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
+        }
         const commandValue = `${name}<<${delimiter}${os.EOL}${convertedVal}${os.EOL}${delimiter}`;
         file_command_1.issueCommand('ENV', commandValue);
     }
@@ -17771,7 +17779,7 @@ const timeoutInSeconds = {
 const version = {
     parameterPath: "version",
     mapper: {
-        defaultValue: "2021-06-08",
+        defaultValue: "2021-08-06",
         isConstant: true,
         serializedName: "x-ms-version",
         type: {
@@ -22599,8 +22607,8 @@ const logger = logger$1.createClientLogger("storage-blob");
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-const SDK_VERSION = "12.10.0";
-const SERVICE_VERSION = "2021-06-08";
+const SDK_VERSION = "12.11.0";
+const SERVICE_VERSION = "2021-08-06";
 const BLOCK_BLOB_MAX_UPLOAD_BLOB_BYTES = 256 * 1024 * 1024; // 256MB
 const BLOCK_BLOB_MAX_STAGE_BLOCK_BYTES = 4000 * 1024 * 1024; // 4000MB
 const BLOCK_BLOB_MAX_BLOCKS = 50000;
@@ -24711,7 +24719,7 @@ class StorageSharedKeyCredential extends Credential {
  * Changes may cause incorrect behavior and will be lost if the code is regenerated.
  */
 const packageName = "azure-storage-blob";
-const packageVersion = "12.10.0";
+const packageVersion = "12.11.0";
 class StorageClientContext extends coreHttp__namespace.ServiceClient {
     /**
      * Initializes a new instance of the StorageClientContext class.
@@ -24737,7 +24745,7 @@ class StorageClientContext extends coreHttp__namespace.ServiceClient {
         // Parameter assignments
         this.url = url;
         // Assigning values to Constant parameters
-        this.version = options.version || "2021-06-08";
+        this.version = options.version || "2021-08-06";
     }
 }
 
