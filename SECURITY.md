@@ -6,9 +6,8 @@ The following support matrix shows which versions are currently supported.
 
 | Version | Supported          |
 | ------- | ------------------ |
-|   1.10  | :white_check_mark: |
-|   1.9   | :white_check_mark: |
-| =< 1.8  | :x:                |
+|   2.xx  | :white_check_mark: |
+| < 1.10  | :x:                |
 
 ## Reporting a Vulnerability
 
