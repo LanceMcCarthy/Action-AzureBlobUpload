@@ -21,7 +21,7 @@ jobs:
           npm run package
           npm test
 
-  LargeFileCount_WindowsTest:
+  LargeFileCount_Test:
     name: Publish wwwroot using Windows
     runs-on: windows-latest
     steps:
@@ -33,35 +33,7 @@ jobs:
           container_name: ci-cd
           destination_folder: LargeFileCountTest/Windows
           source_folder: TestFiles\wwwroot\
-          delete_if_exists: true
-
-  LargeFileCount_UbuntuTest:
-    name: Publish wwwroot using Ubuntu
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./
-        name: Upload wwwroot to /LargeFileCountTest/Ubuntu
-        with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
-          container_name: ci-cd
-          destination_folder: LargeFileCountTest/Ubuntu
-          source_folder: TestFiles/wwwroot/
-          delete_if_exists: true
-
-  LargeFileCount_MacTest:
-    name: Publish wwwroot using MacOS
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./
-        name: Upload wwwroot to /LargeFileCountTest/MacOS
-        with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
-          container_name: ci-cd
-          destination_folder: LargeFileCountTest/MacOS
-          source_folder: TestFiles/wwwroot/
-          delete_if_exists: true
+          clean_destination_folder: true
   
   # Confirm the Action works on a clean machine without building
   Upload_Test:
