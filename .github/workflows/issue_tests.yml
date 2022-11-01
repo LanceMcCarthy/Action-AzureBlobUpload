@@ -19,7 +19,22 @@ jobs:
           npm run lint
           npm run package
           npm test
-  
+
+  LargeFileCount_Test:
+    name: Publish wwwroot
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: ./
+        name: Upload wwwroot
+        with:
+          connection_string: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          container_name: ci-cd
+          destination_folder: LargeFileCountTest
+          source_folder: TestFiles\wwwroot\
+          delete_if_exists: true
+
   # Confirm the Action works on a clean machine without building
   Upload_Test: 
     runs-on: windows-latest
