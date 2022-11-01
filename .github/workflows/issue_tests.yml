@@ -9,6 +9,7 @@ on:
 jobs:
   # Build, package and run Jest tests
   Package_RunTests:
+    name: npm package and test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
@@ -19,9 +20,24 @@ jobs:
           npm run lint
           npm run package
           npm test
+
+  LargeFileCount_Test:
+    name: Publish wwwroot using Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./
+        name: Upload wwwroot to /LargeFileCountTest/Windows
+        with:
+          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          container_name: ci-cd
+          destination_folder: LargeFileCountTest/Windows
+          source_folder: TestFiles\wwwroot\
+          clean_destination_folder: true
   
   # Confirm the Action works on a clean machine without building
-  Upload_Test: 
+  Upload_Test:
+    name: General Upload Tests
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2

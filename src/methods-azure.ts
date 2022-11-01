@@ -22,6 +22,10 @@ export async function UploadToAzure(
     throw new Error('The connection_string cannot be empty.');
   }
 
+  if (containerName === '') {
+    throw new Error('The container_name cannot be empty.');
+  }
+
   if (sourceFolder === '') {
     throw new Error('The source_folder was not a valid value.');
   }
