@@ -6,6 +6,10 @@ This GitHub Action a simple and easy way to upload any files to any blob contain
 * Visit this repo's [main_release.yml workflow](https://github.com/LanceMcCarthy/Action-AzureBlobUpload/blob/main/.github/workflows/main_release.yml) to see the working tests for examples of different use cases.
 * To see a production app using this Action, visit [Media File Manager](https://github.com/LanceMcCarthy/MediaFileManager) repo's [cd_release_sideload.yml](https://github.com/LanceMcCarthy/MediaFileManager/blob/main/.github/workflows/cd_release_sideload.yml) workflow.
 
+| Workflow | Status |
+|----------|--------|
+| `main and releases` | [![Main and Releases](https://github.com/LanceMcCarthy/Action-AzureBlobUpload/actions/workflows/main_release.yml/badge.svg)](https://github.com/LanceMcCarthy/Action-AzureBlobUpload/actions/workflows/main_release.yml) |
+
 ## Inputs
 
 Below are the action's inputs that need to be defined in the Action's `with` block.
