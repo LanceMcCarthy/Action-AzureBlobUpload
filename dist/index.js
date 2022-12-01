@@ -274,36 +274,43 @@ async function performUpload(client, localFilePath, deleteIfExists) {
     return result;
 }
 async function cleanDestination(containerClient, destinationFolder) {
-    var e_1, _a;
+    var _a, e_1, _b, _c;
     core.info('clean_destination_path = true, deleting blobs from destination...');
     try {
-        for (var _b = __asyncValues(containerClient.listBlobsFlat()), _c; _c = await _b.next(), !_c.done;) {
-            const blob = _c.value;
-            if (blob.name.startsWith(destinationFolder)) {
-                // Get blob client
-                const client = containerClient.getBlockBlobClient(blob.name);
-                // To prevent a possible race condition where a blob isn't deleted before being replaced
-                //we should also delete the snapshots of the blob and await any promises
-                const deleteSnapshotOptions = 'include';
-                const deleteOptions = {
-                    deleteSnapshots: deleteSnapshotOptions
-                };
-                // Delete the folder
-                const result = await client.delete(deleteOptions);
-                // check results
-                if (result.errorCode) {
-                    core.error(`There was a problem deleting ${blob.name}. Error: ${result.errorCode}`);
+        for (var _d = true, _e = __asyncValues(containerClient.listBlobsFlat()), _f; _f = await _e.next(), _a = _f.done, !_a;) {
+            _c = _f.value;
+            _d = false;
+            try {
+                const blob = _c;
+                if (blob.name.startsWith(destinationFolder)) {
+                    // Get blob client
+                    const client = containerClient.getBlockBlobClient(blob.name);
+                    // To prevent a possible race condition where a blob isn't deleted before being replaced
+                    //we should also delete the snapshots of the blob and await any promises
+                    const deleteSnapshotOptions = 'include';
+                    const deleteOptions = {
+                        deleteSnapshots: deleteSnapshotOptions
+                    };
+                    // Delete the folder
+                    const result = await client.delete(deleteOptions);
+                    // check results
+                    if (result.errorCode) {
+                        core.error(`There was a problem deleting ${blob.name}. Error: ${result.errorCode}`);
+                    }
+                    else {
+                        core.info(`Successfully deleted ${blob.name}.`);
+                    }
                 }
-                else {
-                    core.info(`Successfully deleted ${blob.name}.`);
-                }
+            }
+            finally {
+                _d = true;
             }
         }
     }
     catch (e_1_1) { e_1 = { error: e_1_1 }; }
     finally {
         try {
-            if (_c && !_c.done && (_a = _b.return)) await _a.call(_b);
+            if (!_d && !_a && (_b = _e.return)) await _b.call(_e);
         }
         finally { if (e_1) throw e_1.error; }
     }
@@ -17797,7 +17804,7 @@ const timeoutInSeconds = {
 const version = {
     parameterPath: "version",
     mapper: {
-        defaultValue: "2021-08-06",
+        defaultValue: "2021-10-04",
         isConstant: true,
         serializedName: "x-ms-version",
         type: {
@@ -22625,14 +22632,15 @@ const logger = logger$1.createClientLogger("storage-blob");
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-const SDK_VERSION = "12.11.0";
-const SERVICE_VERSION = "2021-08-06";
+const SDK_VERSION = "12.12.0";
+const SERVICE_VERSION = "2021-10-04";
 const BLOCK_BLOB_MAX_UPLOAD_BLOB_BYTES = 256 * 1024 * 1024; // 256MB
 const BLOCK_BLOB_MAX_STAGE_BLOCK_BYTES = 4000 * 1024 * 1024; // 4000MB
 const BLOCK_BLOB_MAX_BLOCKS = 50000;
 const DEFAULT_BLOCK_BUFFER_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
 const DEFAULT_BLOB_DOWNLOAD_BLOCK_BYTES = 4 * 1024 * 1024; // 4MB
 const DEFAULT_MAX_DOWNLOAD_RETRY_REQUESTS = 5;
+const REQUEST_TIMEOUT = 100 * 1000; // In ms
 /**
  * The OAuth scope to use with Azure Storage.
  */
@@ -22820,6 +22828,30 @@ const StorageBlobLoggingAllowedQueryParameters = [
 ];
 const BlobUsesCustomerSpecifiedEncryptionMsg = "BlobUsesCustomerSpecifiedEncryption";
 const BlobDoesNotUseCustomerSpecifiedEncryption = "BlobDoesNotUseCustomerSpecifiedEncryption";
+/// List of ports used for path style addressing.
+/// Path style addressing means that storage account is put in URI's Path segment in instead of in host.
+const PathStylePorts = [
+    "10000",
+    "10001",
+    "10002",
+    "10003",
+    "10004",
+    "10100",
+    "10101",
+    "10102",
+    "10103",
+    "10104",
+    "11000",
+    "11001",
+    "11002",
+    "11003",
+    "11004",
+    "11100",
+    "11101",
+    "11102",
+    "11103",
+    "11104",
+];
 
 // Copyright (c) Microsoft Corporation.
 /**
@@ -23261,7 +23293,8 @@ function isIpEndpointStyle(parsedUrl) {
     // Case 2: localhost(:port), use broad regex to match port part.
     // Case 3: Ipv4, use broad regex which just check if host contains Ipv4.
     // For valid host please refer to https://man7.org/linux/man-pages/man7/hostname.7.html.
-    return /^.*:.*:.*$|^localhost(:[0-9]+)?$|^(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])){3}(:[0-9]+)?$/.test(host);
+    return (/^.*:.*:.*$|^localhost(:[0-9]+)?$|^(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])){3}(:[0-9]+)?$/.test(host) ||
+        (parsedUrl.getPort() !== undefined && PathStylePorts.includes(parsedUrl.getPort())));
 }
 /**
  * Convert Tags to encoded string.
@@ -23778,6 +23811,16 @@ function* ExtractPageRangeInfoItems(getPageRangesSegment) {
             isClear: true,
         };
     }
+}
+/**
+ * Escape the blobName but keep path separator ('/').
+ */
+function EscapePath(blobName) {
+    const split = blobName.split("/");
+    for (let i = 0; i < split.length; i++) {
+        split[i] = encodeURIComponent(split[i]);
+    }
+    return split.join("/");
 }
 
 // Copyright (c) Microsoft Corporation.
@@ -24737,7 +24780,7 @@ class StorageSharedKeyCredential extends Credential {
  * Changes may cause incorrect behavior and will be lost if the code is regenerated.
  */
 const packageName = "azure-storage-blob";
-const packageVersion = "12.11.0";
+const packageVersion = "12.12.0";
 class StorageClientContext extends coreHttp__namespace.ServiceClient {
     /**
      * Initializes a new instance of the StorageClientContext class.
@@ -24763,7 +24806,7 @@ class StorageClientContext extends coreHttp__namespace.ServiceClient {
         // Parameter assignments
         this.url = url;
         // Assigning values to Constant parameters
-        this.version = options.version || "2021-08-06";
+        this.version = options.version || "2021-10-04";
     }
 }
 
@@ -28651,8 +28694,10 @@ async function streamToBuffer(stream, buffer, offset, end, encoding) {
     let pos = 0; // Position in stream
     const count = end - offset; // Total amount of data needed in stream
     return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error(`The operation cannot be completed in timeout.`)), REQUEST_TIMEOUT);
         stream.on("readable", () => {
             if (pos >= count) {
+                clearTimeout(timeout);
                 resolve();
                 return;
             }
@@ -28669,12 +28714,16 @@ async function streamToBuffer(stream, buffer, offset, end, encoding) {
             pos += chunkLength;
         });
         stream.on("end", () => {
+            clearTimeout(timeout);
             if (pos < count) {
                 reject(new Error(`Stream drains before getting enough data needed. Data read: ${pos}, data need: ${count}`));
             }
             resolve();
         });
-        stream.on("error", reject);
+        stream.on("error", (msg) => {
+            clearTimeout(timeout);
+            reject(msg);
+        });
     });
 }
 /**
@@ -32271,7 +32320,7 @@ class ContainerClient extends StorageClient {
      * @returns A new BlobClient object for the given blob name.
      */
     getBlobClient(blobName) {
-        return new BlobClient(appendToURLPath(this.url, encodeURIComponent(blobName)), this.pipeline);
+        return new BlobClient(appendToURLPath(this.url, EscapePath(blobName)), this.pipeline);
     }
     /**
      * Creates an {@link AppendBlobClient}
@@ -32279,7 +32328,7 @@ class ContainerClient extends StorageClient {
      * @param blobName - An append blob name
      */
     getAppendBlobClient(blobName) {
-        return new AppendBlobClient(appendToURLPath(this.url, encodeURIComponent(blobName)), this.pipeline);
+        return new AppendBlobClient(appendToURLPath(this.url, EscapePath(blobName)), this.pipeline);
     }
     /**
      * Creates a {@link BlockBlobClient}
@@ -32297,7 +32346,7 @@ class ContainerClient extends StorageClient {
      * ```
      */
     getBlockBlobClient(blobName) {
-        return new BlockBlobClient(appendToURLPath(this.url, encodeURIComponent(blobName)), this.pipeline);
+        return new BlockBlobClient(appendToURLPath(this.url, EscapePath(blobName)), this.pipeline);
     }
     /**
      * Creates a {@link PageBlobClient}
@@ -32305,7 +32354,7 @@ class ContainerClient extends StorageClient {
      * @param blobName - A page blob name
      */
     getPageBlobClient(blobName) {
-        return new PageBlobClient(appendToURLPath(this.url, encodeURIComponent(blobName)), this.pipeline);
+        return new PageBlobClient(appendToURLPath(this.url, EscapePath(blobName)), this.pipeline);
     }
     /**
      * Returns all user-defined metadata and system properties for the specified
