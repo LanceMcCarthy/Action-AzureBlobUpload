@@ -43,12 +43,12 @@ export function CleanPath(folderPath: string): string {
 
   // Remove any dot prefix
   if (folderPath.startsWith('.')) {
-    folderPath = folderPath.substr(1);
+    folderPath = folderPath.substring(1);
   }
 
   // Remove leading slash
   if (folderPath.startsWith('/')) {
-    folderPath = folderPath.substr(1);
+    folderPath = folderPath.substring(1);
   }
 
   // Remove trailing slash
@@ -71,12 +71,12 @@ export function getFinalPathForFileName(localFilePath: string, destinationDirect
 
   // Trim leading slashes, the container is always the root
   if (finalPath.startsWith('/')) {
-    finalPath = finalPath.substr(1, finalPath.length - 1);
+    finalPath = finalPath.substring(1, finalPath.length - 1);
   }
 
   // Trim leading slashes, the container is always the root
   if (finalPath.startsWith('\\')) {
-    finalPath = finalPath.substr(1, finalPath.length - 1);
+    finalPath = finalPath.substring(1, finalPath.length - 1);
   }
 
   //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.

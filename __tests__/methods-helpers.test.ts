@@ -8,9 +8,13 @@ describe('getFinalPathForFileName', () => {
   });
 
   it('Should correctly join destination folder with file name', () => {
-    expect(helpers.getFinalPathForFileName('./test.txt', 'artifacts/output')).toEqual('artifacts/output/test.txt');
     expect(helpers.getFinalPathForFileName('./build/bin/test.exe', 'artifacts/output')).toEqual('artifacts/output/test.exe');
+    expect(helpers.getFinalPathForFileName('./build/bin/test.exe', 'artifacts/output/')).toEqual('artifacts/output/test.exe');
+
+    expect(helpers.getFinalPathForFileName('./test.txt', 'artifacts/output')).toEqual('artifacts/output/test.txt');
+    expect(helpers.getFinalPathForFileName('./test.txt', 'artifacts\\output')).toEqual('artifacts/output/test.txt');
     expect(helpers.getFinalPathForFileName('./test.txt', 'artifacts\\output\\')).toEqual('artifacts/output/test.txt');
+
     expect(helpers.getFinalPathForFileName('test', 'out')).toEqual('out/test');
   });
 
