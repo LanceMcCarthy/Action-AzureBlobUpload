@@ -58,6 +58,6 @@
     "rimraf": "^5.0.0",
     "tmpl": "^1.0.5",
     "ts-jest": "^28.0.8",
-    "typescript": "^4.9.3"
+    "typescript": "^5.0.4"
   }
 }
