@@ -16,7 +16,7 @@
     "package": "ncc build --source-map --license licenses.txt",
     "test": "jest --coverage",
     "pre-commit": "npm run rebuild && npm run format && npm run lint && npm run package",
-    "all": "npm run rebuild && npm run format && npm run lint && npm run package && npm test"
+    "all": "npm install && npm run rebuild && npm run format && npm run lint && npm run package && npm test"
   },
   "repository": {
     "type": "git",

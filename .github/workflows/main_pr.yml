@@ -11,7 +11,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
-      - run: |
+
+      - name: "Run script steps"
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
+        run: |
           npm install
           npm run rebuild
           npm run format
