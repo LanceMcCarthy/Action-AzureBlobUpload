@@ -12,9 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: "Run script steps"
-        env:
-          NODE_OPTIONS: "--max_old_space_size=4096"
+      - name: "Run scripts"
         run: |
           npm install
           npm run rebuild
@@ -22,4 +20,6 @@ jobs:
           npm run lint
           npm run package
           npm test
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
   

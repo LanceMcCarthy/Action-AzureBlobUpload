@@ -9,21 +9,26 @@ on:
 jobs:
   # Build, package and run Jest tests
   Package_RunTests:
-    name: npm package and test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
-      - run: |
+      
+      - name: "Run scripts"
+        run: |
           npm install
           npm run rebuild
           npm run format
           npm run lint
           npm run package
           npm test
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
+
 
   LargeFileCount_Test:
     name: Publish wwwroot using Windows
     runs-on: windows-latest
+    needs: Package_RunTests
     steps:
       - uses: actions/checkout@v3
       - uses: ./
@@ -34,11 +39,12 @@ jobs:
           destination_folder: LargeFileCountTest/Windows
           source_folder: TestFiles\wwwroot\
           clean_destination_folder: true
-  
+
+
   # Confirm the Action works on a clean machine without building
-  Upload_Test:
-    name: General Upload Tests
+  Upload_Test: 
     runs-on: windows-latest
+    needs: LargeFileCount_Test
     steps:
       - uses: actions/checkout@v3
 
@@ -67,6 +73,8 @@ jobs:
           source_folder: TestFiles\ExcelFiles\
           clean_destination_folder: true
 
+      - run: Start-Sleep -Seconds 2
+
       - name: Recursive with DestinationFolder Test
         uses: ./
         with:
@@ -75,7 +83,9 @@ jobs:
           source_folder: TestFiles\TxtFiles\
           destination_folder: RecursiveTest
           clean_destination_folder: true
-      
+
+      - run: Start-Sleep -Seconds 2
+
       - name: Non-recursive with Destination Folder Test
         uses: ./
         with:
@@ -85,7 +95,9 @@ jobs:
           destination_folder: NonRecursiveTest
           clean_destination_folder: true
           is_recursive: false
-        
+
+      - run: Start-Sleep -Seconds 2
+
       - name: Non-recursive with Destination Folder Test (with '.' Prefix)
         uses: ./
         with:
@@ -96,6 +108,8 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
 
+      - run: Start-Sleep -Seconds 2
+
       - name: Single File Path Test
         uses: ./
         with:
@@ -105,7 +119,9 @@ jobs:
           destination_folder: SingleFileTest
           clean_destination_folder: true
           is_recursive: false
-      
+
+      - run: Start-Sleep -Seconds 2
+
       - name: Single File Test (with '.' Prefix)
         uses: ./
         with:
@@ -115,16 +131,3 @@ jobs:
           destination_folder: SingleFileWithPrefixTest
           clean_destination_folder: true
           is_recursive: false
-
-      # the previous job will have left a file in the container named 'data-composer-0.0.0.exe'
-      # This task will test single file overwrite
-      - name: Delete If Exists Test
-        uses: ./
-        with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
-          container_name: ci-cd
-          source_folder: .\TestFiles\build\bin\data-composer-0.0.0.exe
-          destination_folder: SingleFileWithPrefixTest
-          is_recursive: false
-          clean_destination_folder: false
-          delete_if_exists: true
