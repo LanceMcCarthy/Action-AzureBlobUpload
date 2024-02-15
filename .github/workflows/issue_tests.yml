@@ -11,7 +11,7 @@ jobs:
   Package_RunTests:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: "Run scripts"
         run: |
@@ -30,7 +30,7 @@ jobs:
     runs-on: windows-latest
     needs: Package_RunTests
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./
         name: Upload wwwroot to /LargeFileCountTest/Windows
         with:
@@ -46,7 +46,7 @@ jobs:
     runs-on: windows-latest
     needs: LargeFileCount_Test
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Generating Unique File Names for This Run
         run: |
