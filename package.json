@@ -10,7 +10,7 @@
   "scripts": {
     "clean": "rimraf lib",
     "build": "tsc",
-    "rebuild": "rimraf lib && tsc",
+    "rebuild": "npm run clean && npm run build",
     "format": "prettier --write **/*.ts",
     "lint": "eslint src/**/*.ts",
     "package": "ncc build --source-map --license licenses.txt",
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.19",
-    "@typescript-eslint/eslint-plugin": "^7.0.1",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@vercel/ncc": "^0.38.1",
     "eslint": "^8.56.0",
     "eslint-plugin-github": "^4.10.1",
