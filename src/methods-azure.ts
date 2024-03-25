@@ -18,29 +18,14 @@ export async function UploadToAzure(
   isRecursive: boolean,
   deleteIfExists: boolean
 ) {
-  if (connectionString === '') {
-    throw new Error('The connection_string cannot be empty.');
-  }
+  // Validate parameters
+  helpers.validateNonEmptyString(connectionString, 'connection_string');
+  helpers.validateNonEmptyString(containerName, 'container_name');
+  helpers.validateNonEmptyString(sourceFolder, 'source_folder');
 
-  if (containerName === '') {
-    throw new Error('The container_name cannot be empty.');
-  }
-
-  if (sourceFolder === '') {
-    throw new Error('The source_folder was not a valid value.');
-  }
-
-  // Normalize paths (removes dot prefixes)
-  if (sourceFolder !== '') {
-    sourceFolder = path.normalize(sourceFolder);
-    core.info(`"Normalized source_folder: ${sourceFolder}"`);
-  }
-
-  // Normalize destination paths
-  if (destinationFolder !== '') {
-    destinationFolder = path.normalize(destinationFolder);
-    core.info(`"Normalized destination_folder: ${destinationFolder}"`);
-  }
+  // Normalize paths (removes dot prefixes and incorrect directory separators)
+  sourceFolder = helpers.normalizePath(sourceFolder, 'source_folder');
+  destinationFolder = helpers.normalizePath(destinationFolder, 'destination_folder');
 
   // Setup Azure Blob Service Client
   const blobServiceClient = azure.BlobServiceClient.fromConnectionString(connectionString);

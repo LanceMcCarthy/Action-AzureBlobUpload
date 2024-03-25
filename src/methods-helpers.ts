@@ -1,5 +1,18 @@
 import * as path from 'path';
+import * as core from '@actions/core';
 import {promises as fs} from 'fs';
+
+export const validateNonEmptyString = (param: string, paramName: string) => {
+  if (param === '') {
+    throw new Error(`The ${paramName} cannot be an empty string or a null value.`);
+  }
+};
+
+export function normalizePath(filePath: string, paramName: string): string {
+  const result = path.normalize(filePath);
+  core.info(`"Normalized ${paramName}! Updated ${filePath} to ${result}"`);
+  return result;
+}
 
 export async function FindFilesFlat(directory: string): Promise<string[]> {
   const fileList: string[] = [];
@@ -18,23 +31,43 @@ export async function FindFilesFlat(directory: string): Promise<string[]> {
   return fileList;
 }
 
+// Original version. Keeping in the code until the new version has proven itself in the real world.
+// export async function FindFilesRecursive(directory: string): Promise<string[]> {
+//   let fileList: string[] = [];
+//   const files = await fs.readdir(directory);
+
+//   for (const file of files) {
+//     const filePath = path.join(directory, file);
+//     const status = await fs.stat(filePath);
+//     const isDirectory = status.isDirectory();
+
+//     if (isDirectory) {
+//       fileList = [...fileList, ...(await FindFilesRecursive(filePath))];
+//     } else {
+//       fileList.push(filePath);
+//     }
+//   }
+
+//   return fileList;
+// }
+
+// Optimized version of FindFilesRecursive that runs the directory and file map in parallel.
 export async function FindFilesRecursive(directory: string): Promise<string[]> {
-  let fileList: string[] = [];
   const files = await fs.readdir(directory);
+  const filePaths = files.map(file => path.join(directory, file));
+  const stats = await Promise.all(filePaths.map(async filePath => fs.stat(filePath)));
 
-  for (const file of files) {
-    const filePath = path.join(directory, file);
-    const status = await fs.stat(filePath);
-    const isDirectory = status.isDirectory();
+  const fileList = await Promise.all(
+    filePaths.map(async (filePath, index) => {
+      if (stats[index].isDirectory()) {
+        return await FindFilesRecursive(filePath);
+      } else {
+        return filePath;
+      }
+    })
+  );
 
-    if (isDirectory) {
-      fileList = [...fileList, ...(await FindFilesRecursive(filePath))];
-    } else {
-      fileList.push(filePath);
-    }
-  }
-
-  return fileList;
+  return fileList.flat();
 }
 
 export function CleanPath(folderPath: string): string {

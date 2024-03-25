@@ -106,25 +106,13 @@ const azure = __importStar(__nccwpck_require__(4100));
  * Main function uploads the contents of a folder to Azure Blob Storage. See main.ts for parameter explainations.
  */
 async function UploadToAzure(connectionString, containerName, sourceFolder, destinationFolder, cleanDestinationPath, failIfSourceEmpty, isRecursive, deleteIfExists) {
-    if (connectionString === '') {
-        throw new Error('The connection_string cannot be empty.');
-    }
-    if (containerName === '') {
-        throw new Error('The container_name cannot be empty.');
-    }
-    if (sourceFolder === '') {
-        throw new Error('The source_folder was not a valid value.');
-    }
-    // Normalize paths (removes dot prefixes)
-    if (sourceFolder !== '') {
-        sourceFolder = path.normalize(sourceFolder);
-        core.info(`"Normalized source_folder: ${sourceFolder}"`);
-    }
-    // Normalize destination paths
-    if (destinationFolder !== '') {
-        destinationFolder = path.normalize(destinationFolder);
-        core.info(`"Normalized destination_folder: ${destinationFolder}"`);
-    }
+    // Validate parameters
+    helpers.validateNonEmptyString(connectionString, 'connection_string');
+    helpers.validateNonEmptyString(containerName, 'container_name');
+    helpers.validateNonEmptyString(sourceFolder, 'source_folder');
+    // Normalize paths (removes dot prefixes and incorrect directory separators)
+    sourceFolder = helpers.normalizePath(sourceFolder, 'source_folder');
+    destinationFolder = helpers.normalizePath(destinationFolder, 'destination_folder');
     // Setup Azure Blob Service Client
     const blobServiceClient = azure.BlobServiceClient.fromConnectionString(connectionString);
     const blobContainerClient = blobServiceClient.getContainerClient(containerName);
@@ -343,9 +331,22 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getFinalPathForFileName = exports.CleanPath = exports.FindFilesRecursive = exports.FindFilesFlat = void 0;
+exports.getFinalPathForFileName = exports.CleanPath = exports.FindFilesRecursive = exports.FindFilesFlat = exports.normalizePath = exports.validateNonEmptyString = void 0;
 const path = __importStar(__nccwpck_require__(1017));
+const core = __importStar(__nccwpck_require__(2186));
 const fs_1 = __nccwpck_require__(7147);
+const validateNonEmptyString = (param, paramName) => {
+    if (param === '') {
+        throw new Error(`The ${paramName} cannot be an empty string or a null value.`);
+    }
+};
+exports.validateNonEmptyString = validateNonEmptyString;
+function normalizePath(filePath, paramName) {
+    const result = path.normalize(filePath);
+    core.info(`"Normalized ${paramName}! Updated ${filePath} to ${result}"`);
+    return result;
+}
+exports.normalizePath = normalizePath;
 async function FindFilesFlat(directory) {
     const fileList = [];
     const files = await fs_1.promises.readdir(directory);
@@ -360,21 +361,36 @@ async function FindFilesFlat(directory) {
     return fileList;
 }
 exports.FindFilesFlat = FindFilesFlat;
+// Original version. Keeping in the code until the new version has proven itself in the real world.
+// export async function FindFilesRecursive(directory: string): Promise<string[]> {
+//   let fileList: string[] = [];
+//   const files = await fs.readdir(directory);
+//   for (const file of files) {
+//     const filePath = path.join(directory, file);
+//     const status = await fs.stat(filePath);
+//     const isDirectory = status.isDirectory();
+//     if (isDirectory) {
+//       fileList = [...fileList, ...(await FindFilesRecursive(filePath))];
+//     } else {
+//       fileList.push(filePath);
+//     }
+//   }
+//   return fileList;
+// }
+// Optimized version of FindFilesRecursive that runs the directory and file map in parallel.
 async function FindFilesRecursive(directory) {
-    let fileList = [];
     const files = await fs_1.promises.readdir(directory);
-    for (const file of files) {
-        const filePath = path.join(directory, file);
-        const status = await fs_1.promises.stat(filePath);
-        const isDirectory = status.isDirectory();
-        if (isDirectory) {
-            fileList = [...fileList, ...(await FindFilesRecursive(filePath))];
+    const filePaths = files.map(file => path.join(directory, file));
+    const stats = await Promise.all(filePaths.map(async (filePath) => fs_1.promises.stat(filePath)));
+    const fileList = await Promise.all(filePaths.map(async (filePath, index) => {
+        if (stats[index].isDirectory()) {
+            return await FindFilesRecursive(filePath);
         }
         else {
-            fileList.push(filePath);
+            return filePath;
         }
-    }
-    return fileList;
+    }));
+    return fileList.flat();
 }
 exports.FindFilesRecursive = FindFilesRecursive;
 function CleanPath(folderPath) {
