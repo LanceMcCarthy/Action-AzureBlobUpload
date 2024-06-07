@@ -38,13 +38,13 @@
     "@azure/storage-blob": "12.18.0",
     "@types/glob": "^8.1.0",
     "@types/mime-types": "^2.1.4",
-    "glob": "^10.3.12",
+    "glob": "^10.4.1",
     "mime-types": "^2.1.35",
     "npm": "^10.7.0"
   },
   "devDependencies": {
     "@types/node": "^20.13.0",
-    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/eslint-plugin": "^7.12.0",
     "@vercel/ncc": "^0.38.1",
     "eslint": "^8.57.0",
     "eslint-plugin-github": "^4.10.2",
