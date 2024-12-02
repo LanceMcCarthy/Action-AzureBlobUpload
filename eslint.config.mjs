@@ -53,7 +53,7 @@ export default [{
         "@typescript-eslint/explicit-member-accessibility": ["error", {
             accessibility: "no-public",
         }],
-        "@typescript-eslint/filenames-match-regex": "off",
+        "filenames/match-regex": "off",
         "@typescript-eslint/no-require-imports": "error",
         "@typescript-eslint/array-type": "error",
         "@typescript-eslint/await-thenable": "error",
@@ -86,5 +86,5 @@ export default [{
         "@typescript-eslint/unbound-method": "error",
         "@stylistic/ts/func-call-spacing": ["error", "never"],
         "@stylistic/ts/type-annotation-spacing": "error",
-    },
+    }
 }];
