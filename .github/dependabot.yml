@@ -1,8 +1,11 @@
 version: 2
 updates:
   - package-ecosystem: 'npm'
-    # Look for `package.json` and `lock` files in the `root` directory
     directory: '/'
     schedule:
       interval: 'monthly'
-      
+    groups:
+       dependencies:
+          applies-to: version-updates
+          patterns:
+            - "*"
