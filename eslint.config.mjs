@@ -19,7 +19,7 @@ const compat = new FlatCompat({
 
 export default [{
     ignores: ["**/dist/", "**/lib/", "**/node_modules/"],
-}, ...compat.extends("plugin:github/recommended", "plugin:jest/recommended"), {
+}, ...compat.extends("plugin:github/recommended", "plugin:jest/recommended").map(config => ({files: ["**/*.ts"], ...config})), {
     plugins: {
         jest,
         "i18n-text": i18nText,
@@ -32,11 +32,9 @@ export default [{
             ...globals.node,
             ...jest.environments.globals.globals,
         },
-
         parser: tsParser,
         ecmaVersion: 9,
         sourceType: "module",
-
         parserOptions: {
             project: "./tsconfig.json",
         },
@@ -52,21 +50,18 @@ export default [{
         "github/no-then": "off",
         "i18n-text/no-en": 0,
         "@typescript-eslint/no-unused-vars": "error",
-
         "@typescript-eslint/explicit-member-accessibility": ["error", {
             accessibility: "no-public",
         }],
-
+        "@typescript-eslint/filenames-match-regex": "off",
         "@typescript-eslint/no-require-imports": "error",
         "@typescript-eslint/array-type": "error",
         "@typescript-eslint/await-thenable": "error",
         "@typescript-eslint/ban-ts-comment": "error",
         "@typescript-eslint/consistent-type-assertions": "error",
-
         "@typescript-eslint/explicit-function-return-type": ["off", {
             allowExpressions: true,
         }],
-
         "@typescript-eslint/no-array-constructor": "error",
         "@typescript-eslint/no-empty-interface": "error",
         "@typescript-eslint/no-explicit-any": "error",
