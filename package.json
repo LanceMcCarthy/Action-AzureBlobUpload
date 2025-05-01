@@ -39,8 +39,7 @@
     "@types/glob": "^8.1.0",
     "@types/mime-types": "^2.1.4",
     "glob": "^11.0.2",
-    "mime-types": "^3.0.1",
-    "npm": "^11.3.0"
+    "mime-types": "^3.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

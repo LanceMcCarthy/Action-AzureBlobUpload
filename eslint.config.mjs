@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
 import { FlatCompat } from "@eslint/eslintrc";
+import github from 'eslint-plugin-github'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,16 +18,23 @@ const compat = new FlatCompat({
     allConfig: js.configs.all
 });
 
-export default [{
-    ignores: ["**/dist/", "**/lib/", "**/node_modules/"],
-}, ...compat.extends("plugin:github/recommended", "plugin:jest/recommended").map(config => ({files: ["**/*.ts"], ...config})), {
+export default [
+    // i18nText.configs.recommended,
+    // stylisticTs.configs.recommended,
+    // typescriptEslint.configs.recommended,
+    github.getFlatConfigs().recommended,
+    ...github.getFlatConfigs().typescript,
+    {
+    ignores: ["**/dist/", "**/lib/", "**/node_modules/", "eslint.config.mjs"],
+    }, 
+    ...compat.extends("plugin:jest/recommended").map(config => ({files: ["**/*.ts"], ...config})), 
+    {
     plugins: {
         jest,
-        "i18n-text": i18nText,
-        "@typescript-eslint": typescriptEslint,
+        // "i18n-text": i18nText,
+        // "@typescript-eslint": typescriptEslint,
         "@stylistic/ts": stylisticTs,
     },
-
     languageOptions: {
         globals: {
             ...globals.node,
@@ -39,8 +47,8 @@ export default [{
             project: "./tsconfig.json",
         },
     },
-
     rules: {
+        "i18n-text/no-en": "off",
         "no-unused-vars": "off",
         semi: "off",
         camelcase: "off",
@@ -48,7 +56,6 @@ export default [{
         "import/no-namespace": "off",
         "github/array-foreach": "off",
         "github/no-then": "off",
-        "i18n-text/no-en": 0,
         "@typescript-eslint/no-unused-vars": "error",
         "@typescript-eslint/explicit-member-accessibility": ["error", {
             accessibility: "no-public",
