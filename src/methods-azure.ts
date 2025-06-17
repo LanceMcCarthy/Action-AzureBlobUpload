@@ -73,7 +73,7 @@ export async function UploadToAzure(
 /**
  * Uploads a single file to Azure Blob Storage
  */
-async function uploadSingleFile(
+export async function uploadSingleFile(
   blobContainerClient: azure.ContainerClient,
   containerName: string,
   localFilePath: string,
@@ -105,7 +105,7 @@ async function uploadSingleFile(
 /**
  *  Function that uploads the contents of a folder to Azure Blob Storage
  */
-async function uploadFolderContent(
+export async function uploadFolderContent(
   blobContainerClient: azure.ContainerClient,
   containerName: string,
   sourceFolder: string,
@@ -156,7 +156,7 @@ async function uploadFolderContent(
     core.debug(`--- cleaned: ${cleanedFilePath}`);
 
     // Determining the relative path by trimming the source path from the front of the string.
-    const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length + 1);
+    const trimmedPath = cleanedFilePath.slice(cleanedSourceFolderPath.length + 1);
     let finalPath = '';
 
     if (cleanedDestinationFolder !== '') {
@@ -170,7 +170,7 @@ async function uploadFolderContent(
 
     // Final check to trim any leading slashes that might have been added, the container is always the root
     if (finalPath.startsWith('/')) {
-      finalPath = finalPath.substr(1);
+      finalPath = finalPath.slice(1);
     }
 
     //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
@@ -193,7 +193,7 @@ async function uploadFolderContent(
   });
 }
 
-async function performUpload(client: azure.BlockBlobClient, localFilePath: string, deleteIfExists: boolean): Promise<azure.BlobUploadCommonResponse> {
+export async function performUpload(client: azure.BlockBlobClient, localFilePath: string, deleteIfExists: boolean): Promise<azure.BlobUploadCommonResponse> {
   // Delete the blob file if it exists
   if (deleteIfExists) {
     // To prevent a possible race condition where a blob isn't deleted before being replaced
@@ -224,7 +224,7 @@ async function performUpload(client: azure.BlockBlobClient, localFilePath: strin
   return result;
 }
 
-async function cleanDestination(containerClient: azure.ContainerClient, destinationFolder: string) {
+export async function cleanDestination(containerClient: azure.ContainerClient, destinationFolder: string) {
   core.info('clean_destination_path = true, deleting blobs from destination...');
 
   for await (const blob of containerClient.listBlobsFlat()) {
