@@ -1,4 +1,5 @@
 import * as azure from '../src/methods-azure';
+import * as helpers from '../src/methods-helpers';
 import { expect, describe, test, it, jest, beforeEach, afterEach } from '@jest/globals';
 const core = require('@actions/core');
 
@@ -25,11 +26,11 @@ describe('UploadToAzure', () => {
 describe('uploadFolderContent', () => {
   const mockBlobContainerClient = {
     getBlockBlobClient: jest.fn(() => ({
-      uploadFile: jest.fn().mockResolvedValue({}),
+      uploadFile: jest.fn().mockResolvedValue({} as never),
     })),
   } as any;
 
-  const mockPerformUpload = jest.fn().mockResolvedValue({});
+  const mockPerformUpload = jest.fn().mockResolvedValue({} as never);
   
   const mockCleanPath = jest.fn((...args: unknown[]) => {
     const p = args[0];
@@ -40,9 +41,10 @@ describe('uploadFolderContent', () => {
   const mockFindFilesFlat = jest.fn();
 
   beforeEach(() => {
-    jest.spyOn(require('./methods-helpers'), 'FindFilesRecursive').mockImplementation(mockFindFilesRecursive);
-    jest.spyOn(require('./methods-helpers'), 'FindFilesFlat').mockImplementation(mockFindFilesFlat);
-    jest.spyOn(require('./methods-helpers'), 'CleanPath').mockImplementation(mockCleanPath);
+    jest.spyOn(require('../src/methods-helpers'), 'FindFilesRecursive').mockImplementation(mockFindFilesRecursive);
+    jest.spyOn(require('../src/methods-helpers'), 'FindFilesFlat').mockImplementation(mockFindFilesFlat);
+    jest.spyOn(require('../src/methods-helpers'), 'CleanPath').mockImplementation(mockCleanPath);
+
     jest.spyOn(require('path'), 'join').mockImplementation((...args: []) => args.join('/'));
     jest.spyOn(require('path'), 'normalize').mockImplementation((...args: any[]) => {
       const p = args[0];
@@ -56,8 +58,7 @@ describe('uploadFolderContent', () => {
       const p = args[0];
       return typeof p === 'string' ? p.split('/').pop() || '' : '';
     });
-    jest.spyOn(require('./methods-azure'), 'performUpload').mockImplementation(mockPerformUpload);
-
+    jest.spyOn(require('../src/methods-azure'), 'performUpload').mockImplementation(mockPerformUpload);
     jest.spyOn(require('@actions/core'), 'info').mockImplementation(jest.fn());
     jest.spyOn(require('@actions/core'), 'debug').mockImplementation(jest.fn());
     jest.spyOn(require('@actions/core'), 'error').mockImplementation(jest.fn());
