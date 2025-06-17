@@ -70,7 +70,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('calls FindFilesRecursive when isRecursive is true', async () => {
-    mockFindFilesRecursive.mockImplementation(() => Promise.resolve(['src/file1.txt', 'src/file2.txt']));
+    mockFindFilesRecursive.mockImplementation(() => ['src/file1.txt', 'src/file2.txt']);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', true, false, false
     );
@@ -78,7 +78,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('calls FindFilesFlat when isRecursive is false', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt']);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
     );
@@ -86,7 +86,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('handles empty source folder and calls core.error', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve([]));
+    mockFindFilesFlat.mockImplementation(() => []);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
     );
@@ -94,7 +94,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('calls core.setFailed if failIfSourceEmpty is true and folder is empty', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve([]));
+    mockFindFilesFlat.mockImplementation(() => []);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, true, false
     );
@@ -102,7 +102,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('uploads each file found in sourcePaths', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt', 'src/file2.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt', 'src/file2.txt']);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
     );
@@ -111,7 +111,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('handles destinationFolder and normalizes paths', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt']);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', 'dest', false, false, false
     );
@@ -119,7 +119,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('trims leading slashes from finalPath', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['/src/file1.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['/src/file1.txt']);
     mockCleanPath.mockImplementation((p) => '/src/file1.txt');
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', '/src', '', false, false, false
@@ -128,8 +128,8 @@ describe('uploadFolderContent', () => {
   });
 
   it('calls core.error if performUpload returns errorCode', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt']));
-    mockPerformUpload.mockImplementationOnce(() => Promise.resolve({ errorCode: 'fail' }));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt']);
+    mockPerformUpload.mockImplementationOnce(() => { errorCode: 'fail' });
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
     );
@@ -137,8 +137,8 @@ describe('uploadFolderContent', () => {
   });
 
   it('calls core.info if performUpload succeeds', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt']));
-    mockPerformUpload.mockImplementationOnce(() => Promise.resolve({}));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt']);
+    mockPerformUpload.mockImplementationOnce(() => {});
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
     );
@@ -146,7 +146,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('handles multiple files and different destinationFolder', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt', 'src/file2.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt', 'src/file2.txt']);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', 'mydest', false, false, false
     );
@@ -155,7 +155,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('handles CleanPath returning empty string', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt']);
     mockCleanPath.mockImplementation(() => '');
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
@@ -164,7 +164,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('handles CleanPath returning path with leading slash', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt']);
     mockCleanPath.mockImplementation((p) => '/src/file1.txt');
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
@@ -173,7 +173,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('calls FindFilesRecursive with correct argument', async () => {
-    mockFindFilesRecursive.mockImplementation(() => Promise.resolve(['src/file1.txt']));
+    mockFindFilesRecursive.mockImplementation(() => ['src/file1.txt']);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', true, false, false
     );
@@ -181,7 +181,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('calls FindFilesFlat with correct argument', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt']);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
     );
@@ -189,7 +189,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('does not call performUpload if sourcePaths is empty', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve([]));
+    mockFindFilesFlat.mockImplementation(() => []);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
     );
@@ -197,7 +197,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('handles CleanPath returning undefined', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt']);
     mockCleanPath.mockImplementation(() => undefined as any);
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
@@ -206,7 +206,7 @@ describe('uploadFolderContent', () => {
   });
 
   it('handles performUpload throwing an error', async () => {
-    mockFindFilesFlat.mockImplementation(() => Promise.resolve(['src/file1.txt']));
+    mockFindFilesFlat.mockImplementation(() => ['src/file1.txt']);
     mockPerformUpload.mockImplementationOnce(() => { throw new Error('upload failed'); });
     await (require('../src/methods-azure').uploadFolderContent as any)(
       mockBlobContainerClient, 'container', 'src', '', false, false, false
