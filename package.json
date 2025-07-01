@@ -1,6 +1,6 @@
 {
   "name": "action-azure-upload-blob",
-  "version": "3.3.4",
+  "version": "3.3.5",
   "private": false,
   "description": "GitHub Acton that uploads file to Azure Storage blob container.",
   "main": "lib/main.js",
