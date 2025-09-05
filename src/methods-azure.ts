@@ -42,6 +42,7 @@ export async function UploadToAzure(
   // If clean_destination_folder = True, we need to delete all the blobs before uploading
   if (cleanDestinationPath) {
     core.info('clean_destination_path = true, deleting blobs from destination...');
+    core.info('A V 1');
 
     await cleanDestination(blobContainerClient, destinationFolder);
 
