@@ -228,6 +228,7 @@ async function cleanDestination(containerClient: azure.ContainerClient, destinat
   core.info('clean_destination_path = true, deleting blobs from destination...');
 
   for await (const blob of containerClient.listBlobsFlat()) {
+    core.info(blob.name);
     if (blob.name.startsWith(destinationFolder)) {
       // Get blob client
       const client = containerClient.getBlockBlobClient(blob.name);
