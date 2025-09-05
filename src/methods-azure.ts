@@ -25,7 +25,11 @@ export async function UploadToAzure(
 
   // Normalize paths (removes dot prefixes and incorrect directory separators)
   sourceFolder = helpers.normalizePath(sourceFolder, 'source_folder');
-  destinationFolder = helpers.normalizePath(destinationFolder, 'destination_folder');
+  if (['.', './', ''].includes(destinationFolder)) {
+    destinationFolder = '';
+  } else {
+    destinationFolder = helpers.normalizePath(destinationFolder, 'destination_folder');
+  }
 
   // Setup Azure Blob Service Client
   const blobServiceClient = azure.BlobServiceClient.fromConnectionString(connectionString);
@@ -42,7 +46,7 @@ export async function UploadToAzure(
   // If clean_destination_folder = True, we need to delete all the blobs before uploading
   if (cleanDestinationPath) {
     core.info('clean_destination_path = true, deleting blobs from destination...');
-    core.info('A V 1');
+    core.info('A V 2');
 
     await cleanDestination(blobContainerClient, destinationFolder);
 
