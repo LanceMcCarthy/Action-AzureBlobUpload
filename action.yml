@@ -7,7 +7,7 @@ branding:
 inputs:
   connection_string:
     description: 'Azure Storage ConnectionString for the container (Azure Portal - select Storage Account - Access Keys blade). Either connection_string or Service Principal authentication is required.' 
-    required: true
+    required: false
   tenant_id:
     description: 'Azure AD Tenant ID (if using Service Principal authentication).'
     required: false

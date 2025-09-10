@@ -4,16 +4,23 @@ import {AuthPayload, UploadToAzure} from './methods-azure';
 async function run(): Promise<void> {
   // Parameters from the developer in their GitHub Actions workflow
   const connectionString = core.getInput('connection_string');
-  const tenantId = core.getInput("tenant_id");
-  const clientId = core.getInput("client_id");
-  const clientSecret = core.getInput("client_secret");
-  const storageAccount = core.getInput("storage_account");
+  const tenantId = core.getInput('tenant_id');
+  const clientId = core.getInput('client_id');
+  const clientSecret = core.getInput('client_secret');
+  const storageAccount = core.getInput('storage_account');
+
+  core.debug('Parameters received:');
+  core.debug(`connection_string: ${connectionString ? '***' : '<not provided>'}`);
+  core.debug(`tenant_id: ${tenantId ? '***' : '<not provided>'}`);
+  core.debug(`client_id: ${clientId ? '***' : '<not provided>'}`);
+  core.debug(`client_secret: ${clientSecret ? '***' : '<not provided>'}`);
+  core.debug(`storage_account: ${storageAccount ? '***' : '<not provided>'}`);
 
   let authPayload: AuthPayload;
   if (connectionString) {
-    authPayload = { type: "connection_string", connectionString };
+    authPayload = {type: 'connection_string', connectionString};
   } else {
-    authPayload = { type: "service_principal", tenantId, clientId, clientSecret, storageAccount };
+    authPayload = {type: 'service_principal', tenantId, clientId, clientSecret, storageAccount};
   }
 
   const containerName = core.getInput('container_name');
@@ -25,7 +32,16 @@ async function run(): Promise<void> {
   const deleteIfExists = core.getInput('delete_if_exists').toLowerCase() === 'false';
 
   // invoke this Action's main entry method
-  await UploadToAzure({authPayload, containerName, sourceFolder, destinationFolder, cleanDestinationPath, failIfSourceEmpty, isRecursive, deleteIfExists}).catch(e => {
+  await UploadToAzure({
+    authPayload,
+    containerName,
+    sourceFolder,
+    destinationFolder,
+    cleanDestinationPath,
+    failIfSourceEmpty,
+    isRecursive,
+    deleteIfExists
+  }).catch(e => {
     core.debug(e.stack);
     core.error(e.message);
     core.setFailed(e.message);
