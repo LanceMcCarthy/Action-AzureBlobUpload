@@ -6,8 +6,20 @@ branding:
   color: 'purple'
 inputs:
   connection_string:
-    description: 'Azure Storage ConnectionString for the container (Azure Portal - select Storage Account - Access Keys blade).'
+    description: 'Azure Storage ConnectionString for the container (Azure Portal - select Storage Account - Access Keys blade). Either connection_string or Service Principal authentication is required.' 
     required: true
+  tenant_id:
+    description: 'Azure AD Tenant ID (if using Service Principal authentication).'
+    required: false
+  client_id:
+    description: 'Azure AD Client ID (if using Service Principal authentication).'
+    required: false
+  client_secret:
+    description: 'Azure AD Client Secret (if using Service Principal authentication).'
+    required: false
+  storage_account:
+    description: 'Azure Storage Account name (e.g. mystorageaccount) (if using Service Principal authentication).'
+    required: false
   container_name:
     description: 'Blob Container name (e.g. my-container).'
     required: true

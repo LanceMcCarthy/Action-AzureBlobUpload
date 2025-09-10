@@ -16,9 +16,13 @@ Below are the action's inputs that need to be defined in the Action's `with` blo
 
 | Required | Inputs | Example | Summary |
 |----------|--------|---------|---------|
-| ✔ | connection_string | `${{ secrets.MyCnnStr }}` | Azure Blob Storage conection string (for help, visit [View Account Access Keys](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage#view-account-access-keys)). |
+| | connection_string | `${{ secrets.MyCnnStr }}` | Azure Blob Storage conection string (for help, visit [View Account Access Keys](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage#view-account-access-keys)). |\
+|  | tenant_id | `${{ secrets.AZURE_TENANT_ID }}` | The Azure Active Directory tenant ID used for authentication. |
+|  | client_id | `${{ secrets.AZURE_CLIENT_ID }}` | The client (application) ID registered in Azure Active Directory. |
+|  | client_secret | `${{ secrets.AZURE_CLIENT_SECRET }}` | The client secret associated with the Azure AD application. |
+|  | storage_account | `storageaccount` | The name of the Azure Storage account to be accessed. |
 | ✔ | container_name | `my-container` | Name of the Blob container. |
-| ✔ | source_folder | `src\LocalFolderName\` | Folder with the files to upload. Note that the path separators will be automatically be normalized for you. |
+| ✔ | source_folder |  `src\LocalFolderName\` | Folder with the files to upload. Note that the path separators will be automatically normalized for you. |
 |  | destination_folder | `MyTargetFolder/Subfolder` | Folder to upload to (it will be created for you if it does not exist). |
 |  | clean_destination_folder |  `false` (default)| Delete all destination files before uploading new ones. |
 |  | fail_if_source_empty | `false` (default)| Set to `true` if you want action to fail if source folder has no files. |
