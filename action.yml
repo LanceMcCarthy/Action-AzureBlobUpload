@@ -6,7 +6,7 @@ branding:
   color: 'purple'
 inputs:
   connection_string:
-    description: 'Azure Storage ConnectionString for the container (if using ConnectionString authentication).
+    description: 'Azure Storage ConnectionString for the container (if using ConnectionString authentication).'
     required: false
   tenant_id:
     description: 'App Registration Tenant ID (if using Service Principal authentication).'
