@@ -37,7 +37,7 @@ jobs:
       - uses: ./
         name: Upload wwwroot to /LargeFileCountTest/Windows
         with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          connection_string: ${{secrets.AzureBlobConnectionString}}
           container_name: ci-cd
           destination_folder: LargeFileCountTest/Windows
           source_folder: TestFiles\wwwroot\
