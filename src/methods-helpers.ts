@@ -9,7 +9,10 @@ export const validateNonEmptyString = (param: string, paramName: string) => {
 };
 
 export function normalizePath(filePath: string, paramName: string): string {
-  const result = path.normalize(filePath);
+  let result = path.normalize(filePath);
+  if (['.', './', '.\\'].includes(result)) {
+    result = '';
+  }
   core.info(`"Normalized ${paramName}! Updated ${filePath} to ${result}"`);
   return result;
 }
