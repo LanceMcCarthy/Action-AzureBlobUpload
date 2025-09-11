@@ -144,23 +144,8 @@ jobs:
     name: Upload Tests (Service Principal credentials)
     runs-on: windows-latest
     needs: LargeFileCount_Test
-    env:
-      # Set in Settings->Secrets->Actions
-      SECRET_PATH: ${{vars.AKEYLESS_SECRET_PATH}}
-      ACCESS_ID: ${{vars.AKEYLESS_ACCESS_ID}}
-      ACCESS_KEY: ${{secrets.AKEYLESS_ACCESS_KEY}}
     steps:
       - uses: actions/checkout@v5
-
-      # I am using an Akeyless dynamic secret to gte my Service Principal details. 
-      # This is not common, you can use your own explicitly generated Service Principal credentials as GitHub secrets instead.
-      - name: Generate temp Service Principal credentials (via Akeyless dynamic secret)
-        id: aad-secret
-        uses: LanceMcCarthy/akeyless-aad-secret@v1
-        with:
-          akeyless-secret-path: '${{env.SECRET_PATH}}' 
-          akeyless-access-id: '${{env.ACCESS_ID}}'
-          akeyless-access-key: '${{env.ACCESS_KEY}}'
 
       - name: Generating Unique File Names for This Run
         run: |
@@ -182,9 +167,9 @@ jobs:
       - name: Upload without DestinationFolder Test
         uses: ./
         with:
-          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
-          client_id: "${{steps.aad-secret.outputs.app-id}}"
-          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
+          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
           source_folder: TestFiles\ExcelFiles\
@@ -195,9 +180,9 @@ jobs:
       - name: Recursive with DestinationFolder Test
         uses: ./
         with:
-          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
-          client_id: "${{steps.aad-secret.outputs.app-id}}"
-          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
+          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
           source_folder: TestFiles\TxtFiles\
@@ -209,9 +194,9 @@ jobs:
       - name: Non-recursive with Destination Folder Test
         uses: ./
         with:
-          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
-          client_id: "${{steps.aad-secret.outputs.app-id}}"
-          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
+          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
           source_folder: TestFiles\TxtFiles\
@@ -224,9 +209,9 @@ jobs:
       - name: Non-recursive with Destination Folder Test (with '.' Prefix)
         uses: ./
         with:
-          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
-          client_id: "${{steps.aad-secret.outputs.app-id}}"
-          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
+          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
           source_folder: .\TestFiles\ExcelFiles\
@@ -239,9 +224,9 @@ jobs:
       - name: Single File Path Test
         uses: ./
         with:
-          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
-          client_id: "${{steps.aad-secret.outputs.app-id}}"
-          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
+          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
           source_folder: TestFiles\build\bin\data-composer-0.0.0.exe
