@@ -29,7 +29,7 @@ describe('UploadToAzure', () => {
         isRecursive: true,
         deleteIfExists: false
       })
-    ).rejects.toThrow('The Service Principal properties (tenant_id, client_id, client_secret, or storage_account) cannot contain an empty string or a null value.');
+    ).rejects.toThrow('The tenant_id cannot be an empty string or a null value.');
   });
 
   it('Should fail if no source folder was provided', async () => {
