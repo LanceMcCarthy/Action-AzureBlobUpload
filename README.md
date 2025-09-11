@@ -8,7 +8,7 @@ This GitHub Action a simple and easy way to upload any files to any blob contain
 
 | Workflow | Status |
 |----------|--------|
-| `main and releases` | [![Main and Releases](https://github.com/LanceMcCarthy/Action-AzureBlobUpload/actions/workflows/main_release.yml/badge.svg)](https://github.com/LanceMcCarthy/Action-AzureBlobUpload/actions/workflows/main_release.yml) |
+| `main` | [![Main and Releases](https://github.com/LanceMcCarthy/Action-AzureBlobUpload/actions/workflows/main_release.yml/badge.svg)](https://github.com/LanceMcCarthy/Action-AzureBlobUpload/actions/workflows/main_release.yml) |
 
 ## Inputs
 
@@ -16,31 +16,70 @@ Below are the action's inputs that need to be defined in the Action's `with` blo
 
 | Required | Inputs | Example | Summary |
 |----------|--------|---------|---------|
-| ✔ | connection_string | `${{ secrets.MyCnnStr }}` | Azure Blob Storage conection string (for help, visit [View Account Access Keys](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage#view-account-access-keys)). |
-| ✔ | container_name | `my-container` | Name of the Blob container. |
-| ✔ | source_folder | `src\LocalFolderName\` | Folder with the files to upload. Note that the path separators will be automatically be normalized for you. |
-|  | destination_folder | `MyTargetFolder/Subfolder` | Folder to upload to (it will be created for you if it does not exist). |
-|  | clean_destination_folder |  `false` (default)| Delete all destination files before uploading new ones. |
-|  | fail_if_source_empty | `false` (default)| Set to `true` if you want action to fail if source folder has no files. |
-|  | is_recursive | `true` (default)| Set to `false` if you want all subfolders ignored. |
-|  | delete_if_exists | `false` (default)| Set to `true` if you want to overwrite an exiting blob with the same filename. |
+| ✔ | [Authentication](#authentication-method) | See [basic use](#basic-use) examples | You can use a [ConnectionString](#option-1---connectionstring) or a [Service Principal](#option-2---service-principal) for authentication. |
+| ✔ | `container_name` | `my-container` | Name of the Blob container. |
+| ✔ | `source_folder` |  `src/LocalFolderName/` | Folder with the files to upload. Note that the path separators will be automatically normalized for you. |
+|  | `destination_folder` | `MyTargetFolder/Subfolder` | Folder to upload to (it will be created for you if it does not exist). |
+|  | `clean_destination_folder` |  `false` (default)| Delete all destination files before uploading new ones. |
+|  | `fail_if_source_empty` | `false` (default)| Set to `true` if you want action to fail if source folder has no files. |
+|  | `is_recursive` | `true` (default)| Set to `false` if you want all subfolders ignored. |
+|  | `delete_if_exists` | `false` (default)| Set to `true` if you want to overwrite an exiting blob with the same filename. |
+
+### Authentication Method
+
+#### Option 1 - ConnectionString
+
+The most common and easy approach is to use a connection string for that blob storage. You can find them on your storage account's "Access Keys" blade in the Azure Portal.
+
+| Required | Inputs | Example | Summary |
+|----------|--------|---------|---------|
+| ✔ | `connection_string` | `${{secrets.AZURE_CONNECTION_STRING}}` | Azure Blob Storage conection string (for help, visit [View Account Access Keys](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage#view-account-access-keys)). |
+
+#### Option 2 - Service Principal
+
+Service principal, aka an Entra ID Application, uses a managed identity to authenticate access. This is helpful for more complex scenarios where the identity might be dynamic or an app identity only.
+
+| Required | Inputs | Example | Summary |
+|----------|--------|---------|---------|
+| ✔ | tenant_id | `${{secrets.AZURE_TENANT_ID}}` | The App Registration tenant ID used for Service Principal authentication. |
+| ✔ | client_id | `${{secrets.AZURE_CLIENT_ID}}` | The App Registration client (application) ID used for Service Principal authentication. |
+| ✔ | client_secret | `${{secrets.AZURE_CLIENT_SECRET}}` |The App Registration client secret used for Service Principal authentication. |
+| ✔ | storage_account | `storageaccount` | The name of the Azure Storage account to be accessed. Need for authenticating a Service Principal. |
 
 ## Examples
 
-If you copy-paste from the examples below, **don't forget to use a real version number** at the end of action name. For example, an exact version number `LanceMcCarthy/Action-AzureBlobUpload@v2.0.0`, or you can use the 'latest version' tag `LanceMcCarthy/Action-AzureBlobUpload@v2`.
+If you copy-paste from the examples below, **make sure the version number is up to date**. For example, you can an exact version number `LanceMcCarthy/Action-AzureBlobUpload@v3.5.0` or you can use just the major number `LanceMcCarthy/Action-AzureBlobUpload@v3` to get the latest release for that version (most common).
 
 ### Basic Use
 
-In the most basic form, the Action will upload all the files in the `source_folder` to the root of that blob container.
+In the most basic form, the Action will upload all the files in the `source_folder` to the root of that blob container. Here's the same example using both authentication methods.
+
+### Using Connection String Authentication
 
 ```yaml
-- uses: LanceMcCarthy/Action-AzureBlobUpload@v2
+- uses: LanceMcCarthy/Action-AzureBlobUpload@v3
   name: Uploading to Azure storage...
   with:
-    connection_string: ${{ secrets.YourAzureBlobConnectionString }}
+    connection_string: ${{secrets.YourAzureBlobConnectionString}}
     container_name: your-container-name
-    source_folder: src\LocalFolderName\
+    source_folder: src/LocalFolderName/
 ```
+
+### Using Service Prinicipal Authentication (App Registration)
+
+```yaml
+- uses: LanceMcCarthy/Action-AzureBlobUpload@v3
+  name: Uploading to Azure storage...
+  with:
+    tenant_id: ${{secrets.YourTenantID}}
+    client_id: ${{secrets.YourClientID}}
+    client_secret: ${{secrets.YourClientSecret}}
+    storage_account: your-storage-account
+    container_name: your-container-name
+    source_folder: src/LocalFolderName/
+```
+> [!NOTE]
+> The rest of the examples use the connection string authentication option for simplicity, but it is the same when using Service Principal.
 
 ### Set a Destination Folder (most common)
 
@@ -52,9 +91,9 @@ In this example, we use `clean_destination_folder`, which gives you a clean star
 - uses: LanceMcCarthy/Action-AzureBlobUpload@v2
   name: Azure Blob Upload with Destination folder defined
   with:
-    connection_string: ${{ secrets.YourAzureBlobConnectionString }}
+    connection_string: ${{secrets.YourAzureBlobConnectionString}}
     container_name: your-container-name
-    source_folder: src\LocalFolderName\
+    source_folder: src/LocalFolderName/
     destination_folder: FolderNameInAzureStorage
     clean_destination_folder: true
 ```
@@ -65,9 +104,9 @@ Alternatively, you can use `delete_if_exists` if you only want to overwrite some
 - uses: LanceMcCarthy/Action-AzureBlobUpload@v2
   name: Azure Blob Upload with Destination folder defined
   with:
-    connection_string: ${{ secrets.YourAzureBlobConnectionString }}
+    connection_string: ${{secrets.YourAzureBlobConnectionString}}
     container_name: your-container-name
-    source_folder: src\LocalFolderName\
+    source_folder: src/LocalFolderName/
     destination_folder: FolderNameInAzureStorage
     delete_if_exists: true
 ```
@@ -80,9 +119,9 @@ If you want to upload *only* files in the `source_folder` and skip subfolders an
 - name: Upload Text Files Non-recursive
   uses: LanceMcCarthy/Action-AzureBlobUpload@v2
   with:
-    connection_string: ${{ secrets.AzureBlobConnectionString }}
+    connection_string: ${{secrets.AzureBlobConnectionString}}
     container_name: your-container-name
-    source_folder: src\LocalFolderName\
+    source_folder: src/LocalFolderName/
     destination_folder: FolderNameInAzureStorage
     clean_destination_folder: true
     is_recursive: false
@@ -96,9 +135,9 @@ You can set the `source_folder` to a single file path to upload only one file. F
 - uses: LanceMcCarthy/Action-AzureBlobUpload@v2
   name: Azure Blob Upload with Destination folder defined
   with:
-    connection_string: ${{ secrets.YourAzureBlobConnectionString }}
+    connection_string: ${{secrets.YourAzureBlobConnectionString}}
     container_name: your-container-name
-    source_folder: src\LocalFolderName\MySingleFileApplication.exe
+    source_folder: src/LocalFolderName/MySingleFileApplication.exe
     destination_folder: FolderNameInAzureStorage
 ```
 
@@ -115,10 +154,10 @@ Here is an example that might represent a real-world Workflow that needs precise
 - uses: LanceMcCarthy/Action-AzureBlobUpload@v2
   name: Azure Blob Upload with Destination folder defined
   with:
-    connection_string: ${{ secrets.DeploymentsBlobConnectionString }}
+    connection_string: ${{secrets.DeploymentsBlobConnectionString}}
     container_name: my-cd-container
-    source_folder: ${{ env.BuildOutputFolder }}
-    destination_folder: Distributions/${{ github.run_number }}
+    source_folder: ${{env.BuildOutputFolder}}
+    destination_folder: Distributions/${{github.run_number}}
     clean_destination_folder: true
     fail_if_source_empty: true
 ```
@@ -127,12 +166,12 @@ Here is an example that might represent a real-world Workflow that needs precise
 
 ### Environment Variables
 
-If you need to use a environment variable for a `with` input, you must use the `${{ env.Name }}` syntax and **not** `$env:Name`. See [Github Contexts](https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts) documentation for more help.
+If you need to use a environment variable for a `with` input, you must use the `${{env.Name}}` syntax and **not** `$env:Name`. See [Github Contexts](https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#contexts) documentation for more help.
 
 For example:
 
 ```yaml
 with:
-  source_folder: $env:MyVariable # Does NOT work in with assignments.
-  source_folder: ${{ env.MyVariable }} # Works.
+  source_folder: $env:MyVariable # Does NOT work
+  source_folder: ${{env.MyVariable}} # Works
 ```

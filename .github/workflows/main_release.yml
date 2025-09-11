@@ -1,19 +1,22 @@
-name: 'Main and Releases'
+name: 'Upload Tests'
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
-      - 'releases/*'
+      #- 'releases/*'
 
 jobs:
-  # Build, package and run Jest tests
+#--------------------------------------------------------------------------------------#
+# Ensure the package builds and all tests pass
+#--------------------------------------------------------------------------------------#
   Package_RunTests:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           
@@ -22,13 +25,15 @@ jobs:
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
 
-
+#--------------------------------------------------------------------------------------#
+# Single test for uploading a large number of files to test performance and any potential issues
+#--------------------------------------------------------------------------------------#
   LargeFileCount_Test:
     name: Publish wwwroot using Windows
     runs-on: windows-latest
     needs: Package_RunTests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./
         name: Upload wwwroot to /LargeFileCountTest/Windows
         with:
@@ -38,13 +43,15 @@ jobs:
           source_folder: TestFiles\wwwroot\
           clean_destination_folder: true
 
-
-  # Confirm the Action works on a clean machine without building
-  Upload_Test: 
+#--------------------------------------------------------------------------------------#
+# Multiple tests for uploading files using ConnectionString credentials
+#--------------------------------------------------------------------------------------#
+  Upload_Test_ConnStr:
+    name: Upload Tests (ConnectionString credentials)
     runs-on: windows-latest
     needs: LargeFileCount_Test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Generating Unique File Names for This Run
         run: |
@@ -66,7 +73,7 @@ jobs:
       - name: Upload without DestinationFolder Test
         uses: ./
         with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          connection_string: ${{secrets.AzureBlobConnectionString}}
           container_name: ci-cd
           source_folder: TestFiles\ExcelFiles\
           clean_destination_folder: true
@@ -76,7 +83,7 @@ jobs:
       - name: Recursive with DestinationFolder Test
         uses: ./
         with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          connection_string: ${{secrets.AzureBlobConnectionString}}
           container_name: ci-cd
           source_folder: TestFiles\TxtFiles\
           destination_folder: RecursiveTest
@@ -87,7 +94,7 @@ jobs:
       - name: Non-recursive with Destination Folder Test
         uses: ./
         with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          connection_string: ${{secrets.AzureBlobConnectionString}}
           container_name: ci-cd
           source_folder: TestFiles\TxtFiles\
           destination_folder: NonRecursiveTest
@@ -99,7 +106,7 @@ jobs:
       - name: Non-recursive with Destination Folder Test (with '.' Prefix)
         uses: ./
         with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          connection_string: ${{secrets.AzureBlobConnectionString}}
           container_name: ci-cd
           source_folder: .\TestFiles\ExcelFiles\
           destination_folder: DotPrefixTest
@@ -111,7 +118,7 @@ jobs:
       - name: Single File Path Test
         uses: ./
         with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          connection_string: ${{secrets.AzureBlobConnectionString}}
           container_name: ci-cd
           source_folder: TestFiles\build\bin\data-composer-0.0.0.exe
           destination_folder: SingleFileTest
@@ -123,9 +130,116 @@ jobs:
       - name: Single File Test (with '.' Prefix)
         uses: ./
         with:
-          connection_string: ${{ secrets.AzureBlobConnectionString }}
+          connection_string: ${{secrets.AzureBlobConnectionString}}
           container_name: ci-cd
           source_folder: .\TestFiles\build\bin\data-composer-0.0.0.exe
           destination_folder: SingleFileWithPrefixTest
+          clean_destination_folder: true
+          is_recursive: false
+
+#--------------------------------------------------------------------------------------#
+# Multiple tests for uploading files using Service Principal credentials
+#--------------------------------------------------------------------------------------#
+  Upload_Test_SP:
+    name: Upload Tests (Service Principal credentials)
+    runs-on: windows-latest
+    needs: LargeFileCount_Test
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Generating Unique File Names for This Run
+        run: |
+          $date = Get-Date -Format "yyyy.Mdd.hh.mm"
+          
+          $parentFilePath = 'TestFiles\TxtFiles\Parent.txt'
+          $updatedParentFileName = "Parent_" + $date + ".txt"
+          Rename-Item $parentFilePath $updatedParentFileName
+          
+          $childFilePath = 'TestFiles\TxtFiles\Subfolder\Child.txt'
+          $updatedChildFileName = "Child_" + $date + ".txt"
+          Rename-Item $childFilePath $updatedChildFileName
+
+          $excelFilePath = 'TestFiles\ExcelFiles\Test.xlsx'
+          $updatedExcelFileName = "Test_" + $date + ".xlsx"
+          Rename-Item $excelFilePath $updatedExcelFileName
+
+      # I am using an Akeyless dynamic secret to gte my Service Principal details. 
+      # This is not common, you can use your own explicitly generated Service Principal credentials as GitHub secrets instead.
+      - name: Generate temp Service Principal credentials (via Akeyless dynamic secret)
+        id: aad-secret
+        uses: LanceMcCarthy/akeyless-aad-secret@v1
+        with:
+          akeyless-secret-path: '/entra-id-lance-live'
+          akeyless-access-id: '${{secrets.AKEYLESS_ACCESS_ID}}'
+          akeyless-access-key: '${{secrets.AKEYLESS_ACCESS_KEY}}'
+
+      # NOTE: this job also cleans the entire container to start over for this round of tests
+      - name: Upload without DestinationFolder Test
+        uses: ./
+        with:
+          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
+          client_id: "${{steps.aad-secret.outputs.app-id}}"
+          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
+          container_name: ci-cd
+          source_folder: TestFiles\ExcelFiles\
+          clean_destination_folder: true
+
+      - run: Start-Sleep -Seconds 2
+
+      - name: Recursive with DestinationFolder Test
+        uses: ./
+        with:
+          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
+          client_id: "${{steps.aad-secret.outputs.app-id}}"
+          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
+          container_name: ci-cd
+          source_folder: TestFiles\TxtFiles\
+          destination_folder: RecursiveTest
+          clean_destination_folder: true
+
+      - run: Start-Sleep -Seconds 2
+
+      - name: Non-recursive with Destination Folder Test
+        uses: ./
+        with:
+          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
+          client_id: "${{steps.aad-secret.outputs.app-id}}"
+          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
+          container_name: ci-cd
+          source_folder: TestFiles\TxtFiles\
+          destination_folder: NonRecursiveTest
+          clean_destination_folder: true
+          is_recursive: false
+
+      - run: Start-Sleep -Seconds 2
+
+      - name: Non-recursive with Destination Folder Test (with '.' Prefix)
+        uses: ./
+        with:
+          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
+          client_id: "${{steps.aad-secret.outputs.app-id}}"
+          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
+          container_name: ci-cd
+          source_folder: .\TestFiles\ExcelFiles\
+          destination_folder: DotPrefixTest
+          clean_destination_folder: true
+          is_recursive: false
+
+      - run: Start-Sleep -Seconds 2
+
+      - name: Single File Path Test
+        uses: ./
+        with:
+          tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
+          client_id: "${{steps.aad-secret.outputs.app-id}}"
+          client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
+          container_name: ci-cd
+          source_folder: TestFiles\build\bin\data-composer-0.0.0.exe
+          destination_folder: SingleFileTest
           clean_destination_folder: true
           is_recursive: false

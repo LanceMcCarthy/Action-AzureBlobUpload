@@ -3,32 +3,68 @@ import * as helpers from './methods-helpers';
 import * as mime from 'mime-types';
 import * as mitigations from './methods-mitigations';
 import * as path from 'path';
-import * as azure from '@azure/storage-blob';
+import * as azureIdentity from '@azure/identity';
+import * as azureBlob from '@azure/storage-blob';
+
+export type AuthPayload =
+  | {
+      type: 'connection_string';
+      connectionString: string;
+    }
+  | {
+      type: 'service_principal';
+      tenantId: string;
+      clientId: string;
+      clientSecret: string;
+      storageAccount: string;
+    };
+
+interface AzureBlobUploadProps {
+  authPayload: AuthPayload;
+  containerName: string;
+  sourceFolder: string;
+  destinationFolder: string;
+  cleanDestinationPath: boolean;
+  failIfSourceEmpty: boolean;
+  isRecursive: boolean;
+  deleteIfExists: boolean;
+}
 
 /**
  * Main function uploads the contents of a folder to Azure Blob Storage. See main.ts for parameter explainations.
  */
-export async function UploadToAzure(
-  connectionString: string,
-  containerName: string,
-  sourceFolder: string,
-  destinationFolder: string,
-  cleanDestinationPath: boolean,
-  failIfSourceEmpty: boolean,
-  isRecursive: boolean,
-  deleteIfExists: boolean
-) {
-  // Validate parameters
-  helpers.validateNonEmptyString(connectionString, 'connection_string');
+export async function UploadToAzure(props: AzureBlobUploadProps) {
+  const {authPayload, containerName, sourceFolder, destinationFolder, cleanDestinationPath, failIfSourceEmpty, isRecursive, deleteIfExists} = props;
+
+  // Validate authentication parameters
+  if (authPayload.type === 'connection_string') {
+    helpers.validateNonEmptyString(authPayload.connectionString, 'connection_string');
+  } else if (authPayload.type === 'service_principal') {
+    helpers.validateNonEmptyString(authPayload.tenantId, 'tenant_id');
+    helpers.validateNonEmptyString(authPayload.clientId, 'client_id');
+    helpers.validateNonEmptyString(authPayload.clientSecret, 'client_secret');
+    helpers.validateNonEmptyString(authPayload.storageAccount, 'storage_account');
+  }
+
+  // Validate other required parameters
   helpers.validateNonEmptyString(containerName, 'container_name');
   helpers.validateNonEmptyString(sourceFolder, 'source_folder');
 
   // Normalize paths (removes dot prefixes and incorrect directory separators)
-  sourceFolder = helpers.normalizePath(sourceFolder, 'source_folder');
-  destinationFolder = helpers.normalizePath(destinationFolder, 'destination_folder');
+  const normalizedSourceFolder = helpers.normalizePath(sourceFolder, 'source_folder');
+  const normalizedDestinationFolder = helpers.normalizePath(destinationFolder, 'destination_folder');
 
   // Setup Azure Blob Service Client
-  const blobServiceClient = azure.BlobServiceClient.fromConnectionString(connectionString);
+  let blobServiceClient: azureBlob.BlobServiceClient;
+  if (authPayload.type === 'connection_string') {
+    const {connectionString} = authPayload;
+    blobServiceClient = azureBlob.BlobServiceClient.fromConnectionString(connectionString);
+  } else {
+    const {tenantId, clientId, clientSecret, storageAccount} = authPayload;
+    const credential = new azureIdentity.ClientSecretCredential(tenantId, clientId, clientSecret);
+    blobServiceClient = new azureBlob.BlobServiceClient(`https://${storageAccount}.blob.core.windows.net`, credential);
+  }
+
   const blobContainerClient = blobServiceClient.getContainerClient(containerName);
 
   // Create container if it is not in the Azure Storage Account.
@@ -43,7 +79,7 @@ export async function UploadToAzure(
   if (cleanDestinationPath) {
     core.info('clean_destination_path = true, deleting blobs from destination...');
 
-    await cleanDestination(blobContainerClient, destinationFolder);
+    await cleanDestination(blobContainerClient, normalizedDestinationFolder);
 
     core.info('All blobs successfully deleted.');
   }
@@ -51,16 +87,24 @@ export async function UploadToAzure(
   // *********************** SECTION: UPLOAD ******************** //
 
   // Check if the source_folder value is filename or a folder path
-  if (path.parse(sourceFolder).ext.length > 0) {
+  if (path.parse(normalizedSourceFolder).ext.length > 0) {
     // SINGLE FILE UPLOAD MODE
-    await uploadSingleFile(blobContainerClient, containerName, sourceFolder, destinationFolder, deleteIfExists).catch(e => {
+    await uploadSingleFile(blobContainerClient, containerName, normalizedSourceFolder, normalizedDestinationFolder, deleteIfExists).catch(e => {
       core.debug(e.stack);
       core.error(e.message);
       core.setFailed(e.message);
     });
   } else {
     // DIRECTORY CONTENTS UPLOAD MODE
-    await uploadFolderContent(blobContainerClient, containerName, sourceFolder, destinationFolder, isRecursive, failIfSourceEmpty, deleteIfExists).catch(e => {
+    await uploadFolderContent(
+      blobContainerClient,
+      containerName,
+      normalizedSourceFolder,
+      normalizedDestinationFolder,
+      isRecursive,
+      failIfSourceEmpty,
+      deleteIfExists
+    ).catch(e => {
       core.debug(e.stack);
       core.error(e.message);
       core.setFailed(e.message);
@@ -74,7 +118,7 @@ export async function UploadToAzure(
  * Uploads a single file to Azure Blob Storage
  */
 async function uploadSingleFile(
-  blobContainerClient: azure.ContainerClient,
+  blobContainerClient: azureBlob.ContainerClient,
   containerName: string,
   localFilePath: string,
   destinationFolder: string,
@@ -106,7 +150,7 @@ async function uploadSingleFile(
  *  Function that uploads the contents of a folder to Azure Blob Storage
  */
 async function uploadFolderContent(
-  blobContainerClient: azure.ContainerClient,
+  blobContainerClient: azureBlob.ContainerClient,
   containerName: string,
   sourceFolder: string,
   destinationFolder: string,
@@ -193,13 +237,13 @@ async function uploadFolderContent(
   });
 }
 
-async function performUpload(client: azure.BlockBlobClient, localFilePath: string, deleteIfExists: boolean): Promise<azure.BlobUploadCommonResponse> {
+async function performUpload(client: azureBlob.BlockBlobClient, localFilePath: string, deleteIfExists: boolean): Promise<azureBlob.BlobUploadCommonResponse> {
   // Delete the blob file if it exists
   if (deleteIfExists) {
     // To prevent a possible race condition where a blob isn't deleted before being replaced
     //we should also delete the snapshots of the blob and await any promises
-    const deleteSnapshotOptions: azure.DeleteSnapshotsOptionType = 'include';
-    const deleteOptions: azure.BlobDeleteOptions = {
+    const deleteSnapshotOptions: azureBlob.DeleteSnapshotsOptionType = 'include';
+    const deleteOptions: azureBlob.BlobDeleteOptions = {
       deleteSnapshots: deleteSnapshotOptions
     };
 
@@ -211,7 +255,7 @@ async function performUpload(client: azure.BlockBlobClient, localFilePath: strin
   const contentTypeHeaders = mimeType ? {blobContentType: mimeType} : {};
 
   // Put the mime type in the header, and track progress to help with large uploads
-  const uploadOptions: azure.BlockBlobParallelUploadOptions = {
+  const uploadOptions: azureBlob.BlockBlobParallelUploadOptions = {
     blobHTTPHeaders: contentTypeHeaders,
     onProgress: p => {
       core.info(`${p.loadedBytes} bytes uploaded...`);
@@ -224,7 +268,7 @@ async function performUpload(client: azure.BlockBlobClient, localFilePath: strin
   return result;
 }
 
-async function cleanDestination(containerClient: azure.ContainerClient, destinationFolder: string) {
+async function cleanDestination(containerClient: azureBlob.ContainerClient, destinationFolder: string) {
   core.info('clean_destination_path = true, deleting blobs from destination...');
 
   for await (const blob of containerClient.listBlobsFlat()) {
@@ -234,8 +278,8 @@ async function cleanDestination(containerClient: azure.ContainerClient, destinat
 
       // To prevent a possible race condition where a blob isn't deleted before being replaced
       //we should also delete the snapshots of the blob and await any promises
-      const deleteSnapshotOptions: azure.DeleteSnapshotsOptionType = 'include';
-      const deleteOptions: azure.BlobDeleteOptions = {
+      const deleteSnapshotOptions: azureBlob.DeleteSnapshotsOptionType = 'include';
+      const deleteOptions: azureBlob.BlobDeleteOptions = {
         deleteSnapshots: deleteSnapshotOptions
       };
 
