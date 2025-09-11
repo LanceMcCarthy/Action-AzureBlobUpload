@@ -144,8 +144,23 @@ jobs:
     name: Upload Tests (Service Principal credentials)
     runs-on: windows-latest
     needs: LargeFileCount_Test
+    env:
+      # Set in Settings->Secrets->Actions
+      SECRET_PATH: ${{vars.AKEYLESS_SECRET_PATH}}
+      ACCESS_ID: ${{vars.AKEYLESS_ACCESS_ID}}
+      ACCESS_KEY: ${{secrets.AKEYLESS_ACCESS_KEY}}
     steps:
       - uses: actions/checkout@v5
+
+      # I am using an Akeyless dynamic secret to gte my Service Principal details. 
+      # This is not common, you can use your own explicitly generated Service Principal credentials as GitHub secrets instead.
+      - name: Generate temp Service Principal credentials (via Akeyless dynamic secret)
+        id: aad-secret
+        uses: LanceMcCarthy/akeyless-aad-secret@v1
+        with:
+          akeyless-secret-path: '${{env.SECRET_PATH}}' 
+          akeyless-access-id: '${{env.ACCESS_ID}}'
+          akeyless-access-key: '${{env.ACCESS_KEY}}'
 
       - name: Generating Unique File Names for This Run
         run: |
@@ -162,16 +177,6 @@ jobs:
           $excelFilePath = 'TestFiles\ExcelFiles\Test.xlsx'
           $updatedExcelFileName = "Test_" + $date + ".xlsx"
           Rename-Item $excelFilePath $updatedExcelFileName
-
-      # I am using an Akeyless dynamic secret to gte my Service Principal details. 
-      # This is not common, you can use your own explicitly generated Service Principal credentials as GitHub secrets instead.
-      - name: Generate temp Service Principal credentials (via Akeyless dynamic secret)
-        id: aad-secret
-        uses: LanceMcCarthy/akeyless-aad-secret@v1
-        with:
-          akeyless-secret-path: '/entra-id-lance-live'
-          akeyless-access-id: '${{secrets.AKEYLESS_ACCESS_ID}}'
-          akeyless-access-key: '${{secrets.AKEYLESS_ACCESS_KEY}}'
 
       # NOTE: this job also cleans the entire container to start over for this round of tests
       - name: Upload without DestinationFolder Test
