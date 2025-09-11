@@ -16,11 +16,11 @@ Below are the action's inputs that need to be defined in the Action's `with` blo
 
 | Required | Inputs | Example | Summary |
 |----------|--------|---------|---------|
-| | connection_string | `${{ secrets.MyCnnStr }}` | Azure Blob Storage conection string (for help, visit [View Account Access Keys](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage#view-account-access-keys)). |\
-|  | tenant_id | `${{ secrets.AZURE_TENANT_ID }}` | The Azure Active Directory tenant ID used for authentication. |
-|  | client_id | `${{ secrets.AZURE_CLIENT_ID }}` | The client (application) ID registered in Azure Active Directory. |
-|  | client_secret | `${{ secrets.AZURE_CLIENT_SECRET }}` | The client secret associated with the Azure AD application. |
-|  | storage_account | `storageaccount` | The name of the Azure Storage account to be accessed. |
+| | connection_string | `${{ secrets.AZURE_CONNECTION_STRING }}` | Azure Blob Storage conection string (for help, visit [View Account Access Keys](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage#view-account-access-keys)). |\
+|  | tenant_id | `${{ secrets.AZURE_TENANT_ID }}` | The App Registration tenant ID used for Service Principal authentication. |
+|  | client_id | `${{ secrets.AZURE_CLIENT_ID }}` | The App Registration client (application) ID used for Service Principal authentication. |
+|  | client_secret | `${{ secrets.AZURE_CLIENT_SECRET }}` |The App Registration client secret used for Service Principal authentication. |
+|  | storage_account | `storageaccount` | The name of the Azure Storage account to be accessed. Need for authenticating a Service Principal. |
 | ✔ | container_name | `my-container` | Name of the Blob container. |
 | ✔ | source_folder |  `src\LocalFolderName\` | Folder with the files to upload. Note that the path separators will be automatically normalized for you. |
 |  | destination_folder | `MyTargetFolder/Subfolder` | Folder to upload to (it will be created for you if it does not exist). |
@@ -45,6 +45,32 @@ In the most basic form, the Action will upload all the files in the `source_fold
     container_name: your-container-name
     source_folder: src\LocalFolderName\
 ```
+### Connection String Authentication
+
+```yaml
+- uses: LanceMcCarthy/Action-AzureBlobUpload@v2
+  name: Uploading to Azure storage...
+  with:
+    connection_string: ${{ secrets.YourAzureBlobConnectionString }}
+    container_name: your-container-name
+    source_folder: src\LocalFolderName\
+```
+
+### Service Prinicipal Authentication (App Registration)
+
+```yaml
+- uses: LanceMcCarthy/Action-AzureBlobUpload@v2
+  name: Uploading to Azure storage...
+  with:
+    tenant_id: ${{ secrets.YourTenantID }}
+    client_id: ${{ secrets.YourClientID }}
+    client_secret: ${{ secrets.YourClientSecret }}
+    storage_account: your-storage-account
+    container_name: your-container-name
+    source_folder: src\LocalFolderName\
+```
+
+
 
 ### Set a Destination Folder (most common)
 

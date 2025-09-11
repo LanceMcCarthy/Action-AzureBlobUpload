@@ -9,13 +9,13 @@ inputs:
     description: 'Azure Storage ConnectionString for the container (Azure Portal - select Storage Account - Access Keys blade). Either connection_string or Service Principal authentication is required.' 
     required: false
   tenant_id:
-    description: 'Azure AD Tenant ID (if using Service Principal authentication).'
+    description: 'App Registration Tenant ID (if using Service Principal authentication).'
     required: false
   client_id:
-    description: 'Azure AD Client ID (if using Service Principal authentication).'
+    description: 'App Registration Client ID (if using Service Principal authentication).'
     required: false
   client_secret:
-    description: 'Azure AD Client Secret (if using Service Principal authentication).'
+    description: 'App Registration Client Secret (if using Service Principal authentication).'
     required: false
   storage_account:
     description: 'Azure Storage Account name (e.g. mystorageaccount) (if using Service Principal authentication).'
