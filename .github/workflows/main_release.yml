@@ -14,9 +14,9 @@ jobs:
   Package_RunTests:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           
@@ -33,7 +33,7 @@ jobs:
     runs-on: windows-latest
     needs: Package_RunTests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./
         name: Upload wwwroot to /LargeFileCountTest/Windows
         with:
@@ -51,7 +51,7 @@ jobs:
     runs-on: windows-latest
     needs: LargeFileCount_Test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Generating Unique File Names for This Run
         run: |
@@ -145,15 +145,7 @@ jobs:
     runs-on: windows-latest
     needs: LargeFileCount_Test
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Generate temp Service Principal credentials (via Akeyless dynamic secret)
-        id: aad-secret
-        uses: LanceMcCarthy/akeyless-aad-secret@v1
-        with:
-          akeyless-secret-path: '/entra-id-lance-live'
-          akeyless-access-id: '${{secrets.AKEYLESS_ACCESS_ID}}'
-          akeyless-access-key: '${{secrets.AKEYLESS_ACCESS_KEY}}'
+      - uses: actions/checkout@v5
 
       - name: Generating Unique File Names for This Run
         run: |
@@ -171,6 +163,16 @@ jobs:
           $updatedExcelFileName = "Test_" + $date + ".xlsx"
           Rename-Item $excelFilePath $updatedExcelFileName
 
+      # I am using an Akeyless dynamic secret to gte my Service Principal details. 
+      # This is not common, you can use your own explicitly generated Service Principal credentials as GitHub secrets instead.
+      - name: Generate temp Service Principal credentials (via Akeyless dynamic secret)
+        id: aad-secret
+        uses: LanceMcCarthy/akeyless-aad-secret@v1
+        with:
+          akeyless-secret-path: '/entra-id-lance-live'
+          akeyless-access-id: '${{secrets.AKEYLESS_ACCESS_ID}}'
+          akeyless-access-key: '${{secrets.AKEYLESS_ACCESS_KEY}}'
+
       # NOTE: this job also cleans the entire container to start over for this round of tests
       - name: Upload without DestinationFolder Test
         uses: ./
@@ -178,6 +180,7 @@ jobs:
           tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
           client_id: "${{steps.aad-secret.outputs.app-id}}"
           client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
           container_name: ci-cd
           source_folder: TestFiles\ExcelFiles\
           clean_destination_folder: true
@@ -190,6 +193,7 @@ jobs:
           tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
           client_id: "${{steps.aad-secret.outputs.app-id}}"
           client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
           container_name: ci-cd
           source_folder: TestFiles\TxtFiles\
           destination_folder: RecursiveTest
@@ -203,6 +207,7 @@ jobs:
           tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
           client_id: "${{steps.aad-secret.outputs.app-id}}"
           client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
           container_name: ci-cd
           source_folder: TestFiles\TxtFiles\
           destination_folder: NonRecursiveTest
@@ -217,6 +222,7 @@ jobs:
           tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
           client_id: "${{steps.aad-secret.outputs.app-id}}"
           client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
           container_name: ci-cd
           source_folder: .\TestFiles\ExcelFiles\
           destination_folder: DotPrefixTest
@@ -231,6 +237,7 @@ jobs:
           tenant_id: "${{steps.aad-secret.outputs.tenant-id}}"
           client_id: "${{steps.aad-secret.outputs.app-id}}"
           client_secret: "${{steps.aad-secret.outputs.secret-text}}"
+          storage_account: "dvlup"
           container_name: ci-cd
           source_folder: TestFiles\build\bin\data-composer-0.0.0.exe
           destination_folder: SingleFileTest
