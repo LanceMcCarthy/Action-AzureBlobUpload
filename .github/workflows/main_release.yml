@@ -1,17 +1,16 @@
 name: 'Upload Tests'
-
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-      #- 'releases/*'
 
 jobs:
 #--------------------------------------------------------------------------------------#
-# Ensure the package builds and all tests pass
+# Ensure the package builds and all tests pass.
 #--------------------------------------------------------------------------------------#
   Package_RunTests:
+    name: 'Build Package and Run Tests'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -26,14 +25,15 @@ jobs:
           NODE_OPTIONS: "--max_old_space_size=4096"
 
 #--------------------------------------------------------------------------------------#
-# Single test for uploading a large number of files to test performance and any potential issues
+# Single test for uploading a large number of files to test performance or problems.
 #--------------------------------------------------------------------------------------#
   LargeFileCount_Test:
-    name: Publish wwwroot using Windows
+    name: 'Publish wwwroot using Windows'
     runs-on: windows-latest
     needs: Package_RunTests
     steps:
       - uses: actions/checkout@v5
+
       - uses: ./
         name: Upload wwwroot to /LargeFileCountTest/Windows
         with:
@@ -44,10 +44,10 @@ jobs:
           clean_destination_folder: true
 
 #--------------------------------------------------------------------------------------#
-# Multiple tests for uploading files using ConnectionString credentials
+# Multiple tests for uploading files using ConnectionString credentials.
 #--------------------------------------------------------------------------------------#
   Upload_Test_ConnStr:
-    name: Upload Tests (ConnectionString credentials)
+    name: 'Upload Tests (ConnectionString)'
     runs-on: windows-latest
     needs: LargeFileCount_Test
     steps:
@@ -78,7 +78,7 @@ jobs:
           source_folder: TestFiles\ExcelFiles\
           clean_destination_folder: true
 
-      - run: Start-Sleep -Seconds 2
+      - run: Start-Sleep -Seconds 3
 
       - name: Recursive with DestinationFolder Test
         uses: ./
@@ -89,7 +89,7 @@ jobs:
           destination_folder: RecursiveTest
           clean_destination_folder: true
 
-      - run: Start-Sleep -Seconds 2
+      - run: Start-Sleep -Seconds 3
 
       - name: Non-recursive with Destination Folder Test
         uses: ./
@@ -101,7 +101,7 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
 
-      - run: Start-Sleep -Seconds 2
+      - run: Start-Sleep -Seconds 3
 
       - name: Non-recursive with Destination Folder Test (with '.' Prefix)
         uses: ./
@@ -113,7 +113,7 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
 
-      - run: Start-Sleep -Seconds 2
+      - run: Start-Sleep -Seconds 3
 
       - name: Single File Path Test
         uses: ./
@@ -125,7 +125,7 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
 
-      - run: Start-Sleep -Seconds 2
+      - run: Start-Sleep -Seconds 3
 
       - name: Single File Test (with '.' Prefix)
         uses: ./
@@ -138,12 +138,12 @@ jobs:
           is_recursive: false
 
 #--------------------------------------------------------------------------------------#
-# Multiple tests for uploading files using Service Principal credentials
+# Multiple tests for uploading files using Service Principal credentials.
 #--------------------------------------------------------------------------------------#
   Upload_Test_SP:
-    name: Upload Tests (Service Principal credentials)
+    name: 'Upload Tests (Service principal)'
     runs-on: windows-latest
-    needs: LargeFileCount_Test
+    needs: Upload_Test_ConnStr
     steps:
       - uses: actions/checkout@v5
 
@@ -175,7 +175,7 @@ jobs:
           source_folder: TestFiles\ExcelFiles\
           clean_destination_folder: true
 
-      - run: Start-Sleep -Seconds 2
+      - run: Start-Sleep -Seconds 3
 
       - name: Recursive with DestinationFolder Test
         uses: ./
@@ -189,7 +189,7 @@ jobs:
           destination_folder: RecursiveTest
           clean_destination_folder: true
 
-      - run: Start-Sleep -Seconds 2
+      - run: Start-Sleep -Seconds 3
 
       - name: Non-recursive with Destination Folder Test
         uses: ./
@@ -204,7 +204,7 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
 
-      - run: Start-Sleep -Seconds 2
+      - run: Start-Sleep -Seconds 3
 
       - name: Non-recursive with Destination Folder Test (with '.' Prefix)
         uses: ./
@@ -219,7 +219,7 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
 
-      - run: Start-Sleep -Seconds 2
+      - run: Start-Sleep -Seconds 3
 
       - name: Single File Path Test
         uses: ./
