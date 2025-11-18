@@ -1,13 +1,15 @@
-name: 'Main PR'
-
+name: 'Pull Request Validation'
 on:
   pull_request:
     branches:
       - main
 
 jobs:
-  # Build, package and run Jest tests
+#--------------------------------------------------------------------------------------#
+# Ensure the package builds and all tests pass.
+#--------------------------------------------------------------------------------------#
   Package_RunTests:
+    name: 'Build Package and Run Tests'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -15,9 +17,27 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
-
+          
       - name: "Run scripts"
         run: npm run all
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
-  
+
+#--------------------------------------------------------------------------------------#
+# Single test for uploading a large number of files to test performance or problems.
+#--------------------------------------------------------------------------------------#
+  LargeFileCount_Test:
+    name: 'Publish wwwroot using Windows'
+    runs-on: windows-latest
+    needs: Package_RunTests
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./
+        name: Upload wwwroot to /LargeFileCountTest/Windows
+        with:
+          connection_string: ${{secrets.AzureBlobConnectionString}}
+          container_name: ci-cd
+          destination_folder: LargeFileCountTest/Windows
+          source_folder: TestFiles\wwwroot\
+          clean_destination_folder: true
