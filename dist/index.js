@@ -4017,9 +4017,7 @@ class Agent extends http.Agent {
     // In order to properly update the socket pool, we need to call `getName()` on
     // the core `https.Agent` if it is a secureEndpoint.
     getName(options) {
-        const secureEndpoint = typeof options.secureEndpoint === 'boolean'
-            ? options.secureEndpoint
-            : this.isSecureEndpoint(options);
+        const secureEndpoint = this.isSecureEndpoint(options);
         if (secureEndpoint) {
             // @ts-expect-error `getName()` isn't defined in `@types/node`
             return https_1.Agent.prototype.getName.call(this, options);
@@ -9740,6 +9738,7 @@ const isSatisfiable = (comparators, options) => {
 // already replaced the hyphen ranges
 // turn into a set of JUST comparators.
 const parseComparator = (comp, options) => {
+  comp = comp.replace(re[t.BUILD], '')
   debug('comp', comp, options)
   comp = replaceCarets(comp, options)
   debug('caret', comp)
@@ -10160,11 +10159,25 @@ class SemVer {
       other = new SemVer(other, this.options)
     }
 
-    return (
-      compareIdentifiers(this.major, other.major) ||
-      compareIdentifiers(this.minor, other.minor) ||
-      compareIdentifiers(this.patch, other.patch)
-    )
+    if (this.major < other.major) {
+      return -1
+    }
+    if (this.major > other.major) {
+      return 1
+    }
+    if (this.minor < other.minor) {
+      return -1
+    }
+    if (this.minor > other.minor) {
+      return 1
+    }
+    if (this.patch < other.patch) {
+      return -1
+    }
+    if (this.patch > other.patch) {
+      return 1
+    }
+    return 0
   }
 
   comparePre (other) {
@@ -11065,6 +11078,10 @@ module.exports = debug
 
 const numeric = /^[0-9]+$/
 const compareIdentifiers = (a, b) => {
+  if (typeof a === 'number' && typeof b === 'number') {
+    return a === b ? 0 : a < b ? -1 : 1
+  }
+
   const anum = numeric.test(a)
   const bnum = numeric.test(b)
 
@@ -36130,6 +36147,7 @@ exports.AzureKeyCredential = void 0;
  * the underlying key value.
  */
 class AzureKeyCredential {
+    _key;
     /**
      * The value of the key to be used in authentication
      */
@@ -36181,6 +36199,8 @@ const core_util_1 = __nccwpck_require__(87779);
  * the underlying name and key values.
  */
 class AzureNamedKeyCredential {
+    _key;
+    _name;
     /**
      * The value of the key to be used in authentication.
      */
@@ -36255,6 +36275,7 @@ const core_util_1 = __nccwpck_require__(87779);
  * the underlying signature value.
  */
 class AzureSASCredential {
+    _signature;
     /**
      * The value of the shared access signature to be used in authentication
      */
@@ -36417,7 +36438,7 @@ function parseCAEChallenge(challenges) {
         const challengeParts = `${challenge.trim()}, `.split('", ').filter((x) => x);
         const keyValuePairs = challengeParts.map((keyValue) => (([key, value]) => ({ [key]: value }))(keyValue.trim().split('="')));
         // Key-value pairs to plain object:
-        return keyValuePairs.reduce((a, b) => (Object.assign(Object.assign({}, a), b)), {});
+        return keyValuePairs.reduce((a, b) => ({ ...a, ...b }), {});
     });
 }
 /**
@@ -36450,7 +36471,6 @@ function parseCAEChallenge(challenges) {
  * ```
  */
 async function authorizeRequestOnClaimChallenge(onChallengeOptions) {
-    var _a;
     const { scopes, response } = onChallengeOptions;
     const logger = onChallengeOptions.logger || log_js_1.logger;
     const challenge = response.headers.get("WWW-Authenticate");
@@ -36470,7 +36490,7 @@ async function authorizeRequestOnClaimChallenge(onChallengeOptions) {
     if (!accessToken) {
         return false;
     }
-    onChallengeOptions.request.headers.set("Authorization", `${(_a = accessToken.tokenType) !== null && _a !== void 0 ? _a : "Bearer"} ${accessToken.token}`);
+    onChallengeOptions.request.headers.set("Authorization", `${accessToken.tokenType ?? "Bearer"} ${accessToken.token}`);
     return true;
 }
 //# sourceMappingURL=authorizeRequestOnClaimChallenge.js.map
@@ -36510,7 +36530,6 @@ function isUuid(text) {
  * Handling has specific features for storage that departs to the general AAD challenge docs.
  **/
 const authorizeRequestOnTenantChallenge = async (challengeOptions) => {
-    var _a;
     const requestOptions = requestToOptions(challengeOptions.request);
     const challenge = getChallenge(challengeOptions.response);
     if (challenge) {
@@ -36520,11 +36539,14 @@ const authorizeRequestOnTenantChallenge = async (challengeOptions) => {
         if (!tenantId) {
             return false;
         }
-        const accessToken = await challengeOptions.getAccessToken(challengeScopes, Object.assign(Object.assign({}, requestOptions), { tenantId }));
+        const accessToken = await challengeOptions.getAccessToken(challengeScopes, {
+            ...requestOptions,
+            tenantId,
+        });
         if (!accessToken) {
             return false;
         }
-        challengeOptions.request.headers.set(Constants.HeaderConstants.AUTHORIZATION, `${(_a = accessToken.tokenType) !== null && _a !== void 0 ? _a : "Bearer"} ${accessToken.token}`);
+        challengeOptions.request.headers.set(Constants.HeaderConstants.AUTHORIZATION, `${accessToken.tokenType ?? "Bearer"} ${accessToken.token}`);
         return true;
     }
     return false;
@@ -36584,7 +36606,7 @@ function parseChallenge(challenge) {
     const challengeParts = `${bearerChallenge.trim()} `.split(" ").filter((x) => x);
     const keyValuePairs = challengeParts.map((keyValue) => (([key, value]) => ({ [key]: value }))(keyValue.trim().split("=")));
     // Key-value pairs to plain object:
-    return keyValuePairs.reduce((a, b) => (Object.assign(Object.assign({}, a), b)), {});
+    return keyValuePairs.reduce((a, b) => ({ ...a, ...b }), {});
 }
 /**
  * Extracts the options form a Pipeline Request for later re-use
@@ -36675,16 +36697,15 @@ exports.deserializationPolicyName = "deserializationPolicy";
  * This policy handles parsing out responses according to OperationSpecs on the request.
  */
 function deserializationPolicy(options = {}) {
-    var _a, _b, _c, _d, _e, _f, _g;
-    const jsonContentTypes = (_b = (_a = options.expectedContentTypes) === null || _a === void 0 ? void 0 : _a.json) !== null && _b !== void 0 ? _b : defaultJsonContentTypes;
-    const xmlContentTypes = (_d = (_c = options.expectedContentTypes) === null || _c === void 0 ? void 0 : _c.xml) !== null && _d !== void 0 ? _d : defaultXmlContentTypes;
+    const jsonContentTypes = options.expectedContentTypes?.json ?? defaultJsonContentTypes;
+    const xmlContentTypes = options.expectedContentTypes?.xml ?? defaultXmlContentTypes;
     const parseXML = options.parseXML;
     const serializerOptions = options.serializerOptions;
     const updatedOptions = {
         xml: {
-            rootName: (_e = serializerOptions === null || serializerOptions === void 0 ? void 0 : serializerOptions.xml.rootName) !== null && _e !== void 0 ? _e : "",
-            includeRoot: (_f = serializerOptions === null || serializerOptions === void 0 ? void 0 : serializerOptions.xml.includeRoot) !== null && _f !== void 0 ? _f : false,
-            xmlCharKey: (_g = serializerOptions === null || serializerOptions === void 0 ? void 0 : serializerOptions.xml.xmlCharKey) !== null && _g !== void 0 ? _g : interfaces_js_1.XML_CHARKEY,
+            rootName: serializerOptions?.xml.rootName ?? "",
+            includeRoot: serializerOptions?.xml.includeRoot ?? false,
+            xmlCharKey: serializerOptions?.xml.xmlCharKey ?? interfaces_js_1.XML_CHARKEY,
         },
     };
     return {
@@ -36699,13 +36720,13 @@ function getOperationResponseMap(parsedResponse) {
     let result;
     const request = parsedResponse.request;
     const operationInfo = (0, operationHelpers_js_1.getOperationRequestInfo)(request);
-    const operationSpec = operationInfo === null || operationInfo === void 0 ? void 0 : operationInfo.operationSpec;
+    const operationSpec = operationInfo?.operationSpec;
     if (operationSpec) {
-        if (!(operationInfo === null || operationInfo === void 0 ? void 0 : operationInfo.operationResponseGetter)) {
+        if (!operationInfo?.operationResponseGetter) {
             result = operationSpec.responses[parsedResponse.status];
         }
         else {
-            result = operationInfo === null || operationInfo === void 0 ? void 0 : operationInfo.operationResponseGetter(operationSpec, parsedResponse);
+            result = operationInfo?.operationResponseGetter(operationSpec, parsedResponse);
         }
     }
     return result;
@@ -36713,7 +36734,7 @@ function getOperationResponseMap(parsedResponse) {
 function shouldDeserializeResponse(parsedResponse) {
     const request = parsedResponse.request;
     const operationInfo = (0, operationHelpers_js_1.getOperationRequestInfo)(request);
-    const shouldDeserialize = operationInfo === null || operationInfo === void 0 ? void 0 : operationInfo.shouldDeserialize;
+    const shouldDeserialize = operationInfo?.shouldDeserialize;
     let result;
     if (shouldDeserialize === undefined) {
         result = true;
@@ -36732,7 +36753,7 @@ async function deserializeResponseBody(jsonContentTypes, xmlContentTypes, respon
         return parsedResponse;
     }
     const operationInfo = (0, operationHelpers_js_1.getOperationRequestInfo)(parsedResponse.request);
-    const operationSpec = operationInfo === null || operationInfo === void 0 ? void 0 : operationInfo.operationSpec;
+    const operationSpec = operationInfo?.operationSpec;
     if (!operationSpec || !operationSpec.responses) {
         return parsedResponse;
     }
@@ -36783,7 +36804,6 @@ function isOperationSpecEmpty(operationSpec) {
         (expectedStatusCodes.length === 1 && expectedStatusCodes[0] === "default"));
 }
 function handleErrorResponse(parsedResponse, operationSpec, responseSpec, options) {
-    var _a, _b, _c, _d, _e;
     const isSuccessByStatus = 200 <= parsedResponse.status && parsedResponse.status < 300;
     const isExpectedStatusCode = isOperationSpecEmpty(operationSpec)
         ? isSuccessByStatus
@@ -36798,8 +36818,8 @@ function handleErrorResponse(parsedResponse, operationSpec, responseSpec, option
             return { error: null, shouldReturnResponse: false };
         }
     }
-    const errorResponseSpec = responseSpec !== null && responseSpec !== void 0 ? responseSpec : operationSpec.responses.default;
-    const initialErrorMessage = ((_a = parsedResponse.request.streamResponseStatusCodes) === null || _a === void 0 ? void 0 : _a.has(parsedResponse.status))
+    const errorResponseSpec = responseSpec ?? operationSpec.responses.default;
+    const initialErrorMessage = parsedResponse.request.streamResponseStatusCodes?.has(parsedResponse.status)
         ? `Unexpected status code: ${parsedResponse.status}`
         : parsedResponse.bodyAsText;
     const error = new core_rest_pipeline_1.RestError(initialErrorMessage, {
@@ -36811,11 +36831,11 @@ function handleErrorResponse(parsedResponse, operationSpec, responseSpec, option
     // and the parsed body doesn't look like an error object,
     // we should fail so we just throw the parsed response
     if (!errorResponseSpec &&
-        !(((_c = (_b = parsedResponse.parsedBody) === null || _b === void 0 ? void 0 : _b.error) === null || _c === void 0 ? void 0 : _c.code) && ((_e = (_d = parsedResponse.parsedBody) === null || _d === void 0 ? void 0 : _d.error) === null || _e === void 0 ? void 0 : _e.message))) {
+        !(parsedResponse.parsedBody?.error?.code && parsedResponse.parsedBody?.error?.message)) {
         throw error;
     }
-    const defaultBodyMapper = errorResponseSpec === null || errorResponseSpec === void 0 ? void 0 : errorResponseSpec.bodyMapper;
-    const defaultHeadersMapper = errorResponseSpec === null || errorResponseSpec === void 0 ? void 0 : errorResponseSpec.headersMapper;
+    const defaultBodyMapper = errorResponseSpec?.bodyMapper;
+    const defaultHeadersMapper = errorResponseSpec?.headersMapper;
     try {
         // If error response has a body, try to deserialize it using default body mapper.
         // Then try to extract error code & message from it
@@ -36854,8 +36874,7 @@ function handleErrorResponse(parsedResponse, operationSpec, responseSpec, option
     return { error, shouldReturnResponse: false };
 }
 async function parse(jsonContentTypes, xmlContentTypes, operationResponse, opts, parseXML) {
-    var _a;
-    if (!((_a = operationResponse.request.streamResponseStatusCodes) === null || _a === void 0 ? void 0 : _a.has(operationResponse.status)) &&
+    if (!operationResponse.request.streamResponseStatusCodes?.has(operationResponse.status) &&
         operationResponse.bodyAsText) {
         const text = operationResponse.bodyAsText;
         const contentType = operationResponse.headers.get("Content-Type") || "";
@@ -37159,7 +37178,7 @@ const serializationPolicy_js_1 = __nccwpck_require__(56234);
  * @param options - Options to customize the created pipeline.
  */
 function createClientPipeline(options = {}) {
-    const pipeline = (0, core_rest_pipeline_1.createPipelineFromOptions)(options !== null && options !== void 0 ? options : {});
+    const pipeline = (0, core_rest_pipeline_1.createPipelineFromOptions)(options ?? {});
     if (options.credentialOptions) {
         pipeline.addPolicy((0, core_rest_pipeline_1.bearerTokenAuthenticationPolicy)({
             credential: options.credentialOptions.credential,
@@ -37206,8 +37225,8 @@ function serializationPolicy(options = {}) {
         name: exports.serializationPolicyName,
         async sendRequest(request, next) {
             const operationInfo = (0, operationHelpers_js_1.getOperationRequestInfo)(request);
-            const operationSpec = operationInfo === null || operationInfo === void 0 ? void 0 : operationInfo.operationSpec;
-            const operationArguments = operationInfo === null || operationInfo === void 0 ? void 0 : operationInfo.operationArguments;
+            const operationSpec = operationInfo?.operationSpec;
+            const operationArguments = operationInfo?.operationArguments;
             if (operationSpec && operationArguments) {
                 serializeHeaders(request, operationArguments, operationSpec);
                 serializeRequestBody(request, operationArguments, operationSpec, stringifyXML);
@@ -37220,7 +37239,6 @@ function serializationPolicy(options = {}) {
  * @internal
  */
 function serializeHeaders(request, operationArguments, operationSpec) {
-    var _a, _b;
     if (operationSpec.headerParameters) {
         for (const headerParameter of operationSpec.headerParameters) {
             let headerValue = (0, operationHelpers_js_1.getOperationArgumentValueFromParameter)(operationArguments, headerParameter);
@@ -37239,7 +37257,7 @@ function serializeHeaders(request, operationArguments, operationSpec) {
             }
         }
     }
-    const customHeaders = (_b = (_a = operationArguments.options) === null || _a === void 0 ? void 0 : _a.requestOptions) === null || _b === void 0 ? void 0 : _b.customHeaders;
+    const customHeaders = operationArguments.options?.requestOptions?.customHeaders;
     if (customHeaders) {
         for (const customHeaderName of Object.keys(customHeaders)) {
             request.headers.set(customHeaderName, customHeaders[customHeaderName]);
@@ -37252,13 +37270,12 @@ function serializeHeaders(request, operationArguments, operationSpec) {
 function serializeRequestBody(request, operationArguments, operationSpec, stringifyXML = function () {
     throw new Error("XML serialization unsupported!");
 }) {
-    var _a, _b, _c, _d, _e;
-    const serializerOptions = (_a = operationArguments.options) === null || _a === void 0 ? void 0 : _a.serializerOptions;
+    const serializerOptions = operationArguments.options?.serializerOptions;
     const updatedOptions = {
         xml: {
-            rootName: (_b = serializerOptions === null || serializerOptions === void 0 ? void 0 : serializerOptions.xml.rootName) !== null && _b !== void 0 ? _b : "",
-            includeRoot: (_c = serializerOptions === null || serializerOptions === void 0 ? void 0 : serializerOptions.xml.includeRoot) !== null && _c !== void 0 ? _c : false,
-            xmlCharKey: (_d = serializerOptions === null || serializerOptions === void 0 ? void 0 : serializerOptions.xml.xmlCharKey) !== null && _d !== void 0 ? _d : interfaces_js_1.XML_CHARKEY,
+            rootName: serializerOptions?.xml.rootName ?? "",
+            includeRoot: serializerOptions?.xml.includeRoot ?? false,
+            xmlCharKey: serializerOptions?.xml.xmlCharKey ?? interfaces_js_1.XML_CHARKEY,
         },
     };
     const xmlCharKey = updatedOptions.xml.xmlCharKey;
@@ -37288,7 +37305,7 @@ function serializeRequestBody(request, operationArguments, operationSpec, string
                     }
                 }
                 else if (typeName === serializer_js_1.MapperTypeNames.String &&
-                    (((_e = operationSpec.contentType) === null || _e === void 0 ? void 0 : _e.match("text/plain")) || operationSpec.mediaType === "text")) {
+                    (operationSpec.contentType?.match("text/plain") || operationSpec.mediaType === "text")) {
                     // the String serializer has validated that request body is a string
                     // so just send the string.
                     return;
@@ -37357,6 +37374,8 @@ const base64 = tslib_1.__importStar(__nccwpck_require__(20741));
 const interfaces_js_1 = __nccwpck_require__(56058);
 const utils_js_1 = __nccwpck_require__(31193);
 class SerializerImpl {
+    modelMappers;
+    isXML;
     constructor(modelMappers = {}, isXML = false) {
         this.modelMappers = modelMappers;
         this.isXML = isXML;
@@ -37423,12 +37442,11 @@ class SerializerImpl {
      * @returns A valid serialized Javascript object
      */
     serialize(mapper, object, objectName, options = { xml: {} }) {
-        var _a, _b, _c;
         const updatedOptions = {
             xml: {
-                rootName: (_a = options.xml.rootName) !== null && _a !== void 0 ? _a : "",
-                includeRoot: (_b = options.xml.includeRoot) !== null && _b !== void 0 ? _b : false,
-                xmlCharKey: (_c = options.xml.xmlCharKey) !== null && _c !== void 0 ? _c : interfaces_js_1.XML_CHARKEY,
+                rootName: options.xml.rootName ?? "",
+                includeRoot: options.xml.includeRoot ?? false,
+                xmlCharKey: options.xml.xmlCharKey ?? interfaces_js_1.XML_CHARKEY,
             },
         };
         let payload = {};
@@ -37510,14 +37528,13 @@ class SerializerImpl {
      * @returns A valid deserialized Javascript object
      */
     deserialize(mapper, responseBody, objectName, options = { xml: {} }) {
-        var _a, _b, _c, _d;
         const updatedOptions = {
             xml: {
-                rootName: (_a = options.xml.rootName) !== null && _a !== void 0 ? _a : "",
-                includeRoot: (_b = options.xml.includeRoot) !== null && _b !== void 0 ? _b : false,
-                xmlCharKey: (_c = options.xml.xmlCharKey) !== null && _c !== void 0 ? _c : interfaces_js_1.XML_CHARKEY,
+                rootName: options.xml.rootName ?? "",
+                includeRoot: options.xml.includeRoot ?? false,
+                xmlCharKey: options.xml.xmlCharKey ?? interfaces_js_1.XML_CHARKEY,
             },
-            ignoreUnknownProperties: (_d = options.ignoreUnknownProperties) !== null && _d !== void 0 ? _d : false,
+            ignoreUnknownProperties: options.ignoreUnknownProperties ?? false,
         };
         if (responseBody === undefined || responseBody === null) {
             if (this.isXML && mapper.type.name === "Sequence" && !mapper.xmlIsWrapped) {
@@ -37783,7 +37800,6 @@ function serializeDateTypes(typeName, value, objectName) {
     return value;
 }
 function serializeSequenceType(serializer, mapper, object, objectName, isXml, options) {
-    var _a;
     if (!Array.isArray(object)) {
         throw new Error(`${objectName} must be of type Array.`);
     }
@@ -37796,7 +37812,7 @@ function serializeSequenceType(serializer, mapper, object, objectName, isXml, op
     // not have *all* properties declared (like uberParent),
     // so let's try to look up the full definition by name.
     if (elementType.type.name === "Composite" && elementType.type.className) {
-        elementType = (_a = serializer.modelMappers[elementType.type.className]) !== null && _a !== void 0 ? _a : elementType;
+        elementType = serializer.modelMappers[elementType.type.className] ?? elementType;
     }
     const tempArray = [];
     for (let i = 0; i < object.length; i++) {
@@ -37806,7 +37822,7 @@ function serializeSequenceType(serializer, mapper, object, objectName, isXml, op
                 ? `xmlns:${elementType.xmlNamespacePrefix}`
                 : "xmlns";
             if (elementType.type.name === "Composite") {
-                tempArray[i] = Object.assign({}, serializedValue);
+                tempArray[i] = { ...serializedValue };
                 tempArray[i][interfaces_js_1.XML_ATTRKEY] = { [xmlnsKey]: elementType.xmlNamespace };
             }
             else {
@@ -37855,7 +37871,7 @@ function resolveAdditionalProperties(serializer, mapper, objectName) {
     const additionalProperties = mapper.type.additionalProperties;
     if (!additionalProperties && mapper.type.className) {
         const modelMapper = resolveReferencedMapper(serializer, mapper, objectName);
-        return modelMapper === null || modelMapper === void 0 ? void 0 : modelMapper.type.additionalProperties;
+        return modelMapper?.type.additionalProperties;
     }
     return additionalProperties;
 }
@@ -37884,7 +37900,7 @@ function resolveModelProperties(serializer, mapper, objectName) {
         if (!modelMapper) {
             throw new Error(`mapper() cannot be null or undefined for model "${mapper.type.className}".`);
         }
-        modelProps = modelMapper === null || modelMapper === void 0 ? void 0 : modelMapper.type.modelProperties;
+        modelProps = modelMapper?.type.modelProperties;
         if (!modelProps) {
             throw new Error(`modelProperties cannot be null or undefined in the ` +
                 `mapper "${JSON.stringify(modelMapper)}" of type "${mapper.type.className}" for object "${objectName}".`);
@@ -37932,7 +37948,10 @@ function serializeCompositeType(serializer, mapper, object, objectName, isXml, o
                     const xmlnsKey = mapper.xmlNamespacePrefix
                         ? `xmlns:${mapper.xmlNamespacePrefix}`
                         : "xmlns";
-                    parentObject[interfaces_js_1.XML_ATTRKEY] = Object.assign(Object.assign({}, parentObject[interfaces_js_1.XML_ATTRKEY]), { [xmlnsKey]: mapper.xmlNamespace });
+                    parentObject[interfaces_js_1.XML_ATTRKEY] = {
+                        ...parentObject[interfaces_js_1.XML_ATTRKEY],
+                        [xmlnsKey]: mapper.xmlNamespace,
+                    };
                 }
                 const propertyObjectName = propertyMapper.serializedName !== ""
                     ? objectName + "." + propertyMapper.serializedName
@@ -37990,7 +38009,7 @@ function getXmlObjectValue(propertyMapper, serializedValue, isXml, options) {
             return serializedValue;
         }
         else {
-            const result = Object.assign({}, serializedValue);
+            const result = { ...serializedValue };
             result[interfaces_js_1.XML_ATTRKEY] = xmlNamespace;
             return result;
         }
@@ -38004,8 +38023,7 @@ function isSpecialXmlProperty(propertyName, options) {
     return [interfaces_js_1.XML_ATTRKEY, options.xml.xmlCharKey].includes(propertyName);
 }
 function deserializeCompositeType(serializer, mapper, responseBody, objectName, options) {
-    var _a, _b;
-    const xmlCharKey = (_a = options.xml.xmlCharKey) !== null && _a !== void 0 ? _a : interfaces_js_1.XML_CHARKEY;
+    const xmlCharKey = options.xml.xmlCharKey ?? interfaces_js_1.XML_CHARKEY;
     if (getPolymorphicDiscriminatorRecursively(serializer, mapper)) {
         mapper = getPolymorphicMapper(serializer, mapper, responseBody, "serializedName");
     }
@@ -38064,7 +38082,7 @@ function deserializeCompositeType(serializer, mapper, responseBody, objectName, 
                       xmlName is "Cors" and xmlElementName is"CorsRule".
                     */
                     const wrapped = responseBody[xmlName];
-                    const elementList = (_b = wrapped === null || wrapped === void 0 ? void 0 : wrapped[xmlElementName]) !== null && _b !== void 0 ? _b : [];
+                    const elementList = wrapped?.[xmlElementName] ?? [];
                     instance[key] = serializer.deserialize(propertyMapper, elementList, propertyObjectName, options);
                     handledPropertyNames.push(xmlName);
                 }
@@ -38172,7 +38190,6 @@ function deserializeDictionaryType(serializer, mapper, responseBody, objectName,
     return responseBody;
 }
 function deserializeSequenceType(serializer, mapper, responseBody, objectName, options) {
-    var _a;
     let element = mapper.type.element;
     if (!element || typeof element !== "object") {
         throw new Error(`element" metadata for an Array must be defined in the ` +
@@ -38187,7 +38204,7 @@ function deserializeSequenceType(serializer, mapper, responseBody, objectName, o
         // not have *all* properties declared (like uberParent),
         // so let's try to look up the full definition by name.
         if (element.type.name === "Composite" && element.type.className) {
-            element = (_a = serializer.modelMappers[element.type.className]) !== null && _a !== void 0 ? _a : element;
+            element = serializer.modelMappers[element.type.className] ?? element;
         }
         const tempArray = [];
         for (let i = 0; i < responseBody.length; i++) {
@@ -38220,7 +38237,6 @@ function getIndexDiscriminator(discriminators, discriminatorValue, typeName) {
     return undefined;
 }
 function getPolymorphicMapper(serializer, mapper, object, polymorphicPropertyName) {
-    var _a;
     const polymorphicDiscriminator = getPolymorphicDiscriminatorRecursively(serializer, mapper);
     if (polymorphicDiscriminator) {
         let discriminatorName = polymorphicDiscriminator[polymorphicPropertyName];
@@ -38230,7 +38246,7 @@ function getPolymorphicMapper(serializer, mapper, object, polymorphicPropertyNam
                 discriminatorName = discriminatorName.replace(/\\/gi, "");
             }
             const discriminatorValue = object[discriminatorName];
-            const typeName = (_a = mapper.type.uberParent) !== null && _a !== void 0 ? _a : mapper.type.className;
+            const typeName = mapper.type.uberParent ?? mapper.type.className;
             if (typeof discriminatorValue === "string" && typeName) {
                 const polymorphicMapper = getIndexDiscriminator(serializer.modelMappers.discriminators, discriminatorValue, typeName);
                 if (polymorphicMapper) {
@@ -38298,20 +38314,41 @@ const log_js_1 = __nccwpck_require__(89994);
  */
 class ServiceClient {
     /**
+     * If specified, this is the base URI that requests will be made against for this ServiceClient.
+     * If it is not specified, then all OperationSpecs must contain a baseUrl property.
+     */
+    _endpoint;
+    /**
+     * The default request content type for the service.
+     * Used if no requestContentType is present on an OperationSpec.
+     */
+    _requestContentType;
+    /**
+     * Set to true if the request is sent over HTTP instead of HTTPS
+     */
+    _allowInsecureConnection;
+    /**
+     * The HTTP client that will be used to send requests.
+     */
+    _httpClient;
+    /**
+     * The pipeline used by this client to make requests
+     */
+    pipeline;
+    /**
      * The ServiceClient constructor
      * @param options - The service client options that govern the behavior of the client.
      */
     constructor(options = {}) {
-        var _a, _b;
         this._requestContentType = options.requestContentType;
-        this._endpoint = (_a = options.endpoint) !== null && _a !== void 0 ? _a : options.baseUri;
+        this._endpoint = options.endpoint ?? options.baseUri;
         if (options.baseUri) {
             log_js_1.logger.warning("The baseUri option for SDK Clients has been deprecated, please use endpoint instead.");
         }
         this._allowInsecureConnection = options.allowInsecureConnection;
         this._httpClient = options.httpClient || (0, httpClientCache_js_1.getCachedDefaultHttpClient)();
         this.pipeline = options.pipeline || createDefaultPipeline(options);
-        if ((_b = options.additionalPolicies) === null || _b === void 0 ? void 0 : _b.length) {
+        if (options.additionalPolicies?.length) {
             for (const { policy, position } of options.additionalPolicies) {
                 // Sign happens after Retry and is commonly needed to occur
                 // before policies that intercept post-retry.
@@ -38390,17 +38427,17 @@ class ServiceClient {
         try {
             const rawResponse = await this.sendRequest(request);
             const flatResponse = (0, utils_js_1.flattenResponse)(rawResponse, operationSpec.responses[rawResponse.status]);
-            if (options === null || options === void 0 ? void 0 : options.onResponse) {
+            if (options?.onResponse) {
                 options.onResponse(rawResponse, flatResponse);
             }
             return flatResponse;
         }
         catch (error) {
-            if (typeof error === "object" && (error === null || error === void 0 ? void 0 : error.response)) {
+            if (typeof error === "object" && error?.response) {
                 const rawResponse = error.response;
                 const flatResponse = (0, utils_js_1.flattenResponse)(rawResponse, operationSpec.responses[error.statusCode] || operationSpec.responses["default"]);
                 error.details = flatResponse;
-                if (options === null || options === void 0 ? void 0 : options.onResponse) {
+                if (options?.onResponse) {
                     options.onResponse(rawResponse, flatResponse, error);
                 }
             }
@@ -38414,7 +38451,10 @@ function createDefaultPipeline(options) {
     const credentialOptions = options.credential && credentialScopes
         ? { credentialScopes, credential: options.credential }
         : undefined;
-    return (0, pipeline_js_1.createClientPipeline)(Object.assign(Object.assign({}, options), { credentialOptions }));
+    return (0, pipeline_js_1.createClientPipeline)({
+        ...options,
+        credentialOptions,
+    });
 }
 function getCredentialScopes(options) {
     if (options.credentialScopes) {
@@ -38514,9 +38554,8 @@ function replaceAll(input, replacements) {
     return result;
 }
 function calculateUrlReplacements(operationSpec, operationArguments, fallbackObject) {
-    var _a;
     const result = new Map();
-    if ((_a = operationSpec.urlParameters) === null || _a === void 0 ? void 0 : _a.length) {
+    if (operationSpec.urlParameters?.length) {
         for (const urlParameter of operationSpec.urlParameters) {
             let urlParameterValue = (0, operationHelpers_js_1.getOperationArgumentValueFromParameter)(operationArguments, urlParameter, fallbackObject);
             const parameterPathString = (0, interfaceHelpers_js_1.getPathStringFromParameter)(urlParameter);
@@ -38560,10 +38599,9 @@ function appendPath(url, pathToAppend) {
     return parsedUrl.toString();
 }
 function calculateQueryParameters(operationSpec, operationArguments, fallbackObject) {
-    var _a;
     const result = new Map();
     const sequenceParams = new Set();
-    if ((_a = operationSpec.queryParameters) === null || _a === void 0 ? void 0 : _a.length) {
+    if (operationSpec.queryParameters?.length) {
         for (const queryParameter of operationSpec.queryParameters) {
             if (queryParameter.mapper.type.name === "Sequence" && queryParameter.mapper.serializedName) {
                 sequenceParams.add(queryParameter.mapper.serializedName);
@@ -38724,7 +38762,7 @@ function isPrimitiveBody(value, mapperTypeName) {
         (typeof value === "string" ||
             typeof value === "number" ||
             typeof value === "boolean" ||
-            (mapperTypeName === null || mapperTypeName === void 0 ? void 0 : mapperTypeName.match(/^(Date|DateTime|DateTimeRfc1123|UnixTime|ByteArray|Base64Url)$/i)) !==
+            mapperTypeName?.match(/^(Date|DateTime|DateTimeRfc1123|UnixTime|ByteArray|Base64Url)$/i) !==
                 null ||
             value === undefined ||
             value === null));
@@ -38761,14 +38799,21 @@ function isValidUuid(uuid) {
  * @internal
  */
 function handleNullableResponseAndWrappableBody(responseObject) {
-    const combinedHeadersAndBody = Object.assign(Object.assign({}, responseObject.headers), responseObject.body);
+    const combinedHeadersAndBody = {
+        ...responseObject.headers,
+        ...responseObject.body,
+    };
     if (responseObject.hasNullableType &&
         Object.getOwnPropertyNames(combinedHeadersAndBody).length === 0) {
         return responseObject.shouldWrapBody ? { body: null } : null;
     }
     else {
         return responseObject.shouldWrapBody
-            ? Object.assign(Object.assign({}, responseObject.headers), { body: responseObject.body }) : combinedHeadersAndBody;
+            ? {
+                ...responseObject.headers,
+                body: responseObject.body,
+            }
+            : combinedHeadersAndBody;
     }
 }
 /**
@@ -38780,29 +38825,35 @@ function handleNullableResponseAndWrappableBody(responseObject) {
  * @internal
  */
 function flattenResponse(fullResponse, responseSpec) {
-    var _a, _b;
     const parsedHeaders = fullResponse.parsedHeaders;
     // head methods never have a body, but we return a boolean set to body property
     // to indicate presence/absence of the resource
     if (fullResponse.request.method === "HEAD") {
-        return Object.assign(Object.assign({}, parsedHeaders), { body: fullResponse.parsedBody });
+        return {
+            ...parsedHeaders,
+            body: fullResponse.parsedBody,
+        };
     }
     const bodyMapper = responseSpec && responseSpec.bodyMapper;
-    const isNullable = Boolean(bodyMapper === null || bodyMapper === void 0 ? void 0 : bodyMapper.nullable);
-    const expectedBodyTypeName = bodyMapper === null || bodyMapper === void 0 ? void 0 : bodyMapper.type.name;
+    const isNullable = Boolean(bodyMapper?.nullable);
+    const expectedBodyTypeName = bodyMapper?.type.name;
     /** If the body is asked for, we look at the expected body type to handle it */
     if (expectedBodyTypeName === "Stream") {
-        return Object.assign(Object.assign({}, parsedHeaders), { blobBody: fullResponse.blobBody, readableStreamBody: fullResponse.readableStreamBody });
+        return {
+            ...parsedHeaders,
+            blobBody: fullResponse.blobBody,
+            readableStreamBody: fullResponse.readableStreamBody,
+        };
     }
     const modelProperties = (expectedBodyTypeName === "Composite" &&
         bodyMapper.type.modelProperties) ||
         {};
     const isPageableResponse = Object.keys(modelProperties).some((k) => modelProperties[k].serializedName === "");
     if (expectedBodyTypeName === "Sequence" || isPageableResponse) {
-        const arrayResponse = (_a = fullResponse.parsedBody) !== null && _a !== void 0 ? _a : [];
+        const arrayResponse = fullResponse.parsedBody ?? [];
         for (const key of Object.keys(modelProperties)) {
             if (modelProperties[key].serializedName) {
-                arrayResponse[key] = (_b = fullResponse.parsedBody) === null || _b === void 0 ? void 0 : _b[key];
+                arrayResponse[key] = fullResponse.parsedBody?.[key];
             }
         }
         if (parsedHeaders) {
@@ -38846,13 +38897,12 @@ const response_js_1 = __nccwpck_require__(38153);
  */
 class ExtendedServiceClient extends core_client_1.ServiceClient {
     constructor(options) {
-        var _a, _b;
         super(options);
-        if (((_a = options.keepAliveOptions) === null || _a === void 0 ? void 0 : _a.enable) === false &&
+        if (options.keepAliveOptions?.enable === false &&
             !(0, disableKeepAlivePolicy_js_1.pipelineContainsDisableKeepAlivePolicy)(this.pipeline)) {
             this.pipeline.addPolicy((0, disableKeepAlivePolicy_js_1.createDisableKeepAlivePolicy)());
         }
-        if (((_b = options.redirectOptions) === null || _b === void 0 ? void 0 : _b.handleRedirects) === false) {
+        if (options.redirectOptions?.handleRedirects === false) {
             this.pipeline.removePolicy({
                 name: core_rest_pipeline_1.redirectPolicyName,
             });
@@ -38866,8 +38916,7 @@ class ExtendedServiceClient extends core_client_1.ServiceClient {
      * @returns
      */
     async sendOperationRequest(operationArguments, operationSpec) {
-        var _a;
-        const userProvidedCallBack = (_a = operationArguments === null || operationArguments === void 0 ? void 0 : operationArguments.options) === null || _a === void 0 ? void 0 : _a.onResponse;
+        const userProvidedCallBack = operationArguments?.options?.onResponse;
         let lastResponse;
         function onResponse(rawResponse, flatResponse, error) {
             lastResponse = rawResponse;
@@ -38875,7 +38924,10 @@ class ExtendedServiceClient extends core_client_1.ServiceClient {
                 userProvidedCallBack(rawResponse, flatResponse, error);
             }
         }
-        operationArguments.options = Object.assign(Object.assign({}, operationArguments.options), { onResponse });
+        operationArguments.options = {
+            ...operationArguments.options,
+            onResponse,
+        };
         const result = await super.sendOperationRequest(operationArguments, operationSpec);
         if (lastResponse) {
             Object.defineProperty(result, "_response", {
@@ -39062,7 +39114,7 @@ const originalResponse = Symbol("Original FullOperationResponse");
 function toCompatResponse(response, options) {
     let request = (0, util_js_1.toWebResourceLike)(response.request);
     let headers = (0, util_js_1.toHttpHeadersLike)(response.headers);
-    if (options === null || options === void 0 ? void 0 : options.createProxy) {
+    if (options?.createProxy) {
         return new Proxy(response, {
             get(target, prop, receiver) {
                 if (prop === "headers") {
@@ -39088,8 +39140,11 @@ function toCompatResponse(response, options) {
         });
     }
     else {
-        return Object.assign(Object.assign({}, response), { request,
-            headers });
+        return {
+            ...response,
+            request,
+            headers,
+        };
     }
 }
 /**
@@ -39105,7 +39160,11 @@ function toPipelineResponse(compatResponse) {
         return response;
     }
     else {
-        return Object.assign(Object.assign({}, compatResponse), { headers, request: (0, util_js_1.toPipelineRequest)(compatResponse.request) });
+        return {
+            ...compatResponse,
+            headers,
+            request: (0, util_js_1.toPipelineRequest)(compatResponse.request),
+        };
     }
 }
 //# sourceMappingURL=response.js.map
@@ -39168,8 +39227,7 @@ function toPipelineRequest(webResource, options = {}) {
     }
 }
 function toWebResourceLike(request, options) {
-    var _a;
-    const originalRequest = (_a = options === null || options === void 0 ? void 0 : options.originalRequest) !== null && _a !== void 0 ? _a : request;
+    const originalRequest = options?.originalRequest ?? request;
     const webResource = {
         url: request.url,
         method: request.method,
@@ -39197,7 +39255,7 @@ function toWebResourceLike(request, options) {
             /** do nothing */
         },
     };
-    if (options === null || options === void 0 ? void 0 : options.createProxy) {
+    if (options?.createProxy) {
         return new Proxy(webResource, {
             get(target, prop, receiver) {
                 if (prop === originalRequestSymbol) {
@@ -39263,6 +39321,7 @@ function getHeaderKey(headerName) {
  * A collection of HTTP header key/value pairs.
  */
 class HttpHeaders {
+    _headersMap;
     constructor(rawHeaders) {
         this._headersMap = {};
         if (rawHeaders) {
@@ -40757,7 +40816,7 @@ exports.buildCreatePoller = buildCreatePoller;
 // Licensed under the MIT License.
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_RETRY_POLICY_COUNT = exports.SDK_VERSION = void 0;
-exports.SDK_VERSION = "1.21.0";
+exports.SDK_VERSION = "1.22.1";
 exports.DEFAULT_RETRY_POLICY_COUNT = 3;
 //# sourceMappingURL=constants.js.map
 
@@ -40792,7 +40851,6 @@ const wrapAbortSignalLikePolicy_js_1 = __nccwpck_require__(37466);
  * @param options - Options to configure a custom pipeline.
  */
 function createPipelineFromOptions(options) {
-    var _a;
     const pipeline = (0, pipeline_js_1.createEmptyPipeline)();
     if (core_util_1.isNodeLike) {
         if (options.agent) {
@@ -40807,13 +40865,13 @@ function createPipelineFromOptions(options) {
     pipeline.addPolicy((0, wrapAbortSignalLikePolicy_js_1.wrapAbortSignalLikePolicy)());
     pipeline.addPolicy((0, formDataPolicy_js_1.formDataPolicy)(), { beforePolicies: [multipartPolicy_js_1.multipartPolicyName] });
     pipeline.addPolicy((0, userAgentPolicy_js_1.userAgentPolicy)(options.userAgentOptions));
-    pipeline.addPolicy((0, setClientRequestIdPolicy_js_1.setClientRequestIdPolicy)((_a = options.telemetryOptions) === null || _a === void 0 ? void 0 : _a.clientRequestIdHeaderName));
+    pipeline.addPolicy((0, setClientRequestIdPolicy_js_1.setClientRequestIdPolicy)(options.telemetryOptions?.clientRequestIdHeaderName));
     // The multipart policy is added after policies with no phase, so that
     // policies can be added between it and formDataPolicy to modify
     // properties (e.g., making the boundary constant in recorded tests).
     pipeline.addPolicy((0, multipartPolicy_js_1.multipartPolicy)(), { afterPhase: "Deserialize" });
     pipeline.addPolicy((0, defaultRetryPolicy_js_1.defaultRetryPolicy)(options.retryOptions), { phase: "Retry" });
-    pipeline.addPolicy((0, tracingPolicy_js_1.tracingPolicy)(Object.assign(Object.assign({}, options.userAgentOptions), options.loggingOptions)), {
+    pipeline.addPolicy((0, tracingPolicy_js_1.tracingPolicy)({ ...options.userAgentOptions, ...options.loggingOptions }), {
         afterPhase: "Retry",
     });
     if (core_util_1.isNodeLike) {
@@ -40857,7 +40915,7 @@ function createDefaultHttpClient() {
                 return await client.sendRequest(request);
             }
             finally {
-                cleanup === null || cleanup === void 0 ? void 0 : cleanup();
+                cleanup?.();
             }
         },
     };
@@ -41076,13 +41134,12 @@ const log_js_1 = __nccwpck_require__(80544);
 exports.auxiliaryAuthenticationHeaderPolicyName = "auxiliaryAuthenticationHeaderPolicy";
 const AUTHORIZATION_AUXILIARY_HEADER = "x-ms-authorization-auxiliary";
 async function sendAuthorizeRequest(options) {
-    var _a, _b;
     const { scopes, getAccessToken, request } = options;
     const getTokenOptions = {
         abortSignal: request.abortSignal,
         tracingOptions: request.tracingOptions,
     };
-    return (_b = (_a = (await getAccessToken(scopes, getTokenOptions))) === null || _a === void 0 ? void 0 : _a.token) !== null && _b !== void 0 ? _b : "";
+    return (await getAccessToken(scopes, getTokenOptions))?.token ?? "";
 }
 /**
  * A policy for external tokens to `x-ms-authorization-auxiliary` header.
@@ -41201,7 +41258,6 @@ function isChallengeResponse(response) {
  * If this method returns true, the underlying request will be sent once again.
  */
 async function authorizeRequestOnCaeChallenge(onChallengeOptions, caeClaims) {
-    var _a;
     const { scopes } = onChallengeOptions;
     const accessToken = await onChallengeOptions.getAccessToken(scopes, {
         enableCae: true,
@@ -41210,7 +41266,7 @@ async function authorizeRequestOnCaeChallenge(onChallengeOptions, caeClaims) {
     if (!accessToken) {
         return false;
     }
-    onChallengeOptions.request.headers.set("Authorization", `${(_a = accessToken.tokenType) !== null && _a !== void 0 ? _a : "Bearer"} ${accessToken.token}`);
+    onChallengeOptions.request.headers.set("Authorization", `${accessToken.tokenType ?? "Bearer"} ${accessToken.token}`);
     return true;
 }
 /**
@@ -41218,12 +41274,11 @@ async function authorizeRequestOnCaeChallenge(onChallengeOptions, caeClaims) {
  * then apply it to the Authorization header of a request as a Bearer token.
  */
 function bearerTokenAuthenticationPolicy(options) {
-    var _a, _b, _c;
     const { credential, scopes, challengeCallbacks } = options;
     const logger = options.logger || log_js_1.logger;
     const callbacks = {
-        authorizeRequest: (_b = (_a = challengeCallbacks === null || challengeCallbacks === void 0 ? void 0 : challengeCallbacks.authorizeRequest) === null || _a === void 0 ? void 0 : _a.bind(challengeCallbacks)) !== null && _b !== void 0 ? _b : defaultAuthorizeRequest,
-        authorizeRequestOnChallenge: (_c = challengeCallbacks === null || challengeCallbacks === void 0 ? void 0 : challengeCallbacks.authorizeRequestOnChallenge) === null || _c === void 0 ? void 0 : _c.bind(challengeCallbacks),
+        authorizeRequest: challengeCallbacks?.authorizeRequest?.bind(challengeCallbacks) ?? defaultAuthorizeRequest,
+        authorizeRequestOnChallenge: challengeCallbacks?.authorizeRequestOnChallenge?.bind(challengeCallbacks),
     };
     // This function encapsulates the entire process of reliably retrieving the token
     // The options are left out of the public API until there's demand to configure this.
@@ -41370,13 +41425,12 @@ function parseChallenges(challenges) {
  * @internal
  */
 function getCaeChallengeClaims(challenges) {
-    var _a;
     if (!challenges) {
         return;
     }
     // Find all challenges present in the header
     const parsedChallenges = parseChallenges(challenges);
-    return (_a = parsedChallenges.find((x) => x.scheme === "Bearer" && x.params.claims && x.params.error === "insufficient_claims")) === null || _a === void 0 ? void 0 : _a.params.claims;
+    return parsedChallenges.find((x) => x.scheme === "Bearer" && x.params.claims && x.params.error === "insufficient_claims")?.params.claims;
 }
 //# sourceMappingURL=bearerTokenAuthenticationPolicy.js.map
 
@@ -41508,7 +41562,10 @@ exports.logPolicyName = policies_1.logPolicyName;
  * @param options - Options to configure logPolicy.
  */
 function logPolicy(options = {}) {
-    return (0, policies_1.logPolicy)(Object.assign({ logger: log_js_1.logger.info }, options));
+    return (0, policies_1.logPolicy)({
+        logger: log_js_1.logger.info,
+        ...options,
+    });
 }
 //# sourceMappingURL=logPolicy.js.map
 
@@ -41677,7 +41734,10 @@ function retryPolicy(strategies, options = { maxRetries: constants_js_1.DEFAULT_
     // Cast is required since the TSP runtime retry strategy type is slightly different
     // very deep down (using real AbortSignal vs. AbortSignalLike in RestError).
     // In practice the difference doesn't actually matter.
-    return (0, policies_1.retryPolicy)(strategies, Object.assign({ logger: retryPolicyLogger }, options));
+    return (0, policies_1.retryPolicy)(strategies, {
+        logger: retryPolicyLogger,
+        ...options,
+    });
 }
 //# sourceMappingURL=retryPolicy.js.map
 
@@ -41839,7 +41899,6 @@ function tracingPolicy(options = {}) {
     return {
         name: exports.tracingPolicyName,
         async sendRequest(request, next) {
-            var _a;
             if (!tracingClient) {
                 return next(request);
             }
@@ -41853,7 +41912,7 @@ function tracingPolicy(options = {}) {
             if (userAgent) {
                 spanAttributes["http.user_agent"] = userAgent;
             }
-            const { span, tracingContext } = (_a = tryCreateSpan(tracingClient, request, spanAttributes)) !== null && _a !== void 0 ? _a : {};
+            const { span, tracingContext } = tryCreateSpan(tracingClient, request, spanAttributes) ?? {};
             if (!span || !tracingContext) {
                 return next(request);
             }
@@ -42015,7 +42074,7 @@ function wrapAbortSignalLikePolicy() {
                 return await next(request);
             }
             finally {
-                cleanup === null || cleanup === void 0 ? void 0 : cleanup();
+                cleanup?.();
             }
         },
     };
@@ -42135,14 +42194,22 @@ function getRawContent(blob) {
  * @param options - optional metadata about the file, e.g. file name, file size, MIME type.
  */
 function createFileFromStream(stream, name, options = {}) {
-    var _a, _b, _c, _d;
-    return Object.assign(Object.assign({}, unimplementedMethods), { type: (_a = options.type) !== null && _a !== void 0 ? _a : "", lastModified: (_b = options.lastModified) !== null && _b !== void 0 ? _b : new Date().getTime(), webkitRelativePath: (_c = options.webkitRelativePath) !== null && _c !== void 0 ? _c : "", size: (_d = options.size) !== null && _d !== void 0 ? _d : -1, name, stream: () => {
+    return {
+        ...unimplementedMethods,
+        type: options.type ?? "",
+        lastModified: options.lastModified ?? new Date().getTime(),
+        webkitRelativePath: options.webkitRelativePath ?? "",
+        size: options.size ?? -1,
+        name,
+        stream: () => {
             const s = stream();
             if (isNodeReadableStream(s)) {
                 throw new Error("Not supported: a Node stream was provided as input to createFileFromStream.");
             }
             return s;
-        }, [rawContent]: stream });
+        },
+        [rawContent]: stream,
+    };
 }
 /**
  * Create an object that implements the File interface. This object is intended to be
@@ -42156,9 +42223,18 @@ function createFileFromStream(stream, name, options = {}) {
  * @param options - optional metadata about the file, e.g. file name, file size, MIME type.
  */
 function createFile(content, name, options = {}) {
-    var _a, _b, _c;
     if (core_util_1.isNodeLike) {
-        return Object.assign(Object.assign({}, unimplementedMethods), { type: (_a = options.type) !== null && _a !== void 0 ? _a : "", lastModified: (_b = options.lastModified) !== null && _b !== void 0 ? _b : new Date().getTime(), webkitRelativePath: (_c = options.webkitRelativePath) !== null && _c !== void 0 ? _c : "", size: content.byteLength, name, arrayBuffer: async () => content.buffer, stream: () => new Blob([content]).stream(), [rawContent]: () => content });
+        return {
+            ...unimplementedMethods,
+            type: options.type ?? "",
+            lastModified: options.lastModified ?? new Date().getTime(),
+            webkitRelativePath: options.webkitRelativePath ?? "",
+            size: content.byteLength,
+            name,
+            arrayBuffer: async () => content.buffer,
+            stream: () => new Blob([content]).stream(),
+            [rawContent]: () => content,
+        };
     }
     else {
         return new File([content], name, options);
@@ -42203,7 +42279,7 @@ async function beginRefresh(getAccessToken, retryIntervalInMs, refreshTimeout) {
             try {
                 return await getAccessToken();
             }
-            catch (_a) {
+            catch {
                 return null;
             }
         }
@@ -42241,7 +42317,10 @@ function createTokenCycler(credential, tokenCyclerOptions) {
     let refreshWorker = null;
     let token = null;
     let tenantId;
-    const options = Object.assign(Object.assign({}, exports.DEFAULT_CYCLER_OPTIONS), tokenCyclerOptions);
+    const options = {
+        ...exports.DEFAULT_CYCLER_OPTIONS,
+        ...tokenCyclerOptions,
+    };
     /**
      * This little holder defines several predicates that we use to construct
      * the rules of refreshing the token.
@@ -42258,14 +42337,13 @@ function createTokenCycler(credential, tokenCyclerOptions) {
          * window and not already refreshing)
          */
         get shouldRefresh() {
-            var _a;
             if (cycler.isRefreshing) {
                 return false;
             }
-            if ((token === null || token === void 0 ? void 0 : token.refreshAfterTimestamp) && token.refreshAfterTimestamp < Date.now()) {
+            if (token?.refreshAfterTimestamp && token.refreshAfterTimestamp < Date.now()) {
                 return true;
             }
-            return ((_a = token === null || token === void 0 ? void 0 : token.expiresOnTimestamp) !== null && _a !== void 0 ? _a : 0) - options.refreshWindowInMs < Date.now();
+            return (token?.expiresOnTimestamp ?? 0) - options.refreshWindowInMs < Date.now();
         },
         /**
          * Produces true if the cycler MUST refresh (null or nearly-expired
@@ -42280,7 +42358,6 @@ function createTokenCycler(credential, tokenCyclerOptions) {
      * running.
      */
     function refresh(scopes, getTokenOptions) {
-        var _a;
         if (!cycler.isRefreshing) {
             // We bind `scopes` here to avoid passing it around a lot
             const tryGetAccessToken = () => credential.getToken(scopes, getTokenOptions);
@@ -42288,7 +42365,7 @@ function createTokenCycler(credential, tokenCyclerOptions) {
             // before the refresh can be considered done.
             refreshWorker = beginRefresh(tryGetAccessToken, options.retryIntervalInMs, 
             // If we don't have a token, then we should timeout immediately
-            (_a = token === null || token === void 0 ? void 0 : token.expiresOnTimestamp) !== null && _a !== void 0 ? _a : Date.now())
+            token?.expiresOnTimestamp ?? Date.now())
                 .then((_token) => {
                 refreshWorker = null;
                 token = _token;
@@ -42393,8 +42470,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getHeaderName = getHeaderName;
 exports.setPlatformSpecificData = setPlatformSpecificData;
 const tslib_1 = __nccwpck_require__(61860);
-const os = tslib_1.__importStar(__nccwpck_require__(48161));
-const process = tslib_1.__importStar(__nccwpck_require__(1708));
+const node_os_1 = tslib_1.__importDefault(__nccwpck_require__(48161));
+const node_process_1 = tslib_1.__importDefault(__nccwpck_require__(1708));
 /**
  * @internal
  */
@@ -42405,8 +42482,8 @@ function getHeaderName() {
  * @internal
  */
 async function setPlatformSpecificData(map) {
-    if (process && process.versions) {
-        const versions = process.versions;
+    if (node_process_1.default && node_process_1.default.versions) {
+        const versions = node_process_1.default.versions;
         if (versions.bun) {
             map.set("Bun", versions.bun);
         }
@@ -42417,7 +42494,7 @@ async function setPlatformSpecificData(map) {
             map.set("Node", versions.node);
         }
     }
-    map.set("OS", `(${os.arch()}-${os.type()}-${os.release()})`);
+    map.set("OS", `(${node_os_1.default.arch()}-${node_os_1.default.type()}-${node_os_1.default.release()})`);
 }
 //# sourceMappingURL=userAgentPlatform.js.map
 
@@ -42598,8 +42675,12 @@ const tracingContext_js_1 = __nccwpck_require__(79186);
 function createTracingClient(options) {
     const { namespace, packageName, packageVersion } = options;
     function startSpan(name, operationOptions, spanOptions) {
-        var _a;
-        const startSpanResult = (0, instrumenter_js_1.getInstrumenter)().startSpan(name, Object.assign(Object.assign({}, spanOptions), { packageName: packageName, packageVersion: packageVersion, tracingContext: (_a = operationOptions === null || operationOptions === void 0 ? void 0 : operationOptions.tracingOptions) === null || _a === void 0 ? void 0 : _a.tracingContext }));
+        const startSpanResult = (0, instrumenter_js_1.getInstrumenter)().startSpan(name, {
+            ...spanOptions,
+            packageName: packageName,
+            packageVersion: packageVersion,
+            tracingContext: operationOptions?.tracingOptions?.tracingContext,
+        });
         let tracingContext = startSpanResult.tracingContext;
         const span = startSpanResult.span;
         if (!tracingContext.getValue(tracingContext_js_1.knownContextKeys.namespace)) {
@@ -42607,7 +42688,7 @@ function createTracingClient(options) {
         }
         span.setAttribute("az.namespace", tracingContext.getValue(tracingContext_js_1.knownContextKeys.namespace));
         const updatedOptions = Object.assign({}, operationOptions, {
-            tracingOptions: Object.assign(Object.assign({}, operationOptions === null || operationOptions === void 0 ? void 0 : operationOptions.tracingOptions), { tracingContext }),
+            tracingOptions: { ...operationOptions?.tracingOptions, tracingContext },
         });
         return {
             span,
@@ -42696,6 +42777,7 @@ function createTracingContext(options = {}) {
 }
 /** @internal */
 class TracingContextImpl {
+    _contextMap;
     constructor(initialContext) {
         this._contextMap =
             initialContext instanceof TracingContextImpl
@@ -42734,18 +42816,17 @@ exports.cancelablePromiseRace = cancelablePromiseRace;
  * promise.race() wrapper that aborts rest of promises as soon as the first promise settles.
  */
 async function cancelablePromiseRace(abortablePromiseBuilders, options) {
-    var _a, _b;
     const aborter = new AbortController();
     function abortHandler() {
         aborter.abort();
     }
-    (_a = options === null || options === void 0 ? void 0 : options.abortSignal) === null || _a === void 0 ? void 0 : _a.addEventListener("abort", abortHandler);
+    options?.abortSignal?.addEventListener("abort", abortHandler);
     try {
         return await Promise.race(abortablePromiseBuilders.map((p) => p({ abortSignal: aborter.signal })));
     }
     finally {
         aborter.abort();
-        (_b = options === null || options === void 0 ? void 0 : options.abortSignal) === null || _b === void 0 ? void 0 : _b.removeEventListener("abort", abortHandler);
+        options?.abortSignal?.removeEventListener("abort", abortHandler);
     }
 }
 //# sourceMappingURL=aborterUtils.js.map
@@ -42769,20 +42850,20 @@ const abort_controller_1 = __nccwpck_require__(83134);
  * @returns A promise that can be aborted.
  */
 function createAbortablePromise(buildPromise, options) {
-    const { cleanupBeforeAbort, abortSignal, abortErrorMsg } = options !== null && options !== void 0 ? options : {};
+    const { cleanupBeforeAbort, abortSignal, abortErrorMsg } = options ?? {};
     return new Promise((resolve, reject) => {
         function rejectOnAbort() {
-            reject(new abort_controller_1.AbortError(abortErrorMsg !== null && abortErrorMsg !== void 0 ? abortErrorMsg : "The operation was aborted."));
+            reject(new abort_controller_1.AbortError(abortErrorMsg ?? "The operation was aborted."));
         }
         function removeListeners() {
-            abortSignal === null || abortSignal === void 0 ? void 0 : abortSignal.removeEventListener("abort", onAbort);
+            abortSignal?.removeEventListener("abort", onAbort);
         }
         function onAbort() {
-            cleanupBeforeAbort === null || cleanupBeforeAbort === void 0 ? void 0 : cleanupBeforeAbort();
+            cleanupBeforeAbort?.();
             removeListeners();
             rejectOnAbort();
         }
-        if (abortSignal === null || abortSignal === void 0 ? void 0 : abortSignal.aborted) {
+        if (abortSignal?.aborted) {
             return rejectOnAbort();
         }
         try {
@@ -42797,7 +42878,7 @@ function createAbortablePromise(buildPromise, options) {
         catch (err) {
             reject(err);
         }
-        abortSignal === null || abortSignal === void 0 ? void 0 : abortSignal.addEventListener("abort", onAbort);
+        abortSignal?.addEventListener("abort", onAbort);
     });
 }
 //# sourceMappingURL=createAbortablePromise.js.map
@@ -42825,13 +42906,13 @@ const StandardAbortMessage = "The delay was aborted.";
  */
 function delay(timeInMs, options) {
     let token;
-    const { abortSignal, abortErrorMsg } = options !== null && options !== void 0 ? options : {};
+    const { abortSignal, abortErrorMsg } = options ?? {};
     return (0, createAbortablePromise_js_1.createAbortablePromise)((resolve) => {
         token = setTimeout(resolve, timeInMs);
     }, {
         cleanupBeforeAbort: () => clearTimeout(token),
         abortSignal,
-        abortErrorMsg: abortErrorMsg !== null && abortErrorMsg !== void 0 ? abortErrorMsg : StandardAbortMessage,
+        abortErrorMsg: abortErrorMsg ?? StandardAbortMessage,
     });
 }
 /**
@@ -43496,7 +43577,7 @@ exports.DEFAULT_TOKEN_CACHE_NAME = exports.CACHE_NON_CAE_SUFFIX = exports.CACHE_
 /**
  * Current version of the `@azure/identity` package.
  */
-exports.SDK_VERSION = `4.12.0`;
+exports.SDK_VERSION = `4.13.0`;
 /**
  * The default client ID for authentication
  * @internal
@@ -45061,7 +45142,7 @@ exports.UnavailableDefaultCredential = UnavailableDefaultCredential;
  * - {@link AzureCliCredential}
  * - {@link AzurePowerShellCredential}
  * - {@link AzureDeveloperCliCredential}
- * - {@link BrokerCredential}
+ * - BrokerCredential (a broker-enabled credential that requires \@azure/identity-broker is installed)
  *
  * Consult the documentation of these credential types for more information
  * on how they attempt authentication.
@@ -45121,7 +45202,11 @@ class DefaultAzureCredential extends chainedTokenCredential_js_1.ChainedTokenCre
                     credentialFunctions = [defaultAzureCredentialFunctions_js_1.createDefaultWorkloadIdentityCredential];
                     break;
                 case "managedidentitycredential":
-                    credentialFunctions = [defaultAzureCredentialFunctions_js_1.createDefaultManagedIdentityCredential];
+                    // Setting `sendProbeRequest` to false to ensure ManagedIdentityCredential behavior
+                    // is consistent when used standalone in DAC chain or used directly.
+                    credentialFunctions = [
+                        () => (0, defaultAzureCredentialFunctions_js_1.createDefaultManagedIdentityCredential)({ sendProbeRequest: false }),
+                    ];
                     break;
                 case "visualstudiocodecredential":
                     credentialFunctions = [defaultAzureCredentialFunctions_js_1.createDefaultVisualStudioCodeCredential];
@@ -45155,7 +45240,7 @@ class DefaultAzureCredential extends chainedTokenCredential_js_1.ChainedTokenCre
         // 3. Returning a UnavailableDefaultCredential from the factory function if a credential is unavailable for any reason
         const credentials = credentialFunctions.map((createCredentialFn) => {
             try {
-                return createCredentialFn(options);
+                return createCredentialFn(options ?? {});
             }
             catch (err) {
                 logger.warning(`Skipped ${createCredentialFn.name} because of an error creating the credential: ${err}`);
@@ -45167,7 +45252,7 @@ class DefaultAzureCredential extends chainedTokenCredential_js_1.ChainedTokenCre
 }
 exports.DefaultAzureCredential = DefaultAzureCredential;
 /**
- * @internal This function checks that all environment variables in `options.requiredEnvVars` are set and non-empty.
+ * This function checks that all environment variables in `options.requiredEnvVars` are set and non-empty.
  * If any are missing or empty, it throws an error.
  */
 function validateRequiredEnvVars(options) {
@@ -45243,6 +45328,10 @@ function createDefaultManagedIdentityCredential(options = {}) {
         maxRetries: 5,
         retryDelayInMs: 800,
     };
+    // ManagedIdentityCredential inside DAC chain should send a probe request by default.
+    // This is different from standalone ManagedIdentityCredential behavior
+    // or when AZURE_TOKEN_CREDENTIALS is set to only ManagedIdentityCredential.
+    options.sendProbeRequest ??= true;
     const managedIdentityClientId = options?.managedIdentityClientId ??
         process.env.AZURE_CLIENT_ID;
     const workloadIdentityClientId = options?.workloadIdentityClientId ??
@@ -45926,6 +46015,7 @@ class ManagedIdentityCredential {
         intervalIncrement: 2,
     };
     isAvailableIdentityClient;
+    sendProbeRequest;
     /**
      * @internal
      * @hidden
@@ -45942,6 +46032,8 @@ class ManagedIdentityCredential {
         }
         this.resourceId = _options?.resourceId;
         this.objectId = _options?.objectId;
+        this.sendProbeRequest =
+            _options?.sendProbeRequest ?? false;
         // For JavaScript users.
         const providedIds = [
             { key: "clientId", value: this.clientId },
@@ -46053,7 +46145,7 @@ class ManagedIdentityCredential {
                     }
                     return result;
                 }
-                else if (isImdsMsi) {
+                else if (isImdsMsi && this.sendProbeRequest) {
                     // In the IMDS scenario we will probe the IMDS endpoint to ensure it's available before trying to get a token.
                     // If the IMDS endpoint is not available and this is the source that MSAL will use, we will fail-fast with an error that tells DAC to move to the next credential.
                     logger.getToken.info("Using the IMDS endpoint to probe for availability.");
@@ -46070,7 +46162,8 @@ class ManagedIdentityCredential {
                 }
                 // If we got this far, it means:
                 // - This is not a tokenExchangeMsi,
-                // - We already probed for IMDS endpoint availability and failed-fast if it's unreachable.
+                // - We already probed for IMDS endpoint availability and failed-fast if it's unreachable,
+                // or we skip probing because the credential is set in DAC.
                 // We can proceed normally by calling MSAL for a token.
                 logger.getToken.info("Calling into MSAL for managed identity token.");
                 const token = await this.managedIdentityApp.acquireToken({
@@ -47427,8 +47520,6 @@ function createMsalClient(clientId, tenantId, createMsalClientOptions = {}) {
     /**
      * Creates a base interactive request configuration for MSAL interactive authentication.
      * This is shared between interactive and brokered authentication flows.
-     *
-     * @internal
      */
     function createBaseInteractiveRequest(scopes, options) {
         return {
@@ -47750,13 +47841,9 @@ const constants_js_1 = __nccwpck_require__(30516);
 const core_util_1 = __nccwpck_require__(87779);
 const abort_controller_1 = __nccwpck_require__(83134);
 const msal_js_1 = __nccwpck_require__(94062);
-/**
- * @internal
- */
 const logger = (0, logging_js_1.credentialLogger)("IdentityUtils");
 /**
  * Latest AuthenticationRecord version
- * @internal
  */
 const LatestAuthenticationRecordVersion = "1.0";
 /**
@@ -47996,7 +48083,6 @@ const msalPlugins_js_1 = __nccwpck_require__(97326);
 /**
  * The context passed to an Identity plugin. This contains objects that
  * plugins can use to set backend implementations.
- * @internal
  */
 const pluginContext = {
     cachePluginControl: msalPlugins_js_1.msalNodeFlowCacheControl,
@@ -63904,6 +63990,7 @@ function getCoreClientOptions(pipeline) {
         corePipeline.removePolicy({ name: core_rest_pipeline_1.decompressResponsePolicyName });
         corePipeline.addPolicy((0, StorageCorrectContentLengthPolicy_js_1.storageCorrectContentLengthPolicy)());
         corePipeline.addPolicy((0, StorageRetryPolicyV2_js_1.storageRetryPolicy)(restOptions.retryOptions), { phase: "Retry" });
+        corePipeline.addPolicy((0, storage_common_1.storageRequestFailureDetailsParserPolicy)());
         corePipeline.addPolicy((0, StorageBrowserPolicyV2_js_1.storageBrowserPolicy)());
         const downlevelResults = processDownlevelPipeline(pipeline);
         if (downlevelResults) {
@@ -65007,6 +65094,27 @@ exports.StorageError = {
             message: {
                 serializedName: "Message",
                 xmlName: "Message",
+                type: {
+                    name: "String",
+                },
+            },
+            copySourceStatusCode: {
+                serializedName: "CopySourceStatusCode",
+                xmlName: "CopySourceStatusCode",
+                type: {
+                    name: "Number",
+                },
+            },
+            copySourceErrorCode: {
+                serializedName: "CopySourceErrorCode",
+                xmlName: "CopySourceErrorCode",
+                type: {
+                    name: "String",
+                },
+            },
+            copySourceErrorMessage: {
+                serializedName: "CopySourceErrorMessage",
+                xmlName: "CopySourceErrorMessage",
                 type: {
                     name: "String",
                 },
@@ -70345,6 +70453,20 @@ exports.BlobStartCopyFromURLExceptionHeaders = {
                     name: "String",
                 },
             },
+            copySourceErrorCode: {
+                serializedName: "x-ms-copy-source-error-code",
+                xmlName: "x-ms-copy-source-error-code",
+                type: {
+                    name: "String",
+                },
+            },
+            copySourceStatusCode: {
+                serializedName: "x-ms-copy-source-status-code",
+                xmlName: "x-ms-copy-source-status-code",
+                type: {
+                    name: "Number",
+                },
+            },
         },
     },
 };
@@ -70460,6 +70582,20 @@ exports.BlobCopyFromURLExceptionHeaders = {
                 xmlName: "x-ms-error-code",
                 type: {
                     name: "String",
+                },
+            },
+            copySourceErrorCode: {
+                serializedName: "x-ms-copy-source-error-code",
+                xmlName: "x-ms-copy-source-error-code",
+                type: {
+                    name: "String",
+                },
+            },
+            copySourceStatusCode: {
+                serializedName: "x-ms-copy-source-status-code",
+                xmlName: "x-ms-copy-source-status-code",
+                type: {
+                    name: "Number",
                 },
             },
         },
@@ -71488,6 +71624,20 @@ exports.PageBlobUploadPagesFromURLExceptionHeaders = {
                     name: "String",
                 },
             },
+            copySourceErrorCode: {
+                serializedName: "x-ms-copy-source-error-code",
+                xmlName: "x-ms-copy-source-error-code",
+                type: {
+                    name: "String",
+                },
+            },
+            copySourceStatusCode: {
+                serializedName: "x-ms-copy-source-status-code",
+                xmlName: "x-ms-copy-source-status-code",
+                type: {
+                    name: "Number",
+                },
+            },
         },
     },
 };
@@ -72249,6 +72399,20 @@ exports.AppendBlobAppendBlockFromUrlExceptionHeaders = {
                     name: "String",
                 },
             },
+            copySourceErrorCode: {
+                serializedName: "x-ms-copy-source-error-code",
+                xmlName: "x-ms-copy-source-error-code",
+                type: {
+                    name: "String",
+                },
+            },
+            copySourceStatusCode: {
+                serializedName: "x-ms-copy-source-status-code",
+                xmlName: "x-ms-copy-source-status-code",
+                type: {
+                    name: "Number",
+                },
+            },
         },
     },
 };
@@ -72541,6 +72705,20 @@ exports.BlockBlobPutBlobFromUrlExceptionHeaders = {
                     name: "String",
                 },
             },
+            copySourceErrorCode: {
+                serializedName: "x-ms-copy-source-error-code",
+                xmlName: "x-ms-copy-source-error-code",
+                type: {
+                    name: "String",
+                },
+            },
+            copySourceStatusCode: {
+                serializedName: "x-ms-copy-source-status-code",
+                xmlName: "x-ms-copy-source-status-code",
+                type: {
+                    name: "Number",
+                },
+            },
         },
     },
 };
@@ -72729,6 +72907,20 @@ exports.BlockBlobStageBlockFromURLExceptionHeaders = {
                 xmlName: "x-ms-error-code",
                 type: {
                     name: "String",
+                },
+            },
+            copySourceErrorCode: {
+                serializedName: "x-ms-copy-source-error-code",
+                xmlName: "x-ms-copy-source-error-code",
+                type: {
+                    name: "String",
+                },
+            },
+            copySourceStatusCode: {
+                serializedName: "x-ms-copy-source-status-code",
+                xmlName: "x-ms-copy-source-status-code",
+                type: {
+                    name: "Number",
                 },
             },
         },
@@ -73035,7 +73227,7 @@ exports.timeoutInSeconds = {
 exports.version = {
     parameterPath: "version",
     mapper: {
-        defaultValue: "2025-07-05",
+        defaultValue: "2025-11-05",
         isConstant: true,
         serializedName: "x-ms-version",
         type: {
@@ -77942,7 +78134,7 @@ class StorageClient extends coreHttpCompat.ExtendedServiceClient {
         const defaults = {
             requestContentType: "application/json; charset=utf-8",
         };
-        const packageDetails = `azsdk-js-azure-storage-blob/12.28.0`;
+        const packageDetails = `azsdk-js-azure-storage-blob/12.29.1`;
         const userAgentPrefix = options.userAgentOptions && options.userAgentOptions.userAgentPrefix
             ? `${options.userAgentOptions.userAgentPrefix} ${packageDetails}`
             : `${packageDetails}`;
@@ -77958,7 +78150,7 @@ class StorageClient extends coreHttpCompat.ExtendedServiceClient {
         // Parameter assignments
         this.url = url;
         // Assigning values to Constant parameters
-        this.version = options.version || "2025-07-05";
+        this.version = options.version || "2025-11-05";
         this.service = new index_js_1.ServiceImpl(this);
         this.container = new index_js_1.ContainerImpl(this);
         this.blob = new index_js_1.BlobImpl(this);
@@ -79260,21 +79452,20 @@ class StorageRetryPolicy extends RequestPolicy_js_1.BaseRequestPolicy {
                 return true;
             }
         }
-        // [Copy source error code] Feature is pending on service side, skip retry on copy source error for now.
-        // if (response) {
-        //   // Retry select Copy Source Error Codes.
-        //   if (response?.status >= 400) {
-        //     const copySourceError = response.headers.get(HeaderConstants.X_MS_CopySourceErrorCode);
-        //     if (copySourceError !== undefined) {
-        //       switch (copySourceError) {
-        //         case "InternalError":
-        //         case "OperationTimedOut":
-        //         case "ServerBusy":
-        //           return true;
-        //       }
-        //     }
-        //   }
-        // }
+        if (response) {
+            // Retry select Copy Source Error Codes.
+            if (response?.status >= 400) {
+                const copySourceError = response.headers.get(constants_js_1.HeaderConstants.X_MS_CopySourceErrorCode);
+                if (copySourceError !== undefined) {
+                    switch (copySourceError) {
+                        case "InternalError":
+                        case "OperationTimedOut":
+                        case "ServerBusy":
+                            return true;
+                    }
+                }
+            }
+        }
         if (err?.code === "PARSE_ERROR" && err?.message.startsWith(`Error "Error: Unclosed root tag`)) {
             log_js_1.logger.info("RetryPolicy: Incomplete XML response likely due to service timeout, will retry.");
             return true;
@@ -79426,21 +79617,20 @@ function storageRetryPolicy(options = {}) {
                 return true;
             }
         }
-        // [Copy source error code] Feature is pending on service side, skip retry on copy source error for now.
-        // if (response) {
-        //   // Retry select Copy Source Error Codes.
-        //   if (response?.status >= 400) {
-        //     const copySourceError = response.headers.get(HeaderConstants.X_MS_CopySourceErrorCode);
-        //     if (copySourceError !== undefined) {
-        //       switch (copySourceError) {
-        //         case "InternalError":
-        //         case "OperationTimedOut":
-        //         case "ServerBusy":
-        //           return true;
-        //       }
-        //     }
-        //   }
-        // }
+        if (response) {
+            // Retry select Copy Source Error Codes.
+            if (response?.status >= 400) {
+                const copySourceError = response.headers.get(constants_js_1.HeaderConstants.X_MS_CopySourceErrorCode);
+                if (copySourceError !== undefined) {
+                    switch (copySourceError) {
+                        case "InternalError":
+                        case "OperationTimedOut":
+                        case "ServerBusy":
+                            return true;
+                    }
+                }
+            }
+        }
         return false;
     }
     function calculateDelay(isPrimaryRetry, attempt) {
@@ -82546,8 +82736,8 @@ function isLessThan(lhs, rhs) {
 // Licensed under the MIT License.
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PathStylePorts = exports.BlobDoesNotUseCustomerSpecifiedEncryption = exports.BlobUsesCustomerSpecifiedEncryptionMsg = exports.StorageBlobLoggingAllowedQueryParameters = exports.StorageBlobLoggingAllowedHeaderNames = exports.DevelopmentConnectionString = exports.EncryptionAlgorithmAES25 = exports.HTTP_VERSION_1_1 = exports.HTTP_LINE_ENDING = exports.BATCH_MAX_PAYLOAD_IN_BYTES = exports.BATCH_MAX_REQUEST = exports.SIZE_1_MB = exports.ETagAny = exports.ETagNone = exports.HeaderConstants = exports.HTTPURLConnection = exports.URLConstants = exports.StorageOAuthScopes = exports.REQUEST_TIMEOUT = exports.DEFAULT_MAX_DOWNLOAD_RETRY_REQUESTS = exports.DEFAULT_BLOB_DOWNLOAD_BLOCK_BYTES = exports.DEFAULT_BLOCK_BUFFER_SIZE_BYTES = exports.BLOCK_BLOB_MAX_BLOCKS = exports.BLOCK_BLOB_MAX_STAGE_BLOCK_BYTES = exports.BLOCK_BLOB_MAX_UPLOAD_BLOB_BYTES = exports.SERVICE_VERSION = exports.SDK_VERSION = void 0;
-exports.SDK_VERSION = "12.28.0";
-exports.SERVICE_VERSION = "2025-07-05";
+exports.SDK_VERSION = "12.29.1";
+exports.SERVICE_VERSION = "2025-11-05";
 exports.BLOCK_BLOB_MAX_UPLOAD_BLOB_BYTES = 256 * 1024 * 1024; // 256MB
 exports.BLOCK_BLOB_MAX_STAGE_BLOCK_BYTES = 4000 * 1024 * 1024; // 4000MB
 exports.BLOCK_BLOB_MAX_BLOCKS = 50000;
@@ -84505,6 +84695,7 @@ tslib_1.__exportStar(__nccwpck_require__(78178), exports);
 tslib_1.__exportStar(__nccwpck_require__(35369), exports);
 tslib_1.__exportStar(__nccwpck_require__(53233), exports);
 tslib_1.__exportStar(__nccwpck_require__(77321), exports);
+tslib_1.__exportStar(__nccwpck_require__(24174), exports);
 //# sourceMappingURL=index.js.map
 
 /***/ }),
@@ -84789,6 +84980,51 @@ function storageCorrectContentLengthPolicy() {
 
 /***/ }),
 
+/***/ 24174:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.storageRequestFailureDetailsParserPolicyName = void 0;
+exports.storageRequestFailureDetailsParserPolicy = storageRequestFailureDetailsParserPolicy;
+/**
+ * The programmatic identifier of the StorageRequestFailureDetailsParserPolicy.
+ */
+exports.storageRequestFailureDetailsParserPolicyName = "storageRequestFailureDetailsParserPolicy";
+/**
+ * StorageRequestFailureDetailsParserPolicy
+ */
+function storageRequestFailureDetailsParserPolicy() {
+    return {
+        name: exports.storageRequestFailureDetailsParserPolicyName,
+        async sendRequest(request, next) {
+            try {
+                const response = await next(request);
+                return response;
+            }
+            catch (err) {
+                if (typeof err === "object" &&
+                    err !== null &&
+                    err.response &&
+                    err.response.parsedBody) {
+                    if (err.response.parsedBody.code === "InvalidHeaderValue" &&
+                        err.response.parsedBody.HeaderName === "x-ms-version") {
+                        err.message =
+                            "The provided service version is not enabled on this storage account. Please see https://learn.microsoft.com/rest/api/storageservices/versioning-for-the-azure-storage-services for additional information.\n";
+                    }
+                }
+                throw err;
+            }
+        },
+    };
+}
+//# sourceMappingURL=StorageRequestFailureDetailsParserPolicy.js.map
+
+/***/ }),
+
 /***/ 27734:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -84969,21 +85205,20 @@ class StorageRetryPolicy extends RequestPolicy_js_1.BaseRequestPolicy {
                 return true;
             }
         }
-        // [Copy source error code] Feature is pending on service side, skip retry on copy source error for now.
-        // if (response) {
-        //   // Retry select Copy Source Error Codes.
-        //   if (response?.status >= 400) {
-        //     const copySourceError = response.headers.get(HeaderConstants.X_MS_CopySourceErrorCode);
-        //     if (copySourceError !== undefined) {
-        //       switch (copySourceError) {
-        //         case "InternalError":
-        //         case "OperationTimedOut":
-        //         case "ServerBusy":
-        //           return true;
-        //       }
-        //     }
-        //   }
-        // }
+        if (response) {
+            // Retry select Copy Source Error Codes.
+            if (response?.status >= 400) {
+                const copySourceError = response.headers.get(constants_js_1.HeaderConstants.X_MS_CopySourceErrorCode);
+                if (copySourceError !== undefined) {
+                    switch (copySourceError) {
+                        case "InternalError":
+                        case "OperationTimedOut":
+                        case "ServerBusy":
+                            return true;
+                    }
+                }
+            }
+        }
         if (err?.code === "PARSE_ERROR" && err?.message.startsWith(`Error "Error: Unclosed root tag`)) {
             log_js_1.logger.info("RetryPolicy: Incomplete XML response likely due to service timeout, will retry.");
             return true;
@@ -85135,21 +85370,20 @@ function storageRetryPolicy(options = {}) {
                 return true;
             }
         }
-        // [Copy source error code] Feature is pending on service side, skip retry on copy source error for now.
-        // if (response) {
-        //   // Retry select Copy Source Error Codes.
-        //   if (response?.status >= 400) {
-        //     const copySourceError = response.headers.get(HeaderConstants.X_MS_CopySourceErrorCode);
-        //     if (copySourceError !== undefined) {
-        //       switch (copySourceError) {
-        //         case "InternalError":
-        //         case "OperationTimedOut":
-        //         case "ServerBusy":
-        //           return true;
-        //       }
-        //     }
-        //   }
-        // }
+        if (response) {
+            // Retry select Copy Source Error Codes.
+            if (response?.status >= 400) {
+                const copySourceError = response.headers.get(constants_js_1.HeaderConstants.X_MS_CopySourceErrorCode);
+                if (copySourceError !== undefined) {
+                    switch (copySourceError) {
+                        case "InternalError":
+                        case "OperationTimedOut":
+                        case "ServerBusy":
+                            return true;
+                    }
+                }
+            }
+        }
         return false;
     }
     function calculateDelay(isPrimaryRetry, attempt) {
@@ -88104,9 +88338,8 @@ const checkEnvironment_js_1 = __nccwpck_require__(85086);
  * @param options - Client options
  */
 function getClient(endpoint, clientOptions = {}) {
-    var _a, _b, _c;
-    const pipeline = (_a = clientOptions.pipeline) !== null && _a !== void 0 ? _a : (0, clientHelpers_js_1.createDefaultPipeline)(clientOptions);
-    if ((_b = clientOptions.additionalPolicies) === null || _b === void 0 ? void 0 : _b.length) {
+    const pipeline = clientOptions.pipeline ?? (0, clientHelpers_js_1.createDefaultPipeline)(clientOptions);
+    if (clientOptions.additionalPolicies?.length) {
         for (const { policy, position } of clientOptions.additionalPolicies) {
             // Sign happens after Retry and is commonly needed to occur
             // before policies that intercept post-retry.
@@ -88117,9 +88350,9 @@ function getClient(endpoint, clientOptions = {}) {
         }
     }
     const { allowInsecureConnection, httpClient } = clientOptions;
-    const endpointUrl = (_c = clientOptions.endpoint) !== null && _c !== void 0 ? _c : endpoint;
+    const endpointUrl = clientOptions.endpoint ?? endpoint;
     const client = (path, ...args) => {
-        const getUrl = (requestOptions) => (0, urlHelpers_js_1.buildRequestUrl)(endpointUrl, path, args, Object.assign({ allowInsecureConnection }, requestOptions));
+        const getUrl = (requestOptions) => (0, urlHelpers_js_1.buildRequestUrl)(endpointUrl, path, args, { allowInsecureConnection, ...requestOptions });
         return {
             get: (requestOptions = {}) => {
                 return buildOperation("GET", getUrl(requestOptions), pipeline, requestOptions, allowInsecureConnection, httpClient);
@@ -88154,23 +88387,22 @@ function getClient(endpoint, clientOptions = {}) {
     };
 }
 function buildOperation(method, url, pipeline, options, allowInsecureConnection, httpClient) {
-    var _a;
-    allowInsecureConnection = (_a = options.allowInsecureConnection) !== null && _a !== void 0 ? _a : allowInsecureConnection;
+    allowInsecureConnection = options.allowInsecureConnection ?? allowInsecureConnection;
     return {
         then: function (onFulfilled, onrejected) {
-            return (0, sendRequest_js_1.sendRequest)(method, url, pipeline, Object.assign(Object.assign({}, options), { allowInsecureConnection }), httpClient).then(onFulfilled, onrejected);
+            return (0, sendRequest_js_1.sendRequest)(method, url, pipeline, { ...options, allowInsecureConnection }, httpClient).then(onFulfilled, onrejected);
         },
         async asBrowserStream() {
             if (checkEnvironment_js_1.isNodeLike) {
                 throw new Error("`asBrowserStream` is supported only in the browser environment. Use `asNodeStream` instead to obtain the response body stream. If you require a Web stream of the response in Node, consider using `Readable.toWeb` on the result of `asNodeStream`.");
             }
             else {
-                return (0, sendRequest_js_1.sendRequest)(method, url, pipeline, Object.assign(Object.assign({}, options), { allowInsecureConnection, responseAsStream: true }), httpClient);
+                return (0, sendRequest_js_1.sendRequest)(method, url, pipeline, { ...options, allowInsecureConnection, responseAsStream: true }, httpClient);
             }
         },
         async asNodeStream() {
             if (checkEnvironment_js_1.isNodeLike) {
-                return (0, sendRequest_js_1.sendRequest)(method, url, pipeline, Object.assign(Object.assign({}, options), { allowInsecureConnection, responseAsStream: true }), httpClient);
+                return (0, sendRequest_js_1.sendRequest)(method, url, pipeline, { ...options, allowInsecureConnection, responseAsStream: true }, httpClient);
             }
             else {
                 throw new Error("`isNodeStream` is not supported in the browser environment. Use `asBrowserStream` to obtain the response body stream.");
@@ -88243,7 +88475,6 @@ function escapeDispositionField(value) {
     return JSON.stringify(value);
 }
 function getContentDisposition(descriptor) {
-    var _a;
     const contentDispositionHeader = getHeaderValue(descriptor, "content-disposition");
     if (contentDispositionHeader) {
         return contentDispositionHeader;
@@ -88253,7 +88484,7 @@ function getContentDisposition(descriptor) {
         descriptor.filename === undefined) {
         return undefined;
     }
-    const dispositionType = (_a = descriptor.dispositionType) !== null && _a !== void 0 ? _a : "form-data";
+    const dispositionType = descriptor.dispositionType ?? "form-data";
     let disposition = dispositionType;
     if (descriptor.name) {
         disposition += `; name=${escapeDispositionField(descriptor.name)}`;
@@ -88292,10 +88523,9 @@ function normalizeBody(body, contentType) {
     throw new restError_js_1.RestError(`Unsupported body/content-type combination: ${body}, ${contentType}`);
 }
 function buildBodyPart(descriptor) {
-    var _a;
     const contentType = getPartContentType(descriptor);
     const contentDisposition = getContentDisposition(descriptor);
-    const headers = (0, httpHeaders_js_1.createHttpHeaders)((_a = descriptor.headers) !== null && _a !== void 0 ? _a : {});
+    const headers = (0, httpHeaders_js_1.createHttpHeaders)(descriptor.headers ?? {});
     if (contentType) {
         headers.set("content-type", contentType);
     }
@@ -88330,15 +88560,14 @@ exports.operationOptionsToRequestParameters = operationOptionsToRequestParameter
  * @returns the result of the conversion in RequestParameters of RLC layer
  */
 function operationOptionsToRequestParameters(options) {
-    var _a, _b, _c, _d, _e, _f;
     return {
-        allowInsecureConnection: (_a = options.requestOptions) === null || _a === void 0 ? void 0 : _a.allowInsecureConnection,
-        timeout: (_b = options.requestOptions) === null || _b === void 0 ? void 0 : _b.timeout,
-        skipUrlEncoding: (_c = options.requestOptions) === null || _c === void 0 ? void 0 : _c.skipUrlEncoding,
+        allowInsecureConnection: options.requestOptions?.allowInsecureConnection,
+        timeout: options.requestOptions?.timeout,
+        skipUrlEncoding: options.requestOptions?.skipUrlEncoding,
         abortSignal: options.abortSignal,
-        onUploadProgress: (_d = options.requestOptions) === null || _d === void 0 ? void 0 : _d.onUploadProgress,
-        onDownloadProgress: (_e = options.requestOptions) === null || _e === void 0 ? void 0 : _e.onDownloadProgress,
-        headers: Object.assign({}, (_f = options.requestOptions) === null || _f === void 0 ? void 0 : _f.headers),
+        onUploadProgress: options.requestOptions?.onUploadProgress,
+        onDownloadProgress: options.requestOptions?.onDownloadProgress,
+        headers: { ...options.requestOptions?.headers },
         onResponse: options.onResponse,
     };
 }
@@ -88358,25 +88587,23 @@ exports.createRestError = createRestError;
 const restError_js_1 = __nccwpck_require__(9758);
 const httpHeaders_js_1 = __nccwpck_require__(4220);
 function createRestError(messageOrResponse, response) {
-    var _a, _b, _c;
     const resp = typeof messageOrResponse === "string" ? response : messageOrResponse;
-    const internalError = (_b = (_a = resp.body) === null || _a === void 0 ? void 0 : _a.error) !== null && _b !== void 0 ? _b : resp.body;
+    const internalError = resp.body?.error ?? resp.body;
     const message = typeof messageOrResponse === "string"
         ? messageOrResponse
-        : ((_c = internalError === null || internalError === void 0 ? void 0 : internalError.message) !== null && _c !== void 0 ? _c : `Unexpected status code: ${resp.status}`);
+        : (internalError?.message ?? `Unexpected status code: ${resp.status}`);
     return new restError_js_1.RestError(message, {
         statusCode: statusCodeToNumber(resp.status),
-        code: internalError === null || internalError === void 0 ? void 0 : internalError.code,
+        code: internalError?.code,
         request: resp.request,
         response: toPipelineResponse(resp),
     });
 }
 function toPipelineResponse(response) {
-    var _a;
     return {
         headers: (0, httpHeaders_js_1.createHttpHeaders)(response.headers),
         request: response.request,
-        status: (_a = statusCodeToNumber(response.status)) !== null && _a !== void 0 ? _a : -1,
+        status: statusCodeToNumber(response.status) ?? -1,
     };
 }
 function statusCodeToNumber(statusCode) {
@@ -88412,17 +88639,16 @@ const multipart_js_1 = __nccwpck_require__(18240);
  * @returns returns and HttpResponse
  */
 async function sendRequest(method, url, pipeline, options = {}, customHttpClient) {
-    var _a;
-    const httpClient = customHttpClient !== null && customHttpClient !== void 0 ? customHttpClient : (0, clientHelpers_js_1.getCachedDefaultHttpsClient)();
+    const httpClient = customHttpClient ?? (0, clientHelpers_js_1.getCachedDefaultHttpsClient)();
     const request = buildPipelineRequest(method, url, options);
     try {
         const response = await pipeline.sendRequest(httpClient, request);
         const headers = response.headers.toJSON();
-        const stream = (_a = response.readableStreamBody) !== null && _a !== void 0 ? _a : response.browserStreamBody;
+        const stream = response.readableStreamBody ?? response.browserStreamBody;
         const parsedBody = options.responseAsStream || stream !== undefined ? undefined : getResponseBody(response);
-        const body = stream !== null && stream !== void 0 ? stream : parsedBody;
-        if (options === null || options === void 0 ? void 0 : options.onResponse) {
-            options.onResponse(Object.assign(Object.assign({}, response), { request, rawHeaders: headers, parsedBody }));
+        const body = stream ?? parsedBody;
+        if (options?.onResponse) {
+            options.onResponse({ ...response, request, rawHeaders: headers, parsedBody });
         }
         return {
             request,
@@ -88436,7 +88662,7 @@ async function sendRequest(method, url, pipeline, options = {}, customHttpClient
             const { response } = e;
             const rawHeaders = response.headers.toJSON();
             // UNBRANDED DIFFERENCE: onResponse callback does not have a second __legacyError property
-            options === null || options === void 0 ? void 0 : options.onResponse(Object.assign(Object.assign({}, response), { request, rawHeaders }), e);
+            options?.onResponse({ ...response, request, rawHeaders }, e);
         }
         throw e;
     }
@@ -88447,8 +88673,9 @@ async function sendRequest(method, url, pipeline, options = {}, customHttpClient
  * @returns returns the content-type
  */
 function getRequestContentType(options = {}) {
-    var _a, _b, _c;
-    return ((_c = (_a = options.contentType) !== null && _a !== void 0 ? _a : (_b = options.headers) === null || _b === void 0 ? void 0 : _b["content-type"]) !== null && _c !== void 0 ? _c : getContentType(options.body));
+    return (options.contentType ??
+        options.headers?.["content-type"] ??
+        getContentType(options.body));
 }
 /**
  * Function to determine the content-type of a body
@@ -88474,14 +88701,17 @@ function getContentType(body) {
     return "application/json";
 }
 function buildPipelineRequest(method, url, options = {}) {
-    var _a, _b, _c;
     const requestContentType = getRequestContentType(options);
     const { body, multipartBody } = getRequestBody(options.body, requestContentType);
     const hasContent = body !== undefined || multipartBody !== undefined;
-    const headers = (0, httpHeaders_js_1.createHttpHeaders)(Object.assign(Object.assign(Object.assign({}, (options.headers ? options.headers : {})), { accept: (_c = (_a = options.accept) !== null && _a !== void 0 ? _a : (_b = options.headers) === null || _b === void 0 ? void 0 : _b.accept) !== null && _c !== void 0 ? _c : "application/json" }), (hasContent &&
-        requestContentType && {
-        "content-type": requestContentType,
-    })));
+    const headers = (0, httpHeaders_js_1.createHttpHeaders)({
+        ...(options.headers ? options.headers : {}),
+        accept: options.accept ?? options.headers?.accept ?? "application/json",
+        ...(hasContent &&
+            requestContentType && {
+            "content-type": requestContentType,
+        }),
+    });
     return (0, pipelineRequest_js_1.createPipelineRequest)({
         url,
         method,
@@ -88537,11 +88767,10 @@ function getRequestBody(body, contentType = "") {
  * Prepares the response body
  */
 function getResponseBody(response) {
-    var _a, _b;
     // Set the default response type
-    const contentType = (_a = response.headers.get("content-type")) !== null && _a !== void 0 ? _a : "";
+    const contentType = response.headers.get("content-type") ?? "";
     const firstType = contentType.split(";")[0];
-    const bodyToParse = (_b = response.bodyAsText) !== null && _b !== void 0 ? _b : "";
+    const bodyToParse = response.bodyAsText ?? "";
     if (firstType === "text/plain") {
         return String(bodyToParse);
     }
@@ -88561,9 +88790,8 @@ function getResponseBody(response) {
     }
 }
 function createParseError(response, err) {
-    var _a;
     const msg = `Error "${err}" occurred while parsing the response body - ${response.bodyAsText}.`;
-    const errCode = (_a = err.code) !== null && _a !== void 0 ? _a : restError_js_1.RestError.PARSE_ERROR;
+    const errCode = err.code ?? restError_js_1.RestError.PARSE_ERROR;
     return new restError_js_1.RestError(msg, {
         code: errCode,
         statusCode: response.status,
@@ -88649,7 +88877,6 @@ function getQueryParamValue(key, allowReserved, style, param) {
     return `${allowReserved ? key : encodeURIComponent(key)}=${value}`;
 }
 function appendQueryParams(url, options = {}) {
-    var _a, _b, _c, _d;
     if (!options.queryParameters) {
         return url;
     }
@@ -88663,18 +88890,18 @@ function appendQueryParams(url, options = {}) {
         }
         const hasMetadata = isQueryParameterWithOptions(param);
         const rawValue = hasMetadata ? param.value : param;
-        const explode = hasMetadata ? ((_a = param.explode) !== null && _a !== void 0 ? _a : false) : false;
+        const explode = hasMetadata ? (param.explode ?? false) : false;
         const style = hasMetadata && param.style ? param.style : "form";
         if (explode) {
             if (Array.isArray(rawValue)) {
                 for (const item of rawValue) {
-                    paramStrings.push(getQueryParamValue(key, (_b = options.skipUrlEncoding) !== null && _b !== void 0 ? _b : false, style, item));
+                    paramStrings.push(getQueryParamValue(key, options.skipUrlEncoding ?? false, style, item));
                 }
             }
             else if (typeof rawValue === "object") {
                 // For object explode, the name of the query parameter is ignored and we use the object key instead
                 for (const [actualKey, value] of Object.entries(rawValue)) {
-                    paramStrings.push(getQueryParamValue(actualKey, (_c = options.skipUrlEncoding) !== null && _c !== void 0 ? _c : false, style, value));
+                    paramStrings.push(getQueryParamValue(actualKey, options.skipUrlEncoding ?? false, style, value));
                 }
             }
             else {
@@ -88683,7 +88910,7 @@ function appendQueryParams(url, options = {}) {
             }
         }
         else {
-            paramStrings.push(getQueryParamValue(key, (_d = options.skipUrlEncoding) !== null && _d !== void 0 ? _d : false, style, rawValue));
+            paramStrings.push(getQueryParamValue(key, options.skipUrlEncoding ?? false, style, rawValue));
         }
     }
     if (parsedUrl.search !== "") {
@@ -88693,7 +88920,6 @@ function appendQueryParams(url, options = {}) {
     return parsedUrl.toString();
 }
 function buildBaseUrl(endpoint, options) {
-    var _a;
     if (!options.pathParameters) {
         return endpoint;
     }
@@ -88709,14 +88935,13 @@ function buildBaseUrl(endpoint, options) {
         if (!options.skipUrlEncoding) {
             value = encodeURIComponent(param);
         }
-        endpoint = (_a = replaceAll(endpoint, `{${key}}`, value)) !== null && _a !== void 0 ? _a : "";
+        endpoint = replaceAll(endpoint, `{${key}}`, value) ?? "";
     }
     return endpoint;
 }
 function buildRoutePath(routePath, pathParameters, options = {}) {
-    var _a;
     for (const pathParam of pathParameters) {
-        const allowReserved = typeof pathParam === "object" && ((_a = pathParam.allowReserved) !== null && _a !== void 0 ? _a : false);
+        const allowReserved = typeof pathParam === "object" && (pathParam.allowReserved ?? false);
         let value = typeof pathParam === "object" ? pathParam.value : pathParam;
         if (!options.skipUrlEncoding && !allowReserved) {
             value = encodeURIComponent(value);
@@ -88748,7 +88973,7 @@ function replaceAll(value, searchValue, replaceValue) {
 // Licensed under the MIT License.
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DEFAULT_RETRY_POLICY_COUNT = exports.SDK_VERSION = void 0;
-exports.SDK_VERSION = "0.2.3";
+exports.SDK_VERSION = "0.3.1";
 exports.DEFAULT_RETRY_POLICY_COUNT = 3;
 //# sourceMappingURL=constants.js.map
 
@@ -88848,6 +89073,7 @@ function* headerIterator(map) {
     }
 }
 class HttpHeadersImpl {
+    _headersMap;
     constructor(rawHeaders) {
         this._headersMap = new Map();
         if (rawHeaders) {
@@ -88871,8 +89097,7 @@ class HttpHeadersImpl {
      * @param name - The name of the header. This value is case-insensitive.
      */
     get(name) {
-        var _a;
-        return (_a = this._headersMap.get(normalizeName(name))) === null || _a === void 0 ? void 0 : _a.value;
+        return this._headersMap.get(normalizeName(name))?.value;
     }
     /**
      * Get whether or not this header collection contains a header entry for the provided header name.
@@ -89016,14 +89241,13 @@ function enable(namespaces) {
     enabledString = namespaces;
     enabledNamespaces = [];
     skippedNamespaces = [];
-    const wildcard = /\*/g;
-    const namespaceList = namespaces.split(",").map((ns) => ns.trim().replace(wildcard, ".*?"));
+    const namespaceList = namespaces.split(",").map((ns) => ns.trim());
     for (const ns of namespaceList) {
         if (ns.startsWith("-")) {
-            skippedNamespaces.push(new RegExp(`^${ns.substr(1)}$`));
+            skippedNamespaces.push(ns.substring(1));
         }
         else {
-            enabledNamespaces.push(new RegExp(`^${ns}$`));
+            enabledNamespaces.push(ns);
         }
     }
     for (const instance of debuggers) {
@@ -89035,16 +89259,109 @@ function enabled(namespace) {
         return true;
     }
     for (const skipped of skippedNamespaces) {
-        if (skipped.test(namespace)) {
+        if (namespaceMatches(namespace, skipped)) {
             return false;
         }
     }
     for (const enabledNamespace of enabledNamespaces) {
-        if (enabledNamespace.test(namespace)) {
+        if (namespaceMatches(namespace, enabledNamespace)) {
             return true;
         }
     }
     return false;
+}
+/**
+ * Given a namespace, check if it matches a pattern.
+ * Patterns only have a single wildcard character which is *.
+ * The behavior of * is that it matches zero or more other characters.
+ */
+function namespaceMatches(namespace, patternToMatch) {
+    // simple case, no pattern matching required
+    if (patternToMatch.indexOf("*") === -1) {
+        return namespace === patternToMatch;
+    }
+    let pattern = patternToMatch;
+    // normalize successive * if needed
+    if (patternToMatch.indexOf("**") !== -1) {
+        const patternParts = [];
+        let lastCharacter = "";
+        for (const character of patternToMatch) {
+            if (character === "*" && lastCharacter === "*") {
+                continue;
+            }
+            else {
+                lastCharacter = character;
+                patternParts.push(character);
+            }
+        }
+        pattern = patternParts.join("");
+    }
+    let namespaceIndex = 0;
+    let patternIndex = 0;
+    const patternLength = pattern.length;
+    const namespaceLength = namespace.length;
+    let lastWildcard = -1;
+    let lastWildcardNamespace = -1;
+    while (namespaceIndex < namespaceLength && patternIndex < patternLength) {
+        if (pattern[patternIndex] === "*") {
+            lastWildcard = patternIndex;
+            patternIndex++;
+            if (patternIndex === patternLength) {
+                // if wildcard is the last character, it will match the remaining namespace string
+                return true;
+            }
+            // now we let the wildcard eat characters until we match the next literal in the pattern
+            while (namespace[namespaceIndex] !== pattern[patternIndex]) {
+                namespaceIndex++;
+                // reached the end of the namespace without a match
+                if (namespaceIndex === namespaceLength) {
+                    return false;
+                }
+            }
+            // now that we have a match, let's try to continue on
+            // however, it's possible we could find a later match
+            // so keep a reference in case we have to backtrack
+            lastWildcardNamespace = namespaceIndex;
+            namespaceIndex++;
+            patternIndex++;
+            continue;
+        }
+        else if (pattern[patternIndex] === namespace[namespaceIndex]) {
+            // simple case: literal pattern matches so keep going
+            patternIndex++;
+            namespaceIndex++;
+        }
+        else if (lastWildcard >= 0) {
+            // special case: we don't have a literal match, but there is a previous wildcard
+            // which we can backtrack to and try having the wildcard eat the match instead
+            patternIndex = lastWildcard + 1;
+            namespaceIndex = lastWildcardNamespace + 1;
+            // we've reached the end of the namespace without a match
+            if (namespaceIndex === namespaceLength) {
+                return false;
+            }
+            // similar to the previous logic, let's keep going until we find the next literal match
+            while (namespace[namespaceIndex] !== pattern[patternIndex]) {
+                namespaceIndex++;
+                if (namespaceIndex === namespaceLength) {
+                    return false;
+                }
+            }
+            lastWildcardNamespace = namespaceIndex;
+            namespaceIndex++;
+            patternIndex++;
+            continue;
+        }
+        else {
+            return false;
+        }
+    }
+    const namespaceDone = namespaceIndex === namespace.length;
+    const patternDone = patternIndex === pattern.length;
+    // this is to detect the case of an unneeded final wildcard
+    // e.g. the pattern `ab*` should match the string `ab`
+    const trailingWildCard = patternIndex === pattern.length - 1 && pattern[patternIndex] === "*";
+    return namespaceDone && (patternDone || trailingWildCard);
 }
 function disable() {
     const result = enabledString || "";
@@ -89116,9 +89433,9 @@ exports.log = log;
 const tslib_1 = __nccwpck_require__(61860);
 const node_os_1 = __nccwpck_require__(48161);
 const node_util_1 = tslib_1.__importDefault(__nccwpck_require__(57975));
-const process = tslib_1.__importStar(__nccwpck_require__(1708));
+const node_process_1 = tslib_1.__importDefault(__nccwpck_require__(1708));
 function log(message, ...args) {
-    process.stderr.write(`${node_util_1.default.format(message, ...args)}${node_os_1.EOL}`);
+    node_process_1.default.stderr.write(`${node_util_1.default.format(message, ...args)}${node_os_1.EOL}`);
 }
 //# sourceMappingURL=log.js.map
 
@@ -89275,9 +89592,9 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getBodyLength = getBodyLength;
 exports.createNodeHttpClient = createNodeHttpClient;
 const tslib_1 = __nccwpck_require__(61860);
-const http = tslib_1.__importStar(__nccwpck_require__(37067));
-const https = tslib_1.__importStar(__nccwpck_require__(44708));
-const zlib = tslib_1.__importStar(__nccwpck_require__(38522));
+const node_http_1 = tslib_1.__importDefault(__nccwpck_require__(37067));
+const node_https_1 = tslib_1.__importDefault(__nccwpck_require__(44708));
+const node_zlib_1 = tslib_1.__importDefault(__nccwpck_require__(38522));
 const node_stream_1 = __nccwpck_require__(57075);
 const AbortError_js_1 = __nccwpck_require__(99992);
 const httpHeaders_js_1 = __nccwpck_require__(4220);
@@ -89308,6 +89625,8 @@ function isArrayBuffer(body) {
     return body && typeof body.byteLength === "number";
 }
 class ReportTransform extends node_stream_1.Transform {
+    loadedBytes = 0;
+    progressCallback;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     _transform(chunk, _encoding, callback) {
         this.push(chunk);
@@ -89322,7 +89641,6 @@ class ReportTransform extends node_stream_1.Transform {
     }
     constructor(progressCallback) {
         super();
-        this.loadedBytes = 0;
         this.progressCallback = progressCallback;
     }
 }
@@ -89331,15 +89649,13 @@ class ReportTransform extends node_stream_1.Transform {
  * @internal
  */
 class NodeHttpClient {
-    constructor() {
-        this.cachedHttpsAgents = new WeakMap();
-    }
+    cachedHttpAgent;
+    cachedHttpsAgents = new WeakMap();
     /**
      * Makes a request over an underlying transport layer and returns the response.
      * @param request - The request to be made.
      */
     async sendRequest(request) {
-        var _a, _b, _c;
         const abortController = new AbortController();
         let abortListener;
         if (request.abortSignal) {
@@ -89362,7 +89678,7 @@ class NodeHttpClient {
             }, request.timeout);
         }
         const acceptEncoding = request.headers.get("Accept-Encoding");
-        const shouldDecompress = (acceptEncoding === null || acceptEncoding === void 0 ? void 0 : acceptEncoding.includes("gzip")) || (acceptEncoding === null || acceptEncoding === void 0 ? void 0 : acceptEncoding.includes("deflate"));
+        const shouldDecompress = acceptEncoding?.includes("gzip") || acceptEncoding?.includes("deflate");
         let body = typeof request.body === "function" ? request.body() : request.body;
         if (body && !request.headers.has("Content-Length")) {
             const bodyLength = getBodyLength(body);
@@ -89391,7 +89707,7 @@ class NodeHttpClient {
                 clearTimeout(timeoutId);
             }
             const headers = getResponseHeaders(res);
-            const status = (_a = res.statusCode) !== null && _a !== void 0 ? _a : 0;
+            const status = res.statusCode ?? 0;
             const response = {
                 status,
                 headers,
@@ -89417,8 +89733,8 @@ class NodeHttpClient {
             }
             if (
             // Value of POSITIVE_INFINITY in streamResponseStatusCodes is considered as any status code
-            ((_b = request.streamResponseStatusCodes) === null || _b === void 0 ? void 0 : _b.has(Number.POSITIVE_INFINITY)) ||
-                ((_c = request.streamResponseStatusCodes) === null || _c === void 0 ? void 0 : _c.has(response.status))) {
+            request.streamResponseStatusCodes?.has(Number.POSITIVE_INFINITY) ||
+                request.streamResponseStatusCodes?.has(response.status)) {
                 response.readableStreamBody = responseStream;
             }
             else {
@@ -89439,10 +89755,9 @@ class NodeHttpClient {
                 }
                 Promise.all([uploadStreamDone, downloadStreamDone])
                     .then(() => {
-                    var _a;
                     // eslint-disable-next-line promise/always-return
                     if (abortListener) {
-                        (_a = request.abortSignal) === null || _a === void 0 ? void 0 : _a.removeEventListener("abort", abortListener);
+                        request.abortSignal?.removeEventListener("abort", abortListener);
                     }
                 })
                     .catch((e) => {
@@ -89452,19 +89767,25 @@ class NodeHttpClient {
         }
     }
     makeRequest(request, abortController, body) {
-        var _a;
         const url = new URL(request.url);
         const isInsecure = url.protocol !== "https:";
         if (isInsecure && !request.allowInsecureConnection) {
             throw new Error(`Cannot connect to ${request.url} while allowInsecureConnection is false.`);
         }
-        const agent = (_a = request.agent) !== null && _a !== void 0 ? _a : this.getOrCreateAgent(request, isInsecure);
-        const options = Object.assign({ agent, hostname: url.hostname, path: `${url.pathname}${url.search}`, port: url.port, method: request.method, headers: request.headers.toJSON({ preserveCase: true }) }, request.requestOverrides);
+        const agent = request.agent ?? this.getOrCreateAgent(request, isInsecure);
+        const options = {
+            agent,
+            hostname: url.hostname,
+            path: `${url.pathname}${url.search}`,
+            port: url.port,
+            method: request.method,
+            headers: request.headers.toJSON({ preserveCase: true }),
+            ...request.requestOverrides,
+        };
         return new Promise((resolve, reject) => {
-            const req = isInsecure ? http.request(options, resolve) : https.request(options, resolve);
+            const req = isInsecure ? node_http_1.default.request(options, resolve) : node_https_1.default.request(options, resolve);
             req.once("error", (err) => {
-                var _a;
-                reject(new restError_js_1.RestError(err.message, { code: (_a = err.code) !== null && _a !== void 0 ? _a : restError_js_1.RestError.REQUEST_SEND_ERROR, request }));
+                reject(new restError_js_1.RestError(err.message, { code: err.code ?? restError_js_1.RestError.REQUEST_SEND_ERROR, request }));
             });
             abortController.signal.addEventListener("abort", () => {
                 const abortError = new AbortError_js_1.AbortError("The operation was aborted. Rejecting from abort signal callback while making request.");
@@ -89493,17 +89814,16 @@ class NodeHttpClient {
         });
     }
     getOrCreateAgent(request, isInsecure) {
-        var _a;
         const disableKeepAlive = request.disableKeepAlive;
         // Handle Insecure requests first
         if (isInsecure) {
             if (disableKeepAlive) {
                 // keepAlive:false is the default so we don't need a custom Agent
-                return http.globalAgent;
+                return node_http_1.default.globalAgent;
             }
             if (!this.cachedHttpAgent) {
                 // If there is no cached agent create a new one and cache it.
-                this.cachedHttpAgent = new http.Agent({ keepAlive: true });
+                this.cachedHttpAgent = new node_http_1.default.Agent({ keepAlive: true });
             }
             return this.cachedHttpAgent;
         }
@@ -89511,10 +89831,10 @@ class NodeHttpClient {
             if (disableKeepAlive && !request.tlsSettings) {
                 // When there are no tlsSettings and keepAlive is false
                 // we don't need a custom agent
-                return https.globalAgent;
+                return node_https_1.default.globalAgent;
             }
             // We use the tlsSettings to index cached clients
-            const tlsSettings = (_a = request.tlsSettings) !== null && _a !== void 0 ? _a : DEFAULT_TLS_SETTINGS;
+            const tlsSettings = request.tlsSettings ?? DEFAULT_TLS_SETTINGS;
             // Get the cached agent or create a new one with the
             // provided values for keepAlive and tlsSettings
             let agent = this.cachedHttpsAgents.get(tlsSettings);
@@ -89522,9 +89842,12 @@ class NodeHttpClient {
                 return agent;
             }
             log_js_1.logger.info("No cached TLS Agent exist, creating a new Agent");
-            agent = new https.Agent(Object.assign({ 
+            agent = new node_https_1.default.Agent({
                 // keepAlive is true if disableKeepAlive is false.
-                keepAlive: !disableKeepAlive }, tlsSettings));
+                keepAlive: !disableKeepAlive,
+                // Since we are spreading, if no tslSettings were provided, nothing is added to the agent options.
+                ...tlsSettings,
+            });
             this.cachedHttpsAgents.set(tlsSettings, agent);
             return agent;
         }
@@ -89548,12 +89871,12 @@ function getResponseHeaders(res) {
 function getDecodedResponseStream(stream, headers) {
     const contentEncoding = headers.get("Content-Encoding");
     if (contentEncoding === "gzip") {
-        const unzip = zlib.createGunzip();
+        const unzip = node_zlib_1.default.createGunzip();
         stream.pipe(unzip);
         return unzip;
     }
     else if (contentEncoding === "deflate") {
-        const inflate = zlib.createInflate();
+        const inflate = node_zlib_1.default.createInflate();
         stream.pipe(inflate);
         return inflate;
     }
@@ -89574,7 +89897,7 @@ function streamToText(stream) {
             resolve(Buffer.concat(buffer).toString("utf8"));
         });
         stream.on("error", (e) => {
-            if (e && (e === null || e === void 0 ? void 0 : e.name) === "AbortError") {
+            if (e && e?.name === "AbortError") {
                 reject(e);
             }
             else {
@@ -89633,10 +89956,10 @@ const ValidPhaseNames = new Set(["Deserialize", "Serialize", "Retry", "Sign"]);
  * @internal
  */
 class HttpPipeline {
+    _policies = [];
+    _orderedPolicies;
     constructor(policies) {
-        var _a;
-        this._policies = [];
-        this._policies = (_a = policies === null || policies === void 0 ? void 0 : policies.slice(0)) !== null && _a !== void 0 ? _a : [];
+        this._policies = policies?.slice(0) ?? [];
         this._orderedPolicies = undefined;
     }
     addPolicy(policy, options = {}) {
@@ -89901,25 +90224,43 @@ exports.createPipelineRequest = createPipelineRequest;
 const httpHeaders_js_1 = __nccwpck_require__(4220);
 const uuidUtils_js_1 = __nccwpck_require__(5023);
 class PipelineRequestImpl {
+    url;
+    method;
+    headers;
+    timeout;
+    withCredentials;
+    body;
+    multipartBody;
+    formData;
+    streamResponseStatusCodes;
+    enableBrowserStreams;
+    proxySettings;
+    disableKeepAlive;
+    abortSignal;
+    requestId;
+    allowInsecureConnection;
+    onUploadProgress;
+    onDownloadProgress;
+    requestOverrides;
+    authSchemes;
     constructor(options) {
-        var _a, _b, _c, _d, _e, _f, _g;
         this.url = options.url;
         this.body = options.body;
-        this.headers = (_a = options.headers) !== null && _a !== void 0 ? _a : (0, httpHeaders_js_1.createHttpHeaders)();
-        this.method = (_b = options.method) !== null && _b !== void 0 ? _b : "GET";
-        this.timeout = (_c = options.timeout) !== null && _c !== void 0 ? _c : 0;
+        this.headers = options.headers ?? (0, httpHeaders_js_1.createHttpHeaders)();
+        this.method = options.method ?? "GET";
+        this.timeout = options.timeout ?? 0;
         this.multipartBody = options.multipartBody;
         this.formData = options.formData;
-        this.disableKeepAlive = (_d = options.disableKeepAlive) !== null && _d !== void 0 ? _d : false;
+        this.disableKeepAlive = options.disableKeepAlive ?? false;
         this.proxySettings = options.proxySettings;
         this.streamResponseStatusCodes = options.streamResponseStatusCodes;
-        this.withCredentials = (_e = options.withCredentials) !== null && _e !== void 0 ? _e : false;
+        this.withCredentials = options.withCredentials ?? false;
         this.abortSignal = options.abortSignal;
         this.onUploadProgress = options.onUploadProgress;
         this.onDownloadProgress = options.onDownloadProgress;
         this.requestId = options.requestId || (0, uuidUtils_js_1.randomUUID)();
-        this.allowInsecureConnection = (_f = options.allowInsecureConnection) !== null && _f !== void 0 ? _f : false;
-        this.enableBrowserStreams = (_g = options.enableBrowserStreams) !== null && _g !== void 0 ? _g : false;
+        this.allowInsecureConnection = options.allowInsecureConnection ?? false;
+        this.enableBrowserStreams = options.enableBrowserStreams ?? false;
         this.requestOverrides = options.requestOverrides;
         this.authSchemes = options.authSchemes;
     }
@@ -89991,10 +90332,9 @@ function apiKeyAuthenticationPolicy(options) {
     return {
         name: exports.apiKeyAuthenticationPolicyName,
         async sendRequest(request, next) {
-            var _a, _b;
             // Ensure allowInsecureConnection is explicitly set when sending request to non-https URLs
             (0, checkInsecureConnection_js_1.ensureSecureConnection)(request, options);
-            const scheme = (_b = ((_a = request.authSchemes) !== null && _a !== void 0 ? _a : options.authSchemes)) === null || _b === void 0 ? void 0 : _b.find((x) => x.kind === "apiKey");
+            const scheme = (request.authSchemes ?? options.authSchemes)?.find((x) => x.kind === "apiKey");
             // Skip adding authentication header if no API key authentication scheme is found
             if (!scheme) {
                 return next(request);
@@ -90034,10 +90374,9 @@ function basicAuthenticationPolicy(options) {
     return {
         name: exports.basicAuthenticationPolicyName,
         async sendRequest(request, next) {
-            var _a, _b;
             // Ensure allowInsecureConnection is explicitly set when sending request to non-https URLs
             (0, checkInsecureConnection_js_1.ensureSecureConnection)(request, options);
-            const scheme = (_b = ((_a = request.authSchemes) !== null && _a !== void 0 ? _a : options.authSchemes)) === null || _b === void 0 ? void 0 : _b.find((x) => x.kind === "http" && x.scheme === "basic");
+            const scheme = (request.authSchemes ?? options.authSchemes)?.find((x) => x.kind === "http" && x.scheme === "basic");
             // Skip adding authentication header if no basic authentication scheme is found
             if (!scheme) {
                 return next(request);
@@ -90075,10 +90414,9 @@ function bearerAuthenticationPolicy(options) {
     return {
         name: exports.bearerAuthenticationPolicyName,
         async sendRequest(request, next) {
-            var _a, _b;
             // Ensure allowInsecureConnection is explicitly set when sending request to non-https URLs
             (0, checkInsecureConnection_js_1.ensureSecureConnection)(request, options);
-            const scheme = (_b = ((_a = request.authSchemes) !== null && _a !== void 0 ? _a : options.authSchemes)) === null || _b === void 0 ? void 0 : _b.find((x) => x.kind === "http" && x.scheme === "bearer");
+            const scheme = (request.authSchemes ?? options.authSchemes)?.find((x) => x.kind === "http" && x.scheme === "bearer");
             // Skip adding authentication header if no bearer authentication scheme is found
             if (!scheme) {
                 return next(request);
@@ -90132,7 +90470,7 @@ function allowInsecureConnection(request, options) {
 function emitInsecureConnectionWarning() {
     const warning = "Sending token over insecure transport. Assume any token issued is compromised.";
     log_js_1.logger.warning(warning);
-    if (typeof (process === null || process === void 0 ? void 0 : process.emitWarning) === "function" && !insecureConnectionWarningEmmitted) {
+    if (typeof process?.emitWarning === "function" && !insecureConnectionWarningEmmitted) {
         insecureConnectionWarningEmmitted = true;
         process.emitWarning(warning);
     }
@@ -90177,10 +90515,9 @@ function oauth2AuthenticationPolicy(options) {
     return {
         name: exports.oauth2AuthenticationPolicyName,
         async sendRequest(request, next) {
-            var _a, _b;
             // Ensure allowInsecureConnection is explicitly set when sending request to non-https URLs
             (0, checkInsecureConnection_js_1.ensureSecureConnection)(request, options);
-            const scheme = (_b = ((_a = request.authSchemes) !== null && _a !== void 0 ? _a : options.authSchemes)) === null || _b === void 0 ? void 0 : _b.find((x) => x.kind === "oauth2");
+            const scheme = (request.authSchemes ?? options.authSchemes)?.find((x) => x.kind === "oauth2");
             // Skip adding authentication header if no OAuth2 authentication scheme is found
             if (!scheme) {
                 return next(request);
@@ -90256,11 +90593,10 @@ exports.defaultRetryPolicyName = "defaultRetryPolicy";
  * - Or otherwise if the outgoing request fails, it will retry with an exponentially increasing delay.
  */
 function defaultRetryPolicy(options = {}) {
-    var _a;
     return {
         name: exports.defaultRetryPolicyName,
         sendRequest: (0, retryPolicy_js_1.retryPolicy)([(0, throttlingRetryStrategy_js_1.throttlingRetryStrategy)(), (0, exponentialRetryStrategy_js_1.exponentialRetryStrategy)(options)], {
-            maxRetries: (_a = options.maxRetries) !== null && _a !== void 0 ? _a : constants_js_1.DEFAULT_RETRY_POLICY_COUNT,
+            maxRetries: options.maxRetries ?? constants_js_1.DEFAULT_RETRY_POLICY_COUNT,
         }).sendRequest,
     };
 }
@@ -90290,11 +90626,13 @@ exports.exponentialRetryPolicyName = "exponentialRetryPolicy";
  * @param options - Options that configure retry logic.
  */
 function exponentialRetryPolicy(options = {}) {
-    var _a;
     return (0, retryPolicy_js_1.retryPolicy)([
-        (0, exponentialRetryStrategy_js_1.exponentialRetryStrategy)(Object.assign(Object.assign({}, options), { ignoreSystemErrors: true })),
+        (0, exponentialRetryStrategy_js_1.exponentialRetryStrategy)({
+            ...options,
+            ignoreSystemErrors: true,
+        }),
     ], {
-        maxRetries: (_a = options.maxRetries) !== null && _a !== void 0 ? _a : constants_js_1.DEFAULT_RETRY_POLICY_COUNT,
+        maxRetries: options.maxRetries ?? constants_js_1.DEFAULT_RETRY_POLICY_COUNT,
     });
 }
 //# sourceMappingURL=exponentialRetryPolicy.js.map
@@ -90319,10 +90657,9 @@ const httpHeaders_js_1 = __nccwpck_require__(4220);
  */
 exports.formDataPolicyName = "formDataPolicy";
 function formDataToFormDataMap(formData) {
-    var _a;
     const formDataMap = {};
     for (const [key, value] of formData.entries()) {
-        (_a = formDataMap[key]) !== null && _a !== void 0 ? _a : (formDataMap[key] = []);
+        formDataMap[key] ??= [];
         formDataMap[key].push(value);
     }
     return formDataMap;
@@ -90373,7 +90710,7 @@ async function prepareFormData(formData, request) {
         // content type is specified and is not multipart/form-data. Exit.
         return;
     }
-    request.headers.set("Content-Type", contentType !== null && contentType !== void 0 ? contentType : "multipart/form-data");
+    request.headers.set("Content-Type", contentType ?? "multipart/form-data");
     // set body to MultipartRequestBody using content from FormDataMap
     const parts = [];
     for (const [fieldName, values] of Object.entries(formData)) {
@@ -90485,8 +90822,7 @@ exports.logPolicyName = "logPolicy";
  * @param options - Options to configure logPolicy.
  */
 function logPolicy(options = {}) {
-    var _a;
-    const logger = (_a = options.logger) !== null && _a !== void 0 ? _a : log_js_1.logger.info;
+    const logger = options.logger ?? log_js_1.logger.info;
     const sanitizer = new sanitizer_js_1.Sanitizer({
         additionalAllowedHeaderNames: options.additionalAllowedHeaderNames,
         additionalAllowedQueryParameters: options.additionalAllowedQueryParameters,
@@ -90597,7 +90933,6 @@ function multipartPolicy() {
     return {
         name: exports.multipartPolicyName,
         async sendRequest(request, next) {
-            var _a;
             if (!request.multipartBody) {
                 return next(request);
             }
@@ -90605,7 +90940,7 @@ function multipartPolicy() {
                 throw new Error("multipartBody and regular body cannot be set at the same time");
             }
             let boundary = request.multipartBody.boundary;
-            const contentTypeHeader = (_a = request.headers.get("Content-Type")) !== null && _a !== void 0 ? _a : "multipart/mixed";
+            const contentTypeHeader = request.headers.get("Content-Type") ?? "multipart/mixed";
             const parsedHeader = contentTypeHeader.match(/^(multipart\/[^ ;]+)(?:; *boundary=(.+))?$/);
             if (!parsedHeader) {
                 throw new Error(`Got multipart request body, but content-type header was not multipart: ${contentTypeHeader}`);
@@ -90614,7 +90949,7 @@ function multipartPolicy() {
             if (parsedBoundary && boundary && parsedBoundary !== boundary) {
                 throw new Error(`Multipart boundary was specified as ${parsedBoundary} in the header, but got ${boundary} in the request body`);
             }
-            boundary !== null && boundary !== void 0 ? boundary : (boundary = parsedBoundary);
+            boundary ??= parsedBoundary;
             if (boundary) {
                 assertValidBoundary(boundary);
             }
@@ -90691,7 +91026,7 @@ function isBypassed(uri, noProxyList, bypassedMap) {
         return false;
     }
     const host = new URL(uri).hostname;
-    if (bypassedMap === null || bypassedMap === void 0 ? void 0 : bypassedMap.has(host)) {
+    if (bypassedMap?.has(host)) {
         return bypassedMap.get(host);
     }
     let isBypassedFlag = false;
@@ -90714,7 +91049,7 @@ function isBypassed(uri, noProxyList, bypassedMap) {
             }
         }
     }
-    bypassedMap === null || bypassedMap === void 0 ? void 0 : bypassedMap.set(host, isBypassedFlag);
+    bypassedMap?.set(host, isBypassedFlag);
     return isBypassedFlag;
 }
 function loadNoProxy() {
@@ -90764,7 +91099,7 @@ function getUrlFromProxySettings(settings) {
     try {
         parsedProxyUrl = new URL(settings.host);
     }
-    catch (_a) {
+    catch {
         throw new Error(`Expecting a valid host string in proxy settings, but found "${settings.host}".`);
     }
     parsedProxyUrl.port = String(settings.port);
@@ -90819,10 +91154,9 @@ function proxyPolicy(proxySettings, options) {
     return {
         name: exports.proxyPolicyName,
         async sendRequest(request, next) {
-            var _a;
             if (!request.proxySettings &&
                 defaultProxy &&
-                !isBypassed(request.url, (_a = options === null || options === void 0 ? void 0 : options.customNoProxyList) !== null && _a !== void 0 ? _a : exports.globalNoProxyList, (options === null || options === void 0 ? void 0 : options.customNoProxyList) ? undefined : globalBypassedMap)) {
+                !isBypassed(request.url, options?.customNoProxyList ?? exports.globalNoProxyList, options?.customNoProxyList ? undefined : globalBypassedMap)) {
                 setProxyAgentOnRequest(request, cachedAgents, defaultProxy);
             }
             else if (request.proxySettings) {
@@ -90925,7 +91259,6 @@ function retryPolicy(strategies, options = { maxRetries: constants_js_1.DEFAULT_
     return {
         name: retryPolicyName,
         async sendRequest(request, next) {
-            var _a, _b;
             let response;
             let responseError;
             let retryCount = -1;
@@ -90949,12 +91282,12 @@ function retryPolicy(strategies, options = { maxRetries: constants_js_1.DEFAULT_
                     }
                     response = responseError.response;
                 }
-                if ((_a = request.abortSignal) === null || _a === void 0 ? void 0 : _a.aborted) {
+                if (request.abortSignal?.aborted) {
                     logger.error(`Retry ${retryCount}: Request aborted.`);
                     const abortError = new AbortError_js_1.AbortError();
                     throw abortError;
                 }
-                if (retryCount >= ((_b = options.maxRetries) !== null && _b !== void 0 ? _b : constants_js_1.DEFAULT_RETRY_POLICY_COUNT)) {
+                if (retryCount >= (options.maxRetries ?? constants_js_1.DEFAULT_RETRY_POLICY_COUNT)) {
                     logger.info(`Retry ${retryCount}: Maximum retries reached. Returning the last received response, or throwing the last received error.`);
                     if (responseError) {
                         throw responseError;
@@ -91038,13 +91371,15 @@ exports.systemErrorRetryPolicyName = "systemErrorRetryPolicy";
  * @param options - Options that customize the policy.
  */
 function systemErrorRetryPolicy(options = {}) {
-    var _a;
     return {
         name: exports.systemErrorRetryPolicyName,
         sendRequest: (0, retryPolicy_js_1.retryPolicy)([
-            (0, exponentialRetryStrategy_js_1.exponentialRetryStrategy)(Object.assign(Object.assign({}, options), { ignoreHttpStatusCodes: true })),
+            (0, exponentialRetryStrategy_js_1.exponentialRetryStrategy)({
+                ...options,
+                ignoreHttpStatusCodes: true,
+            }),
         ], {
-            maxRetries: (_a = options.maxRetries) !== null && _a !== void 0 ? _a : constants_js_1.DEFAULT_RETRY_POLICY_COUNT,
+            maxRetries: options.maxRetries ?? constants_js_1.DEFAULT_RETRY_POLICY_COUNT,
         }).sendRequest,
     };
 }
@@ -91080,11 +91415,10 @@ exports.throttlingRetryPolicyName = "throttlingRetryPolicy";
  * @param options - Options that configure retry logic.
  */
 function throttlingRetryPolicy(options = {}) {
-    var _a;
     return {
         name: exports.throttlingRetryPolicyName,
         sendRequest: (0, retryPolicy_js_1.retryPolicy)([(0, throttlingRetryStrategy_js_1.throttlingRetryStrategy)()], {
-            maxRetries: (_a = options.maxRetries) !== null && _a !== void 0 ? _a : constants_js_1.DEFAULT_RETRY_POLICY_COUNT,
+            maxRetries: options.maxRetries ?? constants_js_1.DEFAULT_RETRY_POLICY_COUNT,
         }).sendRequest,
     };
 }
@@ -91180,6 +91514,39 @@ const errorSanitizer = new sanitizer_js_1.Sanitizer();
  * A custom error type for failed pipeline requests.
  */
 class RestError extends Error {
+    /**
+     * Something went wrong when making the request.
+     * This means the actual request failed for some reason,
+     * such as a DNS issue or the connection being lost.
+     */
+    static REQUEST_SEND_ERROR = "REQUEST_SEND_ERROR";
+    /**
+     * This means that parsing the response from the server failed.
+     * It may have been malformed.
+     */
+    static PARSE_ERROR = "PARSE_ERROR";
+    /**
+     * The code of the error itself (use statics on RestError if possible.)
+     */
+    code;
+    /**
+     * The HTTP status code of the request (if applicable.)
+     */
+    statusCode;
+    /**
+     * The request that was made.
+     * This property is non-enumerable.
+     */
+    request;
+    /**
+     * The response received (if any.)
+     * This property is non-enumerable.
+     */
+    response;
+    /**
+     * Bonus property set by the throw site.
+     */
+    details;
     constructor(message, options = {}) {
         super(message);
         this.name = "RestError";
@@ -91191,12 +91558,24 @@ class RestError extends Error {
         // JSON.stringify and console.log.
         Object.defineProperty(this, "request", { value: options.request, enumerable: false });
         Object.defineProperty(this, "response", { value: options.response, enumerable: false });
+        // Only include useful agent information in the request for logging, as the full agent object
+        // may contain large binary data.
+        const agent = this.request?.agent
+            ? {
+                maxFreeSockets: this.request.agent.maxFreeSockets,
+                maxSockets: this.request.agent.maxSockets,
+            }
+            : undefined;
         // Logging method for util.inspect in Node
         Object.defineProperty(this, inspect_js_1.custom, {
             value: () => {
                 // Extract non-enumerable properties and add them back. This is OK since in this output the request and
                 // response get sanitized.
-                return `RestError: ${this.message} \n ${errorSanitizer.sanitize(Object.assign(Object.assign({}, this), { request: this.request, response: this.response }))}`;
+                return `RestError: ${this.message} \n ${errorSanitizer.sanitize({
+                    ...this,
+                    request: { ...this.request, agent },
+                    response: this.response,
+                })}`;
             },
             enumerable: false,
         });
@@ -91204,17 +91583,6 @@ class RestError extends Error {
     }
 }
 exports.RestError = RestError;
-/**
- * Something went wrong when making the request.
- * This means the actual request failed for some reason,
- * such as a DNS issue or the connection being lost.
- */
-RestError.REQUEST_SEND_ERROR = "REQUEST_SEND_ERROR";
-/**
- * This means that parsing the response from the server failed.
- * It may have been malformed.
- */
-RestError.PARSE_ERROR = "PARSE_ERROR";
 /**
  * Typeguard for RestError
  * @param e - Something caught by a catch clause.
@@ -91251,9 +91619,8 @@ const DEFAULT_CLIENT_MAX_RETRY_INTERVAL = 1000 * 64;
  * - Or otherwise if the outgoing request fails (408, greater or equal than 500, except for 501 and 505).
  */
 function exponentialRetryStrategy(options = {}) {
-    var _a, _b;
-    const retryInterval = (_a = options.retryDelayInMs) !== null && _a !== void 0 ? _a : DEFAULT_CLIENT_RETRY_INTERVAL;
-    const maxRetryInterval = (_b = options.maxRetryDelayInMs) !== null && _b !== void 0 ? _b : DEFAULT_CLIENT_MAX_RETRY_INTERVAL;
+    const retryInterval = options.retryDelayInMs ?? DEFAULT_CLIENT_RETRY_INTERVAL;
+    const maxRetryInterval = options.maxRetryDelayInMs ?? DEFAULT_CLIENT_MAX_RETRY_INTERVAL;
     return {
         name: "exponentialRetryStrategy",
         retry({ retryCount, response, responseError }) {
@@ -91361,7 +91728,7 @@ function getRetryAfterInMs(response) {
         // negative diff would mean a date in the past, so retry asap with 0 milliseconds
         return Number.isFinite(diff) ? Math.max(0, diff) : undefined;
     }
-    catch (_a) {
+    catch {
         return undefined;
     }
 }
@@ -91429,7 +91796,6 @@ function stringToUint8Array(value, format) {
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
-var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.isReactNative = exports.isNodeRuntime = exports.isNodeLike = exports.isBun = exports.isDeno = exports.isWebWorker = exports.isBrowser = void 0;
 /**
@@ -91441,10 +91807,10 @@ exports.isBrowser = typeof window !== "undefined" && typeof window.document !== 
  * A constant that indicates whether the environment the code is running is a Web Worker.
  */
 exports.isWebWorker = typeof self === "object" &&
-    typeof (self === null || self === void 0 ? void 0 : self.importScripts) === "function" &&
-    (((_a = self.constructor) === null || _a === void 0 ? void 0 : _a.name) === "DedicatedWorkerGlobalScope" ||
-        ((_b = self.constructor) === null || _b === void 0 ? void 0 : _b.name) === "ServiceWorkerGlobalScope" ||
-        ((_c = self.constructor) === null || _c === void 0 ? void 0 : _c.name) === "SharedWorkerGlobalScope");
+    typeof self?.importScripts === "function" &&
+    (self.constructor?.name === "DedicatedWorkerGlobalScope" ||
+        self.constructor?.name === "ServiceWorkerGlobalScope" ||
+        self.constructor?.name === "SharedWorkerGlobalScope");
 /**
  * A constant that indicates whether the environment the code is running is Deno.
  */
@@ -91460,7 +91826,7 @@ exports.isBun = typeof Bun !== "undefined" && typeof Bun.version !== "undefined"
  */
 exports.isNodeLike = typeof globalThis.process !== "undefined" &&
     Boolean(globalThis.process.version) &&
-    Boolean((_d = globalThis.process.versions) === null || _d === void 0 ? void 0 : _d.node);
+    Boolean(globalThis.process.versions?.node);
 /**
  * A constant that indicates whether the environment the code is running is Node.JS.
  */
@@ -91469,7 +91835,7 @@ exports.isNodeRuntime = exports.isNodeLike && !exports.isBun && !exports.isDeno;
  * A constant that indicates whether the environment the code is running is in React-Native.
  */
 // https://github.com/facebook/react-native/blob/main/packages/react-native/Libraries/Core/setUpNavigator.js
-exports.isReactNative = typeof navigator !== "undefined" && (navigator === null || navigator === void 0 ? void 0 : navigator.product) === "ReactNative";
+exports.isReactNative = typeof navigator !== "undefined" && navigator?.product === "ReactNative";
 //# sourceMappingURL=checkEnvironment.js.map
 
 /***/ }),
@@ -91483,25 +91849,22 @@ exports.isReactNative = typeof navigator !== "undefined" && (navigator === null 
 // Licensed under the MIT License.
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.concat = concat;
-const tslib_1 = __nccwpck_require__(61860);
 const stream_1 = __nccwpck_require__(2203);
 const typeGuards_js_1 = __nccwpck_require__(48505);
-function streamAsyncIterator() {
-    return tslib_1.__asyncGenerator(this, arguments, function* streamAsyncIterator_1() {
-        const reader = this.getReader();
-        try {
-            while (true) {
-                const { done, value } = yield tslib_1.__await(reader.read());
-                if (done) {
-                    return yield tslib_1.__await(void 0);
-                }
-                yield yield tslib_1.__await(value);
+async function* streamAsyncIterator() {
+    const reader = this.getReader();
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                return;
             }
+            yield value;
         }
-        finally {
-            reader.releaseLock();
-        }
-    });
+    }
+    finally {
+        reader.releaseLock();
+    }
 }
 function makeAsyncIterable(webStream) {
     if (!webStream[Symbol.asyncIterator]) {
@@ -91543,27 +91906,12 @@ function toStream(source) {
 async function concat(sources) {
     return function () {
         const streams = sources.map((x) => (typeof x === "function" ? x() : x)).map(toStream);
-        return stream_1.Readable.from((function () {
-            return tslib_1.__asyncGenerator(this, arguments, function* () {
-                var _a, e_1, _b, _c;
-                for (const stream of streams) {
-                    try {
-                        for (var _d = true, stream_2 = (e_1 = void 0, tslib_1.__asyncValues(stream)), stream_2_1; stream_2_1 = yield tslib_1.__await(stream_2.next()), _a = stream_2_1.done, !_a; _d = true) {
-                            _c = stream_2_1.value;
-                            _d = false;
-                            const chunk = _c;
-                            yield yield tslib_1.__await(chunk);
-                        }
-                    }
-                    catch (e_1_1) { e_1 = { error: e_1_1 }; }
-                    finally {
-                        try {
-                            if (!_d && !_a && (_b = stream_2.return)) yield tslib_1.__await(_b.call(stream_2));
-                        }
-                        finally { if (e_1) throw e_1.error; }
-                    }
+        return stream_1.Readable.from((async function* () {
+            for (const stream of streams) {
+                for await (const chunk of stream) {
+                    yield chunk;
                 }
-            });
+            }
         })());
     };
 }
@@ -91653,10 +92001,10 @@ function delay(delayInMs, value, options) {
         let timer = undefined;
         let onAborted = undefined;
         const rejectOnAbort = () => {
-            return reject(new AbortError_js_1.AbortError((options === null || options === void 0 ? void 0 : options.abortErrorMsg) ? options === null || options === void 0 ? void 0 : options.abortErrorMsg : StandardAbortMessage));
+            return reject(new AbortError_js_1.AbortError(options?.abortErrorMsg ? options?.abortErrorMsg : StandardAbortMessage));
         };
         const removeListeners = () => {
-            if ((options === null || options === void 0 ? void 0 : options.abortSignal) && onAborted) {
+            if (options?.abortSignal && onAborted) {
                 options.abortSignal.removeEventListener("abort", onAborted);
             }
         };
@@ -91667,14 +92015,14 @@ function delay(delayInMs, value, options) {
             removeListeners();
             return rejectOnAbort();
         };
-        if ((options === null || options === void 0 ? void 0 : options.abortSignal) && options.abortSignal.aborted) {
+        if (options?.abortSignal && options.abortSignal.aborted) {
             return rejectOnAbort();
         }
         timer = setTimeout(() => {
             removeListeners();
             resolve(value);
         }, delayInMs);
-        if (options === null || options === void 0 ? void 0 : options.abortSignal) {
+        if (options?.abortSignal) {
             options.abortSignal.addEventListener("abort", onAborted);
         }
     });
@@ -91863,6 +92211,8 @@ const defaultAllowedQueryParameters = ["api-version"];
  * A utility class to sanitize objects for logging.
  */
 class Sanitizer {
+    allowedHeaderNames;
+    allowedQueryParameters;
     constructor({ additionalAllowedHeaderNames: allowedHeaderNames = [], additionalAllowedQueryParameters: allowedQueryParameters = [], } = {}) {
         allowedHeaderNames = defaultAllowedHeaderNames.concat(allowedHeaderNames);
         allowedQueryParameters = defaultAllowedQueryParameters.concat(allowedQueryParameters);
@@ -91879,7 +92229,11 @@ class Sanitizer {
         return JSON.stringify(obj, (key, value) => {
             // Ensure Errors include their interesting non-enumerable members
             if (value instanceof Error) {
-                return Object.assign(Object.assign({}, value), { name: value.name, message: value.message });
+                return {
+                    ...value,
+                    name: value.name,
+                    message: value.message,
+                };
             }
             if (key === "headers") {
                 return this.sanitizeHeaders(value);
@@ -92088,8 +92442,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getHeaderName = getHeaderName;
 exports.setPlatformSpecificData = setPlatformSpecificData;
 const tslib_1 = __nccwpck_require__(61860);
-const os = tslib_1.__importStar(__nccwpck_require__(48161));
-const process = tslib_1.__importStar(__nccwpck_require__(1708));
+const node_os_1 = tslib_1.__importDefault(__nccwpck_require__(48161));
+const node_process_1 = tslib_1.__importDefault(__nccwpck_require__(1708));
 /**
  * @internal
  */
@@ -92100,8 +92454,8 @@ function getHeaderName() {
  * @internal
  */
 async function setPlatformSpecificData(map) {
-    if (process && process.versions) {
-        const versions = process.versions;
+    if (node_process_1.default && node_process_1.default.versions) {
+        const versions = node_process_1.default.versions;
         if (versions.bun) {
             map.set("Bun", versions.bun);
         }
@@ -92112,7 +92466,7 @@ async function setPlatformSpecificData(map) {
             map.set("Node", versions.node);
         }
     }
-    map.set("OS", `(${os.arch()}-${os.type()}-${os.release()})`);
+    map.set("OS", `(${node_os_1.default.arch()}-${node_os_1.default.type()}-${node_os_1.default.release()})`);
 }
 //# sourceMappingURL=userAgentPlatform.js.map
 
@@ -92125,12 +92479,11 @@ async function setPlatformSpecificData(map) {
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
-var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.randomUUID = randomUUID;
 const node_crypto_1 = __nccwpck_require__(77598);
 // NOTE: This is a workaround until we can use `globalThis.crypto.randomUUID` in Node.js 19+.
-const uuidFunction = typeof ((_a = globalThis === null || globalThis === void 0 ? void 0 : globalThis.crypto) === null || _a === void 0 ? void 0 : _a.randomUUID) === "function"
+const uuidFunction = typeof globalThis?.crypto?.randomUUID === "function"
     ? globalThis.crypto.randomUUID.bind(globalThis.crypto)
     : node_crypto_1.randomUUID;
 /**

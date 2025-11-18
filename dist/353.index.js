@@ -359,7 +359,7 @@ async function default_browser_defaultBrowser() {
 const execFile = (0,external_node_util_.promisify)(external_node_child_process_.execFile);
 
 // Path to included `xdg-open`.
-const open_dirname = external_node_path_.dirname((0,external_node_url_.fileURLToPath)(import.meta.url));
+const open_dirname = external_node_path_.dirname((0,external_node_url_.fileURLToPath)(require("url").pathToFileURL(__filename).href));
 const localXdgOpenPath = external_node_path_.join(open_dirname, 'xdg-open');
 
 const {platform, arch} = external_node_process_;
