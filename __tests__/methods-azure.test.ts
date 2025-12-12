@@ -337,7 +337,7 @@ describe('UploadToAzure', () => {
     blobMock.containerClient.listBlobsFlat.mockReturnValue(asyncIterable([{name: 'dest/old.txt'}]));
     blobMock.deleteBlob.mockResolvedValueOnce({errorCode: 'delete-failed'});
     const findFlatSpy = jest.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file.txt']);
-    
+
     await azure.UploadToAzure({
       authPayload: {type: 'connection_string', connectionString: 'UseDevelopmentStorage=true'},
       containerName: 'container',
