@@ -20,6 +20,10 @@ describe('getFinalPathForFileName', () => {
     expect(helpers.getFinalPathForFileName('/test', '/out')).toEqual('out/test');
     expect(helpers.getFinalPathForFileName('/test/', '/out/')).toEqual('out/test');
   });
+
+  it('Should trim leading backslashes when needed', () => {
+    expect(helpers.getFinalPathForFileName('test.txt', '\\out')).toEqual('out/test.txt');
+  });
 });
 
 describe('FindFilesFlat', () => {
@@ -33,5 +37,27 @@ describe('FindFilesRecursive', () => {
   it('Should find all files in directory and subdirectories', async () => {
     const files = await helpers.FindFilesRecursive('./TestFiles/');
     expect(files.length).toBeGreaterThan(0);
+  });
+});
+
+describe('validateNonEmptyString', () => {
+  it('should throw when value is empty', () => {
+    expect(() => helpers.validateNonEmptyString('', 'param')).toThrow('The param cannot be an empty string or a null value.');
+  });
+
+  it('should pass when value is provided', () => {
+    expect(() => helpers.validateNonEmptyString('value', 'param')).not.toThrow();
+  });
+});
+
+describe('normalizePath', () => {
+  it('should return empty string for dot references', () => {
+    expect(helpers.normalizePath('./', 'source_folder')).toEqual('');
+  });
+});
+
+describe('CleanPath', () => {
+  it('should remove dot prefixes, duplicate separators and trailing slashes', () => {
+    expect(helpers.CleanPath('.\\folder\\subfolder/')).toEqual('folder/subfolder');
   });
 });
