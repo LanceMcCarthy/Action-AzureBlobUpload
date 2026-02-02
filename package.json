@@ -13,7 +13,7 @@
     "rebuild": "npm run clean && npm run build",
     "format": "prettier --write **/*.ts",
     "lint": "eslint src/**/*.ts",
-    "package": "ncc build --source-map --license licenses.txt",
+    "package": "ncc build lib/main.js --source-map --license licenses.txt",
     "test": "jest --coverage",
     "update-browser-list": "npx update-browserslist-db@latest",
     "pre-commit": "npm run format && npm run lint && npm run rebuild && npm run package",
