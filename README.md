@@ -24,11 +24,8 @@ Below are the action's inputs that need to be defined in the Action's `with` blo
 |  | `fail_if_source_empty` | `false` (default)| Set to `true` if you want action to fail if source folder has no files. |
 |  | `is_recursive` | `true` (default)| Set to `false` if you want all subfolders ignored. |
 |  | `delete_if_exists` | `false` (default)| Set to `true` if you want to overwrite an exiting blob with the same filename. |
-|  | `auth_type` | `connection_string` (default) | Optional auth mode override (`connection_string` or `service_principal`). If omitted, mode is inferred from `connection_string`. |
 
-### Authentication Method
-
-You can optionally provide `auth_type` with either `connection_string` or `service_principal` to force the mode. If omitted, the action uses `connection_string` when that input is present; otherwise it uses Service Principal mode.
+### Authentication Inputs
 
 #### Option 1 - ConnectionString
 
@@ -49,9 +46,17 @@ Service principal, aka an Entra ID Application, uses a managed identity to authe
 | ✔ | client_secret | `${{secrets.AZURE_CLIENT_SECRET}}` |The App Registration client secret used for Service Principal authentication. |
 | ✔ | storage_account | `storageaccount` | The name of the Azure Storage account to be accessed. Need for authenticating a Service Principal. |
 
+#### Overriding Auth type
+
+If you do not know which auth type you need until the workflow is executed, you can optionally set the `auth_type` with either `connection_string` or `service_principal` to force the mode during build-time.
+
+| Required | Inputs | Example | Summary |
+|----------|--------|---------|---------|
+|  | `auth_type` | `connection_string` or `service_principal` | If omitted, the auth type is inferred from `connection_string`'s presence. |
+
 ## Examples
 
-If you copy-paste from the examples below, **make sure the version number is up to date**. For example, you can an exact version number `LanceMcCarthy/Action-AzureBlobUpload@v3.5.0` or you can use just the major number `LanceMcCarthy/Action-AzureBlobUpload@v3` to get the latest release for that version (most common).
+If you copy-paste from the examples below, make sure the version number is current or use the major number `LanceMcCarthy/Action-AzureBlobUpload@v3` to get the latest release for that major version.
 
 ### Basic Use
 
