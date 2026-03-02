@@ -2,9 +2,19 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+    paths:
+      - 'src/**/*'
+      - 'package.json'
+      - 'package-lock.json'
   pull_request:
-    branches: [main]
+    branches:
+      - main
+    paths:
+      - 'src/**/*'
+      - 'package.json'
+      - 'package-lock.json'
 
 jobs:
   analyze:
