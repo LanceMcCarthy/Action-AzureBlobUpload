@@ -44,6 +44,8 @@ export async function UploadToAzure(props: AzureBlobUploadProps) {
     helpers.validateNonEmptyString(authPayload.clientId, 'client_id');
     helpers.validateNonEmptyString(authPayload.clientSecret, 'client_secret');
     helpers.validateNonEmptyString(authPayload.storageAccount, 'storage_account');
+  } else {
+    throw new Error(`Unsupported auth payload type: ${String((authPayload as {type?: string}).type)}`);
   }
 
   // Validate other required parameters

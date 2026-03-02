@@ -149,6 +149,21 @@ describe('UploadToAzure', () => {
     ).rejects.toThrow('The container_name cannot be an empty string or a null value.');
   });
 
+  it('Should fail if an unsupported auth payload type is provided', async () => {
+    await expect(
+      azure.UploadToAzure({
+        authPayload: {type: 'invalid_type'} as any,
+        containerName: 'container-name',
+        sourceFolder: 'src/abcd',
+        destinationFolder: '',
+        cleanDestinationPath: false,
+        failIfSourceEmpty: false,
+        isRecursive: true,
+        deleteIfExists: false
+      })
+    ).rejects.toThrow('Unsupported auth payload type: invalid_type');
+  });
+
   it('uploads a single file, cleans destination and deletes pre-existing blobs', async () => {
     blobMock.containerClient.exists.mockResolvedValue(false);
     blobMock.containerClient.listBlobsFlat.mockReturnValue(asyncIterable([{name: 'dest/old.txt'}]));
@@ -189,6 +204,28 @@ describe('UploadToAzure', () => {
     expect(findRecursiveSpy).toHaveBeenCalledWith(path.normalize('src/folder'));
     expect(core.error).toHaveBeenCalledWith(expect.stringContaining('There are no files'));
     expect(core.setFailed).toHaveBeenCalledWith('Source_Folder is empty or does not exist.');
+  });
+
+  it('does not fail the action when source is empty and failIfSourceEmpty is disabled', async () => {
+    blobMock.containerClient.exists.mockResolvedValue(true);
+    blobMock.containerClient.listBlobsFlat.mockReturnValue(asyncIterable([]));
+    const findRecursiveSpy = jest.spyOn(helpers, 'FindFilesRecursive').mockResolvedValue([]);
+
+    await azure.UploadToAzure({
+      authPayload: {type: 'connection_string', connectionString: 'UseDevelopmentStorage=true'},
+      containerName: 'container',
+      sourceFolder: 'src/folder',
+      destinationFolder: '',
+      cleanDestinationPath: false,
+      failIfSourceEmpty: false,
+      isRecursive: true,
+      deleteIfExists: false
+    });
+
+    expect(findRecursiveSpy).toHaveBeenCalledWith(path.normalize('src/folder'));
+    expect(core.error).toHaveBeenCalledWith(expect.stringContaining('There are no files'));
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(blobMock.uploadFile).not.toHaveBeenCalled();
   });
 
   it('uploads folder contents discovered via FindFilesFlat', async () => {
@@ -306,6 +343,23 @@ describe('UploadToAzure', () => {
     expect(core.error).toHaveBeenCalledWith('Error uploading file: UPLOAD_ERR');
   });
 
+  it('uses empty blob headers when mime type cannot be determined', async () => {
+    blobMock.containerClient.exists.mockResolvedValue(true);
+
+    await azure.UploadToAzure({
+      authPayload: {type: 'connection_string', connectionString: 'UseDevelopmentStorage=true'},
+      containerName: 'container',
+      sourceFolder: 'artifact.unknownext',
+      destinationFolder: '',
+      cleanDestinationPath: false,
+      failIfSourceEmpty: false,
+      isRecursive: false,
+      deleteIfExists: false
+    });
+
+    expect(blobMock.uploadFile).toHaveBeenCalledWith('artifact.unknownext', expect.objectContaining({blobHTTPHeaders: {}}));
+  });
+
   it('trims leading slashes for folder uploads and surfaces blob errors', async () => {
     blobMock.containerClient.exists.mockResolvedValue(true);
     const findFlatSpy = jest.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file-with-slash.txt']);
@@ -374,5 +428,26 @@ describe('UploadToAzure', () => {
     await flushPromises();
 
     expect(core.info).toHaveBeenCalledWith('Successfully deleted dest/old.txt.');
+  });
+
+  it('does not delete blobs outside the destination folder prefix', async () => {
+    blobMock.containerClient.exists.mockResolvedValue(true);
+    blobMock.containerClient.listBlobsFlat.mockReturnValue(asyncIterable([{name: 'other/old.txt'}]));
+
+    await azure.UploadToAzure({
+      authPayload: {type: 'connection_string', connectionString: 'UseDevelopmentStorage=true'},
+      containerName: 'container',
+      sourceFolder: 'artifact.txt',
+      destinationFolder: 'dest',
+      cleanDestinationPath: true,
+      failIfSourceEmpty: false,
+      isRecursive: false,
+      deleteIfExists: false
+    });
+
+    await flushPromises();
+
+    expect(blobMock.deleteBlob).not.toHaveBeenCalled();
+    expect(core.info).toHaveBeenCalledWith('All blobs successfully deleted.');
   });
 });
