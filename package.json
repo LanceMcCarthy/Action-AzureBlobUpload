@@ -39,7 +39,7 @@
     "@azure/identity": "^4.13.0",
     "@azure/storage-blob": "^12.31.0",
     "@eslint/eslintrc": "^3.3.4",
-    "@eslint/js": "9.39.1",
+    "@eslint/js": "9.39.3",
     "@stylistic/eslint-plugin-ts": "^4.4.1",
     "@types/mime-types": "^3.0.1",
     "@types/node": "^25.3.3",
