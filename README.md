@@ -24,8 +24,11 @@ Below are the action's inputs that need to be defined in the Action's `with` blo
 |  | `fail_if_source_empty` | `false` (default)| Set to `true` if you want action to fail if source folder has no files. |
 |  | `is_recursive` | `true` (default)| Set to `false` if you want all subfolders ignored. |
 |  | `delete_if_exists` | `false` (default)| Set to `true` if you want to overwrite an exiting blob with the same filename. |
+|  | `auth_type` | `connection_string` (default) | Optional auth mode override (`connection_string` or `service_principal`). If omitted, mode is inferred from `connection_string`. |
 
 ### Authentication Method
+
+You can optionally provide `auth_type` with either `connection_string` or `service_principal` to force the mode. If omitted, the action uses `connection_string` when that input is present; otherwise it uses Service Principal mode.
 
 #### Option 1 - ConnectionString
 
