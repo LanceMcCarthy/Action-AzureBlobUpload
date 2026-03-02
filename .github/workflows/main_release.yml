@@ -13,9 +13,9 @@ jobs:
     name: 'Build Package and Run Tests'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           
@@ -138,14 +138,14 @@ jobs:
           is_recursive: false
 
 #--------------------------------------------------------------------------------------#
-# Multiple tests for uploading files using Service Principal credentials.
+# Multiple tests for uploading files using Service Principal credentials
 #--------------------------------------------------------------------------------------#
   Upload_Test_SP:
     name: 'Upload Tests (Service principal)'
     runs-on: windows-latest
     needs: Upload_Test_ConnStr
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Generating Unique File Names for This Run
         run: |
@@ -167,8 +167,8 @@ jobs:
       - name: Upload without DestinationFolder Test
         uses: ./
         with:
-          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
-          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          tenant_id: "${{vars.AZURE_TENANT_ID}}"
+          client_id: "${{vars.AZURE_CLIENT_ID}}"
           client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
@@ -180,8 +180,8 @@ jobs:
       - name: Recursive with DestinationFolder Test
         uses: ./
         with:
-          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
-          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          tenant_id: "${{vars.AZURE_TENANT_ID}}"
+          client_id: "${{vars.AZURE_CLIENT_ID}}"
           client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
@@ -194,8 +194,8 @@ jobs:
       - name: Non-recursive with Destination Folder Test
         uses: ./
         with:
-          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
-          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          tenant_id: "${{vars.AZURE_TENANT_ID}}"
+          client_id: "${{vars.AZURE_CLIENT_ID}}"
           client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
@@ -209,8 +209,8 @@ jobs:
       - name: Non-recursive with Destination Folder Test (with '.' Prefix)
         uses: ./
         with:
-          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
-          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          tenant_id: "${{vars.AZURE_TENANT_ID}}"
+          client_id: "${{vars.AZURE_CLIENT_ID}}"
           client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
@@ -224,8 +224,8 @@ jobs:
       - name: Single File Path Test
         uses: ./
         with:
-          tenant_id: "${{secrets.AZURE_TENANT_ID}}"
-          client_id: "${{secrets.AZURE_CLIENT_ID}}"
+          tenant_id: "${{vars.AZURE_TENANT_ID}}"
+          client_id: "${{vars.AZURE_CLIENT_ID}}"
           client_secret: "${{secrets.AZURE_CLIENT_SECRET}}"
           storage_account: "dvlup"
           container_name: ci-cd
