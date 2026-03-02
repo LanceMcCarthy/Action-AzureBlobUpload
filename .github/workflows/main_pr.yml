@@ -12,9 +12,9 @@ jobs:
     name: 'Build Package and Run Tests'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           
@@ -31,7 +31,7 @@ jobs:
     runs-on: windows-latest
     needs: Package_RunTests
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: ./
         name: Upload wwwroot to /LargeFileCountTest/Windows
