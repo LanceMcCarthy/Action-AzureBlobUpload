@@ -45,6 +45,9 @@ inputs:
     description: 'If the blob exists it will be skipped, unless this is set to true.'
     required: false
     default: false
+  auth_type:
+    description: "Optional auth mode override: 'connection_string' or 'service_principal'. If omitted, mode is inferred from connection_string presence (if it is empty, then service_principal mode is used)."
+    required: false
 
 runs:
   using: 'node20'
