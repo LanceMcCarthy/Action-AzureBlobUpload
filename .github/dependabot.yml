@@ -4,6 +4,13 @@ updates:
     directory: '/'
     schedule:
       interval: 'monthly'
+    ignore:
+      - dependency-name: 'eslint'
+        versions:
+          - '>=10'
+      - dependency-name: '@eslint/js'
+        versions:
+          - '>=10'
     groups:
        dependencies:
           applies-to: version-updates
