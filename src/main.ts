@@ -1,10 +1,11 @@
 import * as core from '@actions/core';
 import {AuthPayload, UploadToAzure} from './methods-azure';
+import {CleanPath} from './methods-helpers';
 
 async function run(): Promise<void> {
-  const containerName = core.getInput('container_name');
-  const sourceFolder = core.getInput('source_folder');
-  const destinationFolder = core.getInput('destination_folder');
+  const containerName = CleanPath(core.getInput('container_name'));
+  const sourceFolder = CleanPath(core.getInput('source_folder'));
+  const destinationFolder = CleanPath(core.getInput('destination_folder'));
   const cleanDestinationPath = core.getInput('clean_destination_folder').toLowerCase() === 'true';
   const failIfSourceEmpty = core.getInput('fail_if_source_empty').toLowerCase() === 'true';
   const isRecursive = core.getInput('is_recursive').toLowerCase() === 'true';

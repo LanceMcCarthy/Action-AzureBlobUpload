@@ -143,6 +143,27 @@ describe('main.ts', () => {
     expect(core.setFailed).not.toHaveBeenCalled();
   });
 
+  it('normalizes backslashes in path inputs before calling UploadToAzure', async () => {
+    const {core, methodsAzure} = await runMainWithInputs({
+      auth_type: 'connection_string',
+      connection_string: 'UseDevelopmentStorage=true',
+      container_name: 'container',
+      source_folder: '.\\artifacts\\output\\',
+      destination_folder: 'uploads\\subfolder\\',
+      clean_destination_folder: 'false',
+      fail_if_source_empty: 'false',
+      is_recursive: 'true',
+      delete_if_exists: 'false'
+    });
+
+    expect(methodsAzure.UploadToAzure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceFolder: 'artifacts/output',
+        destinationFolder: 'uploads/subfolder'
+      })
+    );
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
   it('fails the action when UploadToAzure rejects', async () => {
     const uploadError = new Error('upload failed from main');
     const {core} = await runMainWithInputs(
