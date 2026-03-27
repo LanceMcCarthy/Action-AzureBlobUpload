@@ -1,6 +1,6 @@
 {
   "name": "action-azure-upload-blob",
-  "version": "3.9.0",
+  "version": "3.10.0",
   "private": false,
   "description": "GitHub Action that uploads files to an Azure Storage blob container.",
   "main": "lib/main.js",
