@@ -14,7 +14,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
           
       - name: "Run scripts"
         run: npm run all
@@ -22,36 +22,13 @@ jobs:
           NODE_OPTIONS: "--max_old_space_size=4096"
 
       - name: Upload built action artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: built-action-artifacts
           path: |
             dist/**
             lib/**
 
-#--------------------------------------------------------------------------------------#
-# Single test for uploading a large number of files to test performance and any potential issues
-#--------------------------------------------------------------------------------------#
-  LargeFileCount_Test:
-    name: Publish wwwroot using Windows
-    runs-on: windows-latest
-    needs: Package_RunTests
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download built action artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: built-action-artifacts
-          path: .
-      - uses: ./
-        name: Upload wwwroot to /LargeFileCountTest/Windows
-        with:
-          connection_string: ${{secrets.AzureBlobConnectionString}}
-          container_name: ci-cd
-          destination_folder: LargeFileCountTest/Windows
-          source_folder: TestFiles\wwwroot\
-          clean_destination_folder: true
 
 #--------------------------------------------------------------------------------------#
 # Multiple tests for uploading files using ConnectionString credentials
@@ -59,12 +36,12 @@ jobs:
   Upload_Test_ConnStr:
     name: Upload Tests (ConnectionString credentials)
     runs-on: windows-latest
-    needs: LargeFileCount_Test
+    needs: Package_RunTests
     steps:
       - uses: actions/checkout@v6
 
       - name: Download built action artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: built-action-artifacts
           path: .
@@ -153,18 +130,30 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
 
+      - run: Start-Sleep -Seconds 2
+
+      - uses: ./
+        name: Upload wwwroot to /LargeFileCountTest/Windows
+        with:
+          connection_string: ${{secrets.AzureBlobConnectionString}}
+          container_name: ci-cd
+          destination_folder: LargeFileCountTest/Windows
+          source_folder: TestFiles\wwwroot\
+          clean_destination_folder: true
+
+
 #--------------------------------------------------------------------------------------#
 # Multiple tests for uploading files using Service Principal credentials
 #--------------------------------------------------------------------------------------#
   Upload_Test_SP:
     name: Upload Tests (Service Principal credentials)
     runs-on: windows-latest
-    needs: LargeFileCount_Test
+    needs: Upload_Test_ConnStr
     steps:
       - uses: actions/checkout@v6
 
       - name: Download built action artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: built-action-artifacts
           path: .
