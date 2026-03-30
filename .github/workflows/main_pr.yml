@@ -20,18 +20,67 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: '22'
+          node-version: '24'
           
       - name: "Run scripts"
         run: npm run all
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
 
+
+#--------------------------------------------------------------------------------------#
+# Temp directory Tests
+#--------------------------------------------------------------------------------------#
+  Linux_TempDir_Test:
+    name: 'Test Linux Temp Directory'
+    runs-on: ubuntu-latest
+    needs: Package_RunTests
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Generate temp files for upload test
+        run: |
+          mkdir -p ${{runner.temp}}/my-data
+          for i in {1..10}; 
+            do echo "Test file $i" > ${{runner.temp}}/my-data/file_$i.txt;
+          done
+
+      - uses: ./
+        name: Upload Temp Directory Files
+        with:
+          connection_string: ${{secrets.AzureBlobConnectionString}}
+          container_name: ci-cd
+          destination_folder: TempDirTest/Linux
+          source_folder: ${{runner.temp}}/my-data
+          clean_destination_folder: true
+
+  Windows_TempDir_Test:
+    name: 'Test Windows Temp Directory'
+    runs-on: windows-latest
+    needs: Package_RunTests
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Generate temp files for upload test
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "${{runner.temp}}/my-data"
+          1..10 | ForEach-Object { "Test file $_" | Out-File "${{runner.temp}}/my-data/file_$_.txt" }
+
+      - uses: ./
+        name: Upload Temp Directory Files
+        with:
+          connection_string: ${{secrets.AzureBlobConnectionString}}
+          container_name: ci-cd
+          destination_folder: TempDirTest/Windows
+          source_folder: ${{runner.temp}}/my-data
+          clean_destination_folder: true
+
 #--------------------------------------------------------------------------------------#
 # Single test for uploading a large number of files to test performance or problems.
 #--------------------------------------------------------------------------------------#
   LargeFileCount_Test:
-    name: 'Publish wwwroot using Windows'
+    name: 'Test Large File Count Upload'
     runs-on: windows-latest
     needs: Package_RunTests
     steps:
