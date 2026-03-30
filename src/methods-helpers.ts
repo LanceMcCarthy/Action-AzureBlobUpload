@@ -77,14 +77,14 @@ export function CleanPath(folderPath: string): string {
   // Ensure all path separators are forward slashes
   folderPath = folderPath.replace(/\\/g, '/');
 
-  // Remove any dot prefix
+  // Remove any dot prefix and any leading slash that immediately follows it.
+  // This handles relative paths like './folder' -> 'folder' without affecting
+  // absolute paths like '/home/runner/work/...' which must keep their leading slash.
   if (folderPath.startsWith('.')) {
     folderPath = folderPath.substr(1);
-  }
-
-  // Remove leading slash
-  if (folderPath.startsWith('/')) {
-    folderPath = folderPath.substr(1);
+    if (folderPath.startsWith('/')) {
+      folderPath = folderPath.substr(1);
+    }
   }
 
   // Remove trailing slash

@@ -164,6 +164,27 @@ describe('main.ts', () => {
     );
     expect(core.setFailed).not.toHaveBeenCalled();
   });
+  it('preserves absolute source_folder path (leading slash) on Linux runners', async () => {
+    const {core, methodsAzure} = await runMainWithInputs({
+      auth_type: 'connection_string',
+      connection_string: 'UseDevelopmentStorage=true',
+      container_name: 'container',
+      source_folder: '/home/runner/work/_temp/janitor-data',
+      destination_folder: 'janitor-data',
+      clean_destination_folder: 'false',
+      fail_if_source_empty: 'false',
+      is_recursive: 'false',
+      delete_if_exists: 'true'
+    });
+
+    expect(methodsAzure.UploadToAzure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceFolder: '/home/runner/work/_temp/janitor-data',
+        destinationFolder: 'janitor-data'
+      })
+    );
+    expect(core.setFailed).not.toHaveBeenCalled();
+  });
   it('fails the action when UploadToAzure rejects', async () => {
     const uploadError = new Error('upload failed from main');
     const {core} = await runMainWithInputs(
