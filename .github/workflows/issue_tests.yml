@@ -21,6 +21,14 @@ jobs:
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
 
+      - name: Upload built action artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: |
+            dist/**
+            lib/**
+
 #--------------------------------------------------------------------------------------#
 # Single test for uploading a large number of files to test performance and any potential issues
 #--------------------------------------------------------------------------------------#
@@ -30,6 +38,12 @@ jobs:
     needs: Package_RunTests
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download built action artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: .
       - uses: ./
         name: Upload wwwroot to /LargeFileCountTest/Windows
         with:
@@ -48,6 +62,12 @@ jobs:
     needs: LargeFileCount_Test
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download built action artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: .
 
       - name: Generating Unique File Names for This Run
         run: |
@@ -142,6 +162,12 @@ jobs:
     needs: LargeFileCount_Test
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download built action artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: .
 
       - name: Generating Unique File Names for This Run
         run: |

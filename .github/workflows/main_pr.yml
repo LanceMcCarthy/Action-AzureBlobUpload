@@ -1,5 +1,6 @@
 name: 'Pull Request Validation'
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - main
@@ -27,6 +28,14 @@ jobs:
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
 
+      - name: Upload built action artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: |
+            dist/**
+            lib/**
+
 
 #--------------------------------------------------------------------------------------#
 # Temp directory Tests
@@ -38,10 +47,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Download built action artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: .
+
       - name: Generate temp files for upload test
         run: |
           mkdir -p ${{runner.temp}}/my-data
-          for i in {1..10}; 
+          for i in {1..100}; 
             do echo "Test file $i" > ${{runner.temp}}/my-data/file_$i.txt;
           done
 
@@ -61,11 +76,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Download built action artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: .
+
       - name: Generate temp files for upload test
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "${{runner.temp}}/my-data"
-          1..10 | ForEach-Object { "Test file $_" | Out-File "${{runner.temp}}/my-data/file_$_.txt" }
+          1..100 | ForEach-Object { "Test file $_" | Out-File "${{runner.temp}}/my-data/file_$_.txt" }
 
       - uses: ./
         name: Upload Temp Directory Files
@@ -74,23 +95,4 @@ jobs:
           container_name: ci-cd
           destination_folder: TempDirTest/Windows
           source_folder: ${{runner.temp}}/my-data
-          clean_destination_folder: true
-
-#--------------------------------------------------------------------------------------#
-# Single test for uploading a large number of files to test performance or problems.
-#--------------------------------------------------------------------------------------#
-  LargeFileCount_Test:
-    name: 'Test Large File Count Upload'
-    runs-on: windows-latest
-    needs: Package_RunTests
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./
-        name: Upload wwwroot to /LargeFileCountTest/Windows
-        with:
-          connection_string: ${{secrets.AzureBlobConnectionString}}
-          container_name: ci-cd
-          destination_folder: LargeFileCountTest/Windows
-          source_folder: TestFiles\wwwroot\
           clean_destination_folder: true

@@ -28,6 +28,14 @@ jobs:
         env:
           NODE_OPTIONS: "--max_old_space_size=4096"
 
+      - name: Upload built action artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: |
+            dist/**
+            lib/**
+
 #--------------------------------------------------------------------------------------#
 # Temp directory Tests
 #--------------------------------------------------------------------------------------#
@@ -37,6 +45,12 @@ jobs:
     needs: Package_RunTests
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download built action artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: .
 
       - name: Generate temp files for upload test
         run: |
@@ -61,6 +75,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Download built action artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: .
+
       - name: Generate temp files for upload test
         shell: pwsh
         run: |
@@ -76,35 +96,21 @@ jobs:
           source_folder: ${{runner.temp}}/my-data
           clean_destination_folder: true
 
-
-#--------------------------------------------------------------------------------------#
-# Single test for uploading a large number of files to test performance or problems.
-#--------------------------------------------------------------------------------------#
-  LargeFileCount_Test:
-    name: 'Test Large File Count Upload'
-    runs-on: windows-latest
-    needs: Package_RunTests
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: ./
-        name: Upload wwwroot to /LargeFileCountTest/Windows
-        with:
-          connection_string: ${{secrets.AzureBlobConnectionString}}
-          container_name: ci-cd
-          destination_folder: LargeFileCountTest/Windows
-          source_folder: TestFiles\wwwroot\
-          clean_destination_folder: true
-
 #--------------------------------------------------------------------------------------#
 # Multiple tests for uploading files using ConnectionString credentials.
 #--------------------------------------------------------------------------------------#
   Upload_Test_ConnStr:
     name: 'Upload Tests (ConnectionString)'
     runs-on: windows-latest
-    needs: LargeFileCount_Test
+    needs: Package_RunTests
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download built action artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: .
 
       - name: Generating Unique File Names for This Run
         run: |
@@ -190,6 +196,17 @@ jobs:
           clean_destination_folder: true
           is_recursive: false
 
+      - run: Start-Sleep -Seconds 3
+
+      - uses: ./
+        name: Upload wwwroot to /LargeFileCountTest/Windows
+        with:
+          connection_string: ${{secrets.AzureBlobConnectionString}}
+          container_name: ci-cd
+          destination_folder: LargeFileCountTest/Windows
+          source_folder: TestFiles\wwwroot\
+          clean_destination_folder: true
+
 #--------------------------------------------------------------------------------------#
 # Multiple tests for uploading files using Service Principal credentials
 #--------------------------------------------------------------------------------------#
@@ -199,6 +216,12 @@ jobs:
     needs: Upload_Test_ConnStr
     steps:
       - uses: actions/checkout@v6
+
+      - name: Download built action artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: built-action-artifacts
+          path: .
 
       - name: Generating Unique File Names for This Run
         run: |
