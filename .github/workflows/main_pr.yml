@@ -59,8 +59,10 @@ jobs:
         with:
           egress-policy: audit
 
+      - uses: actions/checkout@v6
+
       - name: Download built action artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: built-action-artifacts
           path: .
@@ -91,8 +93,10 @@ jobs:
         with:
           egress-policy: audit
 
+      - uses: actions/checkout@v6
+
       - name: Download built action artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: built-action-artifacts
           path: .
