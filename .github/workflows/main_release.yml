@@ -1,4 +1,5 @@
 name: 'Upload Tests'
+
 on:
   workflow_dispatch:
   push:
@@ -9,6 +10,9 @@ on:
       - 'package.json'
       - 'package-lock.json'
 
+env:
+  ALLOWED_ENDPOINTS: "github.com:443 registry.npmjs.org:443 api.akeyless.io:443"
+
 jobs:
 #--------------------------------------------------------------------------------------#
 # Ensure the package builds and all tests pass.
@@ -17,6 +21,11 @@ jobs:
     name: 'Build Package and Run Tests'
     runs-on: windows-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
@@ -44,8 +53,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: Package_RunTests
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+          egress-policy: audit
+
       - name: Download built action artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: built-action-artifacts
           path: .
@@ -71,8 +85,13 @@ jobs:
     runs-on: windows-latest
     needs: Package_RunTests
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+          egress-policy: audit
+
       - name: Download built action artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: built-action-artifacts
           path: .
@@ -100,10 +119,15 @@ jobs:
     runs-on: windows-latest
     needs: Package_RunTests
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@v6
 
       - name: Download built action artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: built-action-artifacts
           path: .
@@ -211,10 +235,15 @@ jobs:
     runs-on: windows-latest
     needs: Upload_Test_ConnStr
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@v6
 
       - name: Download built action artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: built-action-artifacts
           path: .
