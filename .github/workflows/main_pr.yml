@@ -18,7 +18,7 @@ jobs:
 #--------------------------------------------------------------------------------------#
   Package_RunTests:
     name: 'Build Package and Run Tests'
-    if: contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+    if: contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) || github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: windows-latest
     steps:
       - name: Harden Runner
