@@ -12,5 +12,5 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "exclude": ["node_modules", "**/*.test.ts", "__mocks__", "__tests__"]
+  "exclude": ["node_modules", "**/*.test.ts", "__mocks__", "__tests__", "vitest.config.ts"]
 }

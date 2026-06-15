@@ -1,4 +1,3 @@
-import jest from "eslint-plugin-jest";
 import i18nText from "eslint-plugin-i18n-text";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import stylistic from "@stylistic/eslint-plugin";
@@ -27,10 +26,8 @@ export default [
     {
     ignores: ["**/dist/", "**/lib/", "**/node_modules/", "eslint.config.mjs"],
     }, 
-    ...compat.extends("plugin:jest/recommended").map(config => ({files: ["**/*.ts"], ...config})), 
     {
     plugins: {
-        jest,
         // "i18n-text": i18nText,
         // "@typescript-eslint": typescriptEslint,
         stylistic,
@@ -38,7 +35,6 @@ export default [
     languageOptions: {
         globals: {
             ...globals.node,
-            ...jest.environments.globals.globals,
         },
         parser: tsParser,
         ecmaVersion: 9,

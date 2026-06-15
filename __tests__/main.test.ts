@@ -1,19 +1,19 @@
-import {afterEach, beforeEach, describe, expect, it, jest} from '@jest/globals';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-jest.mock('../src/methods-azure', () => ({
-  UploadToAzure: jest.fn()
+vi.mock('../src/methods-azure', () => ({
+  UploadToAzure: vi.fn()
 }));
 
 const flushPromises = () => new Promise<void>(resolve => setImmediate(resolve));
 
 async function runMainWithInputs(inputs: Record<string, string>, uploadError?: Error) {
-  jest.resetModules();
+  vi.resetModules();
 
   const core = await import('@actions/core');
   const methodsAzure = await import('../src/methods-azure');
 
-  const getInputMock = core.getInput as unknown as jest.MockedFunction<(...args: unknown[]) => unknown>;
-  const uploadToAzureMock = methodsAzure.UploadToAzure as unknown as jest.MockedFunction<(...args: unknown[]) => Promise<unknown>>;
+  const getInputMock = core.getInput as any;
+  const uploadToAzureMock = methodsAzure.UploadToAzure as any;
 
   getInputMock.mockImplementation((...args: unknown[]) => {
     const name = String(args[0]);
@@ -33,11 +33,11 @@ async function runMainWithInputs(inputs: Record<string, string>, uploadError?: E
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('main.ts', () => {

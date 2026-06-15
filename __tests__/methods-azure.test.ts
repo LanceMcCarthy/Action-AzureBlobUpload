@@ -2,7 +2,7 @@ import * as azure from '../src/methods-azure';
 import * as core from '@actions/core';
 import * as helpers from '../src/methods-helpers';
 import * as path from 'path';
-import {expect, describe, it, jest, afterEach} from '@jest/globals';
+import {expect, describe, it, vi, afterEach, beforeAll} from 'vitest';
 import type {
   BlockBlobParallelUploadOptions,
   BlobUploadCommonResponse,
@@ -11,45 +11,43 @@ import type {
   BlobDeleteResponse
 } from '@azure/storage-blob';
 
-jest.mock('@actions/core', () => ({
-  info: jest.fn(),
-  error: jest.fn(),
-  debug: jest.fn(),
-  setFailed: jest.fn()
+vi.mock('@actions/core', () => ({
+  info: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+  setFailed: vi.fn()
 }));
 
-jest.mock('@azure/storage-blob', () => {
-  const mockUploadFile = jest
-    .fn<(filePath: string, options?: BlockBlobParallelUploadOptions) => Promise<BlobUploadCommonResponse>>()
+vi.mock('@azure/storage-blob', () => {
+  const mockUploadFile = vi
+    .fn<[filePath: string, options?: BlockBlobParallelUploadOptions], Promise<BlobUploadCommonResponse>>()
     .mockResolvedValue({errorCode: undefined} as BlobUploadCommonResponse);
-  const mockDeleteIfExists = jest
-    .fn<(options?: BlobDeleteOptions) => Promise<BlobDeleteIfExistsResponse>>()
-    .mockResolvedValue({} as BlobDeleteIfExistsResponse);
-  const mockDelete = jest.fn<(options?: BlobDeleteOptions) => Promise<BlobDeleteResponse>>().mockResolvedValue({errorCode: undefined} as BlobDeleteResponse);
+  const mockDeleteIfExists = vi.fn<[options?: BlobDeleteOptions], Promise<BlobDeleteIfExistsResponse>>().mockResolvedValue({} as BlobDeleteIfExistsResponse);
+  const mockDelete = vi.fn<[options?: BlobDeleteOptions], Promise<BlobDeleteResponse>>().mockResolvedValue({errorCode: undefined} as BlobDeleteResponse);
 
-  const mockGetBlockBlobClient = jest.fn().mockImplementation(() => ({
+  const mockGetBlockBlobClient = vi.fn().mockImplementation(() => ({
     uploadFile: mockUploadFile,
     deleteIfExists: mockDeleteIfExists,
     delete: mockDelete
   }));
-  const mockListBlobsFlat = jest.fn().mockReturnValue({
+  const mockListBlobsFlat = vi.fn().mockReturnValue({
     async *[Symbol.asyncIterator]() {
       /* no-op */
     }
   });
   const mockContainerClient = {
-    exists: jest.fn(),
-    create: jest.fn<any>().mockResolvedValue(undefined),
+    exists: vi.fn(),
+    create: vi.fn<any, any>().mockResolvedValue(undefined),
     getBlockBlobClient: mockGetBlockBlobClient,
     listBlobsFlat: mockListBlobsFlat
   };
 
   const mockServiceClient = {
-    getContainerClient: jest.fn().mockReturnValue(mockContainerClient)
+    getContainerClient: vi.fn().mockReturnValue(mockContainerClient)
   };
 
   class BlobServiceClient {
-    static fromConnectionString = jest.fn().mockReturnValue(mockServiceClient);
+    static fromConnectionString = vi.fn().mockReturnValue(mockServiceClient);
     constructor() {
       return mockServiceClient;
     }
@@ -66,12 +64,12 @@ jest.mock('@azure/storage-blob', () => {
   };
 });
 
-jest.mock('@azure/identity', () => {
-  const credentialMock = jest.fn().mockImplementation(() => ({}));
+vi.mock('@azure/identity', () => {
+  const credentialMock = vi.fn().mockImplementation(() => ({}));
   return {ClientSecretCredential: credentialMock};
 });
 
-const {__mock: blobMock} = jest.requireMock('@azure/storage-blob') as any;
+let blobMock: any;
 
 const asyncIterable = (items: {name: string}[]) => ({
   async *[Symbol.asyncIterator]() {
@@ -83,9 +81,13 @@ const asyncIterable = (items: {name: string}[]) => ({
 
 const flushPromises = () => new Promise<void>(resolve => setImmediate(resolve));
 
+beforeAll(async () => {
+  const mod = (await import('@azure/storage-blob')) as any;
+  blobMock = mod.__mock;
+});
+
 afterEach(() => {
-  jest.clearAllMocks();
-  jest.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('UploadToAzure', () => {
@@ -188,7 +190,7 @@ describe('UploadToAzure', () => {
   it('fails when folder discovery is empty and failIfSourceEmpty is enabled', async () => {
     blobMock.containerClient.exists.mockResolvedValue(true);
     blobMock.containerClient.listBlobsFlat.mockReturnValue(asyncIterable([]));
-    const findRecursiveSpy = jest.spyOn(helpers, 'FindFilesRecursive').mockResolvedValue([]);
+    const findRecursiveSpy = vi.spyOn(helpers, 'FindFilesRecursive').mockResolvedValue([]);
 
     await azure.UploadToAzure({
       authPayload: {type: 'connection_string', connectionString: 'UseDevelopmentStorage=true'},
@@ -209,7 +211,7 @@ describe('UploadToAzure', () => {
   it('does not fail the action when source is empty and failIfSourceEmpty is disabled', async () => {
     blobMock.containerClient.exists.mockResolvedValue(true);
     blobMock.containerClient.listBlobsFlat.mockReturnValue(asyncIterable([]));
-    const findRecursiveSpy = jest.spyOn(helpers, 'FindFilesRecursive').mockResolvedValue([]);
+    const findRecursiveSpy = vi.spyOn(helpers, 'FindFilesRecursive').mockResolvedValue([]);
 
     await azure.UploadToAzure({
       authPayload: {type: 'connection_string', connectionString: 'UseDevelopmentStorage=true'},
@@ -231,7 +233,7 @@ describe('UploadToAzure', () => {
   it('uploads folder contents discovered via FindFilesFlat', async () => {
     blobMock.containerClient.exists.mockResolvedValue(true);
     blobMock.containerClient.listBlobsFlat.mockReturnValue(asyncIterable([]));
-    const findFlatSpy = jest.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file1.txt']);
+    const findFlatSpy = vi.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file1.txt']);
 
     await azure.UploadToAzure({
       authPayload: {type: 'connection_string', connectionString: 'UseDevelopmentStorage=true'},
@@ -253,9 +255,9 @@ describe('UploadToAzure', () => {
   });
 
   it('uses service principal credentials and reports upload progress', async () => {
-    const identityMock = jest.requireMock('@azure/identity') as {ClientSecretCredential: jest.Mock};
+    const mod = (await import('@azure/identity')) as any;
     blobMock.containerClient.exists.mockResolvedValue(true);
-    const findFlatSpy = jest.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file1.txt']);
+    const findFlatSpy = vi.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file1.txt']);
     blobMock.uploadFile.mockImplementationOnce(async (_filePath: any, options?: BlockBlobParallelUploadOptions) => {
       options?.onProgress?.({loadedBytes: 42});
       return {errorCode: undefined};
@@ -280,7 +282,7 @@ describe('UploadToAzure', () => {
 
     await flushPromises();
 
-    expect(identityMock.ClientSecretCredential).toHaveBeenCalledWith('tenant-id', 'client-id', 'client-secret');
+    expect(mod.ClientSecretCredential).toHaveBeenCalledWith('tenant-id', 'client-id', 'client-secret');
     expect(findFlatSpy).toHaveBeenCalledWith('src');
     expect(core.info).toHaveBeenCalledWith('42 bytes uploaded...');
   });
@@ -308,7 +310,7 @@ describe('UploadToAzure', () => {
   it('logs failure when folder discovery rejects', async () => {
     blobMock.containerClient.exists.mockResolvedValue(true);
     const scanError = new Error('scan failed');
-    jest.spyOn(helpers, 'FindFilesFlat').mockRejectedValueOnce(scanError);
+    vi.spyOn(helpers, 'FindFilesFlat').mockRejectedValueOnce(scanError);
 
     await azure.UploadToAzure({
       authPayload: {type: 'connection_string', connectionString: 'UseDevelopmentStorage=true'},
@@ -362,8 +364,8 @@ describe('UploadToAzure', () => {
 
   it('trims leading slashes for folder uploads and surfaces blob errors', async () => {
     blobMock.containerClient.exists.mockResolvedValue(true);
-    const findFlatSpy = jest.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file-with-slash.txt']);
-    const cleanPathSpy = jest.spyOn(helpers, 'CleanPath');
+    const findFlatSpy = vi.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file-with-slash.txt']);
+    const cleanPathSpy = vi.spyOn(helpers, 'CleanPath');
     cleanPathSpy.mockImplementationOnce(() => '//src');
     cleanPathSpy.mockImplementationOnce(() => '//src//file-with-slash.txt');
     blobMock.uploadFile.mockResolvedValueOnce({errorCode: 'FOLDER_ERR'});
@@ -390,7 +392,7 @@ describe('UploadToAzure', () => {
     blobMock.containerClient.exists.mockResolvedValue(true);
     blobMock.containerClient.listBlobsFlat.mockReturnValue(asyncIterable([{name: 'dest/old.txt'}]));
     blobMock.deleteBlob.mockResolvedValueOnce({errorCode: 'delete-failed'});
-    const findFlatSpy = jest.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file.txt']);
+    const findFlatSpy = vi.spyOn(helpers, 'FindFilesFlat').mockResolvedValue(['src/file.txt']);
 
     await azure.UploadToAzure({
       authPayload: {type: 'connection_string', connectionString: 'UseDevelopmentStorage=true'},
