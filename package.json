@@ -15,7 +15,7 @@
     "lint": "eslint src/**/*.ts",
     "audit": "npm audit",
     "audit:prod": "npm audit --omit=dev",
-    "package": "ncc build lib/main.js --source-map --license licenses.txt",
+    "package": "ncc build lib/main.js -o dist --source-map --license licenses.txt",
     "test": "vitest run --coverage",
     "update-browser-list": "npx update-browserslist-db@latest",
     "pre-commit": "npm run format && npm run lint && npm run rebuild && npm run package",
