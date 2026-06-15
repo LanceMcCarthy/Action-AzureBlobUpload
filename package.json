@@ -54,6 +54,7 @@
     "@typescript-eslint/visitor-keys": "8.60.0",
     "strnum": "2.3.0",
     "glob": "13.0.6",
+    "js-yaml": "4.2.0",
     "react-is": "19.2.6",
     "react-is-19": "npm:react-is@19.2.6",
     "pretty-format": {
