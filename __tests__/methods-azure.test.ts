@@ -2,7 +2,7 @@ import * as azure from '../src/methods-azure';
 import * as core from '@actions/core';
 import * as helpers from '../src/methods-helpers';
 import * as path from 'path';
-import {expect, describe, it, vi, afterEach, beforeAll} from 'vitest';
+import {expect, describe, it, vi, afterEach, beforeAll, beforeEach} from 'vitest';
 import type {
   BlockBlobParallelUploadOptions,
   BlobUploadCommonResponse,
@@ -65,8 +65,10 @@ vi.mock('@azure/storage-blob', () => {
 });
 
 vi.mock('@azure/identity', () => {
-  const credentialMock = vi.fn().mockImplementation(() => ({}));
-  return {ClientSecretCredential: credentialMock};
+  const ClientSecretCredential = vi.fn(function ClientSecretCredential(this: unknown) {
+    return {};
+  });
+  return {ClientSecretCredential};
 });
 
 let blobMock: any;
@@ -86,7 +88,19 @@ beforeAll(async () => {
   blobMock = mod.__mock;
 });
 
+beforeEach(() => {
+  blobMock.uploadFile.mockReset().mockResolvedValue({errorCode: undefined} as BlobUploadCommonResponse);
+  blobMock.deleteIfExists.mockReset().mockResolvedValue({} as BlobDeleteIfExistsResponse);
+  blobMock.deleteBlob.mockReset().mockResolvedValue({errorCode: undefined} as BlobDeleteResponse);
+
+  blobMock.containerClient.exists.mockReset().mockResolvedValue(true);
+  blobMock.containerClient.create.mockReset().mockResolvedValue(undefined);
+  blobMock.containerClient.listBlobsFlat.mockReset().mockReturnValue(asyncIterable([]));
+  blobMock.containerClient.getBlockBlobClient.mockClear();
+});
+
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
