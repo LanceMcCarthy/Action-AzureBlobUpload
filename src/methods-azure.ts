@@ -194,7 +194,7 @@ async function uploadFolderContent(
     core.debug(`--- cleaned: ${cleanedFilePath}`);
 
     // Determining the relative path by trimming the source path from the front of the string.
-    const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length + 1);
+    const trimmedPath = cleanedFilePath.slice(cleanedSourceFolderPath.length + 1);
     let finalPath: string;
 
     if (cleanedDestinationFolder !== '') {
@@ -208,7 +208,7 @@ async function uploadFolderContent(
 
     // Final check to trim any leading slashes that might have been added, the container is always the root
     if (finalPath.startsWith('/')) {
-      finalPath = finalPath.substr(1);
+      finalPath = finalPath.slice(1);
     }
 
     //Normalize a string path, reducing '..' and '.' parts. When multiple slashes are found, they're replaced by a single one; when the path contains a trailing slash, it is preserved. On Windows backslashes are used.
