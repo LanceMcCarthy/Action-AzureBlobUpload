@@ -5,6 +5,7 @@ describe('getFinalPathForFileName', () => {
   it('Should return just the filename if no destination is given', () => {
     expect(helpers.getFinalPathForFileName('./test.txt')).toEqual('test.txt');
     expect(helpers.getFinalPathForFileName('./build/bin/test.exe')).toEqual('test.exe');
+    expect(helpers.getFinalPathForFileName('./test.txt', '')).toEqual('test.txt');
   });
 
   it('Should correctly join destination folder with file name', () => {
@@ -54,9 +55,21 @@ describe('normalizePath', () => {
   it('should return empty string for dot references', () => {
     expect(helpers.normalizePath('./', 'source_folder')).toEqual('');
   });
+
+  it('should return normalized non-dot paths', () => {
+    expect(helpers.normalizePath('folder/../file.txt', 'source_folder')).toEqual('file.txt');
+  });
 });
 
 describe('CleanPath', () => {
+  it('should remove a dot prefix and its leading slash', () => {
+    expect(helpers.CleanPath('./folder')).toEqual('folder');
+  });
+
+  it('should remove a dot prefix without a leading slash', () => {
+    expect(helpers.CleanPath('.folder')).toEqual('folder');
+  });
+
   it('should remove dot prefixes, duplicate separators and trailing slashes', () => {
     expect(helpers.CleanPath('.\\folder\\subfolder/')).toEqual('folder/subfolder');
   });
