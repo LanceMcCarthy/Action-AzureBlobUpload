@@ -40,26 +40,6 @@
     "url": "https://github.com/LanceMcCarthy/Action-AzureBlobUpload/issues"
   },
   "homepage": "https://github.com/LanceMcCarthy/Action-AzureBlobUpload#readme",
-  "overrides": {
-    "typescript-eslint": "8.60.0",
-    "@typescript-eslint/eslint-plugin": "8.60.0",
-    "@typescript-eslint/parser": "8.60.0",
-    "@typescript-eslint/project-service": "8.60.0",
-    "@typescript-eslint/scope-manager": "8.60.0",
-    "@typescript-eslint/tsconfig-utils": "8.60.0",
-    "@typescript-eslint/type-utils": "8.60.0",
-    "@typescript-eslint/types": "8.60.0",
-    "@typescript-eslint/typescript-estree": "8.60.0",
-    "@typescript-eslint/utils": "8.60.0",
-    "@typescript-eslint/visitor-keys": "8.60.0",
-    "strnum": "2.3.0",
-    "js-yaml": "4.3.0",
-    "react-is": "19.2.6",
-    "react-is-19": "npm:react-is@19.2.6",
-    "pretty-format": {
-      "react-is-19": "npm:react-is@19.2.6"
-    }
-  },
   "devDependencies": {
     "@actions/core": "3.0.1",
     "@azure/identity": "4.13.1",
