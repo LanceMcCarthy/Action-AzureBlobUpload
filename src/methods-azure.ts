@@ -162,15 +162,7 @@ async function uploadFolderContent(
 ) {
   core.info(`"INFO - source_folder is a folder path... using normal directory content upload mode."`);
 
-  let sourcePaths: string[] = [];
-
-  if (isRecursive) {
-    // Get an array of all the file paths and subfolder file paths in the source folder
-    sourcePaths = await helpers.FindFilesRecursive(sourceFolder);
-  } else {
-    // Get an array of all the file paths in the source folder
-    sourcePaths = await helpers.FindFilesFlat(sourceFolder);
-  }
+  const sourcePaths = isRecursive ? await helpers.FindFilesRecursive(sourceFolder) : await helpers.FindFilesFlat(sourceFolder);
 
   if (sourcePaths.length < 1) {
     core.error('There are no files in the source_folder, please double check your folder path (confirm it is correct and has content).');
@@ -203,7 +195,7 @@ async function uploadFolderContent(
 
     // Determining the relative path by trimming the source path from the front of the string.
     const trimmedPath = cleanedFilePath.substr(cleanedSourceFolderPath.length + 1);
-    let finalPath = '';
+    let finalPath: string;
 
     if (cleanedDestinationFolder !== '') {
       // If there is a DestinationFolder set, prefix it to the relative path.
