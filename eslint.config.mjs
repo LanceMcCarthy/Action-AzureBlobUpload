@@ -1,35 +1,18 @@
-import i18nText from "eslint-plugin-i18n-text";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import stylistic from "@stylistic/eslint-plugin";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import js from "@eslint/js";
-import { FlatCompat } from "@eslint/eslintrc";
-import github from 'eslint-plugin-github'
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
-});
 
 export default [
-    // i18nText.configs.recommended,
-    // stylistic.configs.recommended,
-    // typescriptEslint.configs.recommended,
-    github.getFlatConfigs().recommended,
-    ...github.getFlatConfigs().typescript,
+    js.configs.recommended,
     {
-    ignores: ["**/dist/", "**/lib/", "**/node_modules/", "eslint.config.mjs"],
-    }, 
+        ignores: ["**/dist/", "**/lib/", "**/node_modules/", "eslint.config.mjs"],
+    },
     {
+    files: ["src/**/*.ts"],
     plugins: {
-        // "i18n-text": i18nText,
-        // "@typescript-eslint": typescriptEslint,
+        "@typescript-eslint": typescriptEslint,
         stylistic,
     },
     languageOptions: {
@@ -37,26 +20,20 @@ export default [
             ...globals.node,
         },
         parser: tsParser,
-        ecmaVersion: 9,
+        ecmaVersion: "latest",
         sourceType: "module",
         parserOptions: {
             project: "./tsconfig.json",
         },
     },
     rules: {
-        "i18n-text/no-en": "off",
         "no-unused-vars": "off",
         semi: "off",
         camelcase: "off",
-        "eslint-comments/no-use": "off",
-        "import/no-namespace": "off",
-        "github/array-foreach": "off",
-        "github/no-then": "off",
         "@typescript-eslint/no-unused-vars": "error",
         "@typescript-eslint/explicit-member-accessibility": ["error", {
             accessibility: "no-public",
         }],
-        "filenames/match-regex": "off",
         "@typescript-eslint/no-require-imports": "error",
         "@typescript-eslint/array-type": "error",
         "@typescript-eslint/await-thenable": "error",
