@@ -42,7 +42,7 @@
   "homepage": "https://github.com/LanceMcCarthy/Action-AzureBlobUpload#readme",
   "devDependencies": {
     "@actions/core": "3.0.1",
-    "@azure/identity": "4.13.3",
+    "@azure/identity": "4.14.1",
     "@azure/storage-blob": "12.34.0",
     "@eslint/js": "10.0.1",
     "@stylistic/eslint-plugin": "5.10.0",
